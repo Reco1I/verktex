@@ -11,10 +11,10 @@ applications include it (`includeBuild`) and depend on `com.reco1l.verktex:<modu
 ./gradlew build
 
 # Tests
-./gradlew :verktex:desktopTest :verktex:testAndroidHostTest :shadertools:test
+./gradlew :shared:desktopTest :shared:testAndroidHostTest :shadertools:test
 
 # The UI test browser on desktop; --test opens a test, --screenshot saves a frame and exits
-./gradlew :verktex:run --args="--test 'Verktex/Text' --screenshot build/text.png"
+./gradlew :desktopApp:run --args="--test 'Verktex/Text' --screenshot build/text.png"
 ```
 
 Requires **Java 17**, and for the Android target the **Android NDK 22.1.7171670** and the **android-36.1**
@@ -23,8 +23,8 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 
 ## Modules
 
-- `:verktex` (`verktex/`): the engine, one Kotlin Multiplatform module with an `android` and a
-  `desktop` target. Its source sets:
+- `:shared` (`shared/`): the engine, one Kotlin Multiplatform module with an `android` and a
+  `desktop` target, which applications depend on as `com.reco1l.verktex:shared`. Its source sets:
   - `commonMain`: everything platform independent: rendering, audio, input, clocks (`time/`), the UI
     components (`UIComponent`, `UIContainer`, `UIScene`, `UISprite`…), settings, localization and
     networking.
@@ -33,10 +33,13 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   - `androidMain`: the Android platform (`com/reco1l/verktex/android/`): the graphics backends
     (OpenGL ES 2 and 3, Vulkan), the BASS audio library (`com.un4seen.bass`, in Java, and its
     natives in `jniLibs/`) and ExoPlayer video.
-  - `desktopMain`: the desktop platform: OpenGL 3.3 through LWJGL, BASS through JNA, FFmpeg video,
-    and the UI test browser, see `docs/desktop-platform.md`.
+  - `desktopMain`: the desktop platform: OpenGL 3.3 through LWJGL, BASS through JNA and FFmpeg
+    video, see `docs/desktop-platform.md`.
   - `desktopTest` (the common and desktop tests) and `androidHostTest` (Robolectric).
   - `assets/`: the built-in shaders and fonts, a plain folder each platform packages.
+- `:androidApp` and `:desktopApp`: the applications, with only their entry points: the browsers of
+  the engine's own UI tests (`VerktexUITestActivity`, `VerktexUITestsMain`). The layout follows
+  https://kotlinlang.org/docs/multiplatform/multiplatform-project-recommended-structure.html.
 - `:android-natives`: what the Android platform needs from the NDK, which the Kotlin Multiplatform
   Android plugin can't build: the native library of the Vulkan backend (`src/main/cpp`), the task
   that compiles the shaders to SPIR-V, and the Vulkan validation layer of debug builds.
