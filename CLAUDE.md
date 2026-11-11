@@ -66,5 +66,4 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 
 ## Docs
 
-`docs/extraction.md` (layout and rules), `docs/desktop-platform.md`, `docs/vulkan-backend.md`,
-`docs/frame-rate.md`, `docs/texture-blending.md`, `docs/engine-consolidation.md`.
+All available under `/docs` directory.
