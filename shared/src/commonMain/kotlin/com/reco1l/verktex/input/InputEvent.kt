@@ -49,6 +49,12 @@ data class KeyboardEvent(
 ) : InputEvent {
 
     /**
+     * Whether this is a press of the key that goes back: Android's back button, or Escape.
+     */
+    val isBackPress
+        get() = action == Action.Down && (key == Key.Back || key == Key.Escape)
+
+    /**
      * Represents the type of action associated with a keyboard event.
      */
     enum class Action {

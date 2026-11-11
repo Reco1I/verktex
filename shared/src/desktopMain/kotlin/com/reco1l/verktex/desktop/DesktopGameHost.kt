@@ -228,7 +228,7 @@ abstract class DesktopGameHost(
                 return@glfwSetKeyCallback
             }
 
-            val consumed = Input.dispatchKeyboardEvent(
+            Input.dispatchKeyboardEvent(
                 // A held key repeats as more presses, as on Android.
                 action = if (action == GLFW_RELEASE) KeyboardEvent.Action.Up else KeyboardEvent.Action.Down,
                 key = glfwKeyToInputKey(key),
@@ -237,10 +237,6 @@ abstract class DesktopGameHost(
                 altPressed = mods and GLFW_MOD_ALT != 0,
                 metaPressed = mods and GLFW_MOD_SUPER != 0
             )
-
-            if (!consumed && action == GLFW_PRESS) {
-                onUnhandledKeyDown(key, mods)
-            }
         }
     }
 
@@ -282,11 +278,6 @@ abstract class DesktopGameHost(
             time = (glfwGetTime() * 1000).toLong()
         )
     }
-
-    /**
-     * Called with a GLFW key code when a key press wasn't consumed by the current scene.
-     */
-    protected open fun onUnhandledKeyDown(key: Int, mods: Int) = Unit
 
     /**
      * Saves the frame shown [delaySeconds] after this call to [file] as a PNG and closes the window,

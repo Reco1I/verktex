@@ -288,6 +288,8 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
         BuiltIn.Fonts.FontAwesomeIconBrands = load("fa-brands", "fa-brands.otf")
     }
 
+    // A press no component consumed goes to the activity, where Back finishes it: scenes consume the
+    // presses they handle in their onInputEvent.
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         val consumed = Input.dispatchKeyboardEvent(
             action = KeyboardEvent.Action.Down,
@@ -297,15 +299,8 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
             altPressed = event.isAltPressed,
             metaPressed = event.isMetaPressed
         )
-        return consumed || onUnhandledKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
+        return consumed || super.onKeyDown(keyCode, event)
     }
-
-    /**
-     * Called when a key press wasn't consumed by the current scene.
-     *
-     * @return Whether the key press was consumed.
-     */
-    protected open fun onUnhandledKeyDown(keyCode: Int, event: KeyEvent) = false
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         val consumed = Input.dispatchKeyboardEvent(
