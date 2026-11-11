@@ -311,7 +311,7 @@ object Verktex {
 
     // Without a cap the update worker spins as fast as it can, which wastes a CPU core and makes each
     // frame so short that eased interpolations barely move.
-    private val UPDATE_INTERVAL = 1.seconds / 240
+    private val UPDATE_INTERVAL = 1.seconds / 1000
 
     // Frames are drawn at most this often. With vsync the display's refresh rate is the limit, but
     // without it the draw worker would otherwise render thousands of frames a second for nothing.
