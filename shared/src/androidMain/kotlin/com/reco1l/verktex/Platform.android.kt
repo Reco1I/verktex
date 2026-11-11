@@ -79,14 +79,19 @@ actual object Platform {
         get() = systemFileSystem
 
     actual val storage: PlatformStorage
-        get() = PlatformStorage(
-            dataDirectory = context.filesDir.toOkioPath(),
-            cacheDirectory = context.cacheDir.toOkioPath(),
-            externalDirectory = if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED) {
-                @Suppress("DEPRECATION")
-                Environment.getExternalStorageDirectory().toOkioPath()
-            } else null,
-        )
+        get() {
+            val isMounted = Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
+
+            @Suppress("DEPRECATION")
+            return PlatformStorage(
+                dataDirectory = context.filesDir.toOkioPath(),
+                cacheDirectory = context.cacheDir.toOkioPath(),
+                externalDirectory = if (isMounted) Environment.getExternalStorageDirectory().toOkioPath() else null,
+                downloadsDirectory = if (isMounted) {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)?.toOkioPath()
+                } else null,
+            )
+        }
 
     actual val audioDriver: AudioDriver by lazy { BASSAudioDriver() }
 

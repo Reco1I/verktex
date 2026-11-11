@@ -49,6 +49,7 @@ actual object Platform {
             dataDirectory = dataDirectory(applicationName),
             cacheDirectory = System.getProperty("java.io.tmpdir").toPath() / applicationName,
             externalDirectory = System.getProperty("user.home").toPath(),
+            downloadsDirectory = System.getProperty("user.home").toPath() / "Downloads",
         )
 
         fileSystem.createDirectories(storage.dataDirectory)
