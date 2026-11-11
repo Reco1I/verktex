@@ -41,6 +41,11 @@ expect object Platform {
     val fileSystem: FileSystem
 
     /**
+     * The number of processors available to the application, at least 1. It doesn't need a host.
+     */
+    val processorCount: Int
+
+    /**
      * The folders where the application keeps its files, see [PlatformStorage].
      */
     val storage: PlatformStorage
