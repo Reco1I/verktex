@@ -72,6 +72,9 @@ actual object Platform {
     actual val uptimeMillis: Long
         get() = SystemClock.uptimeMillis()
 
+    actual val processorCount: Int
+        get() = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+
     actual val fileSystem: FileSystem
         get() = systemFileSystem
 

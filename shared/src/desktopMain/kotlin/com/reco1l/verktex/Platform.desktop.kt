@@ -75,6 +75,9 @@ actual object Platform {
             return (glfwGetTime() * 1000).toLong()
         }
 
+    actual val processorCount: Int
+        get() = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+
     actual val fileSystem: FileSystem
         get() = systemFileSystem
 
