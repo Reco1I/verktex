@@ -52,6 +52,12 @@ actual object Platform {
     private val context: Context
         get() = attached.context
 
+    /**
+     * The application's context, for what outlives the activity, e.g. the databases.
+     */
+    internal val applicationContext: Context
+        get() = context.applicationContext
+
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
 

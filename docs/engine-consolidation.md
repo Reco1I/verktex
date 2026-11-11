@@ -240,33 +240,46 @@ The game's `GameplayVibrations` becomes common code over `Platform.haptics`.
   every visit. If it regresses, keep the carousel data in a driver object.
 - Delete `GlobalManager`, which has about 119 references in 38 files.
 
-### Phase 9: database in Verktex (hard)
+### Phase 9: database in Verktex (easy; updated before starting it)
 
-**`:verktex:database`**
-- A new optional Verktex module, so that `:verktex:core` keeps passing the JS check (Room has no JS
-  target).
-- It provides `Database.open<T : RoomDatabase>(name, factory, migrations)` with `BundledSQLiteDriver`
-  on every platform, the file in `Platform.storage.dataDirectory`, and the Android context supplied
-  internally by `verktex:android`.
-- It also provides an abstraction for engine tables: Verktex entities and DAOs plus a
-  `VerktexTables` interface. A game lists those entities in its own `@Database`, so Verktex tables live
-  alongside game tables. The first of them is an optional key-value store; Settings stay in JSON as
-  decided.
+**What changed since this phase was planned.** Most of its game side was done along the way:
+- `OsuDatabase` is one `@Database @ConstructedBy` class in the game's `commonMain`, which KSP
+  generates for both targets, over the bundled SQLite. The kapt `DroidDatabase`, the desktop
+  `generateSuspendDaos` task and the separate desktop database are gone, and the DAOs suspend.
+- The game has an Android target of its own, so the spike (Room's JVM artifacts in the APK) is moot.
+- The game no longer migrates or imports upstream's data: a database of another version is
+  recreated. `Migrations.kt`, the legacy import and `MigrationTest` are gone, so nothing is ported.
+- Verktex has no JS target any more, and the engine is one module, `:verktex:shared`, so the reason
+  for a separate `:verktex:database` module is gone. The Android context is private to Verktex's
+  `Platform`, which a separate module couldn't reach.
+
+What's left is the plan's engine part: each host still opens the database itself
+(`AndroidDatabase` with the activity's context, `DesktopDatabase`, and both again in memory for the
+UI test browsers).
+
+**Verktex**
+- Room's runtime and the bundled SQLite driver become `api` dependencies of `:verktex:shared`
+  (versions in `libs.versions.toml`). The game keeps only Room's KSP compiler, at the same version.
+- `Databases` (`database/Databases.kt`, common code):
+  - `open(constructor, file)` opens a database file over `BundledSQLiteDriver`, creating its folder;
+    `open(constructor, name)` keeps it as `<name>.db` in `Platform.storage.dataDirectory`.
+  - `openInMemory(constructor)` opens an empty one kept in memory, for tests.
+  - Each takes a `configure` block for the rest of the builder (migrations, destructive fallback).
+  - It's built from the generated `RoomDatabaseConstructor`, so no reflection is needed; the Android
+    actual gives Room the context of the platform's host.
+- Dropped from the plan: engine tables (`VerktexTables`) and a key-value store. Nothing in the engine
+  needs a table, and settings stay in JSON as decided; they can come when something needs them.
 
 **Game**
-- One `@Database @ConstructedBy class OsuDatabase` in `:game`, processed by KSP on both platforms.
-  - It replaces the kapt `DroidDatabase`, the desktop `DesktopDatabase` and the
-    `:game-desktop:generateSuspendDaos` task.
-  - The DAOs become `suspend`, and callers use coroutines.
-- `Migrations.kt` is ported to `Migration.migrate(SQLiteConnection)`, so desktop migrates instead of
-  recreating the database.
-- The legacy import (`DBOpenHelper`, the `ObjectInputStream` cache) stays an Android step.
+- `OsuGame` opens the database itself through `Databases`, in common code: `OsuGameHost.openDatabase`,
+  `AndroidDatabase` and `DesktopDatabase` are deleted, and the UI test browsers' in-memory database is
+  `DatabaseManager.loadInMemory()`.
+- The file stays where it is (`<core folder>/databases/room-<build type>.db`), so that installs keep
+  their scores; moving it to the data directory would lose them, as there's no import.
 
-**Spike first:** `:game` has only a JVM target and Android consumes it, so check that Room KMP's JVM
-artifacts work inside the APK. If they don't, add `androidTarget()` to `:game`.
-
-**Verify** by upgrading from a real install (schemas 1 to 5 in `schemas/`), and fix the app's
-`MigrationTest`.
+**Verify** with a desktop test that opens the database through `Databases` (a file and in memory),
+writes and reads a row, and that a database of another version is recreated; and the game starting
+on desktop with its existing database.
 
 ### Phase 10: `Path` and `UIPath`; sliders without the edlplan code (hard; performance sensitive)
 
@@ -338,7 +351,7 @@ artifacts work inside the APK. If they don't, add `androidTarget()` to `:game`.
 - Phase-specific checks:
   - Phase 5: existing settings survive the upgrade.
   - Phase 4: changing the language live updates the text.
-  - Phase 9: the database upgrades from a real install.
+  - Phase 9: an existing database is still read after the change.
   - Phase 10: screenshots and A/B performance.
 - Update `docs/engine-consolidation.md` (Progress) and commit.
 
@@ -356,7 +369,7 @@ Updated at the end of every phase: what's done, what's left, and the decisions t
 | 6. Ktor networking | Done |
 | 7. Split `OsuPlatform` | Done |
 | 8. No `GlobalManager` | Done |
-| 9. Database in Verktex | Not started |
+| 9. Database in Verktex | Done |
 | 10. `Path` and `UIPath` | Done (done before phase 9, as the user asked) |
 | 11. Video | Done |
 
@@ -838,3 +851,26 @@ Done in steps, each committed on its own.
   multiplayer and anything on a device.
 
 
+
+### Phase 9: database in Verktex
+
+- The phase was updated before starting it (see above): the game's `OsuDatabase` was already common
+  code over KSP and the bundled SQLite, with suspending DAOs and no migrations, so only the engine
+  part was left. It's in `:verktex:shared` rather than a module of its own, since there's no JS
+  target any more and the Android context is private to `Platform`.
+- Verktex: `Databases` (`database/Databases.kt`) opens a Room database over `BundledSQLiteDriver`
+  from its generated `RoomDatabaseConstructor`: `open(constructor, file)`, `open(constructor, name)`
+  (`<name>.db` in the data directory) and `openInMemory(constructor)`, each with a `configure` block
+  for the builder. The Android actual uses the application's context (`Platform.applicationContext`).
+  Room's runtime and the driver are `api` dependencies of the engine; applications run Room's
+  compiler at the version of `libs.versions.toml`.
+- Game: `DatabaseManager.open()` (from `OsuGame.start`) and `openInMemory()` (tests, the UI test
+  browsers). Deleted: `AndroidDatabase`, `DesktopDatabase`, `OsuGameHost.openDatabase` and
+  `buildOsuDatabase`, and the game's own Room runtime dependencies. The file stays at
+  `<core folder>/databases/room-<build type>.db`.
+- Dropped: engine tables and a key-value store, which nothing needs.
+- Checked: the engine's desktop and Android host tests (the 2 known failures only), the game's tests
+  with `OsuDatabaseTest` (a file reopened with its rows, a database of another version recreated, an
+  in-memory one left empty and unwritten), the common check, `assembleDebug` (the bundled SQLite's
+  natives for the 4 ABIs), and the desktop game opening its existing database (version 5, its 12
+  beatmaps kept) and reaching the menu. Not run on a device.
