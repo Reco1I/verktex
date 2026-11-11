@@ -205,6 +205,12 @@ class PlatformStorage(
      * isn't mounted).
      */
     val externalDirectory: Path?,
+
+    /**
+     * The folder the user's downloads are saved in (Android's public `Download` folder, `~/Downloads`
+     * on desktop), or null when it can't be used right now. It may not exist.
+     */
+    val downloadsDirectory: Path?,
 )
 
 
