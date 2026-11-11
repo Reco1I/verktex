@@ -28,7 +28,8 @@ Requires Java 17, and for the Android target the Android SDK (platform `android-
 
 ## Using it
 
-Applications include this build and depend on `com.reco1l.verktex:verktex`, whose Android or
+Applications check this repository out, usually as a git submodule, include its build and depend
+on `com.reco1l.verktex:verktex`, whose Android or
 desktop variant Gradle picks for each of their modules, see [docs/extraction.md](docs/extraction.md).
 
 ## Documentation
