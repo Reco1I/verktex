@@ -1,7 +1,7 @@
-# Extracting Verktex
+# The layout of Verktex
 
-Verktex is its own Gradle build, in the `verktex` folder of osu!droid for now and meant to move to
-its own repository, which the game will then check out in the same place as a git submodule:
+Verktex is its own repository and Gradle build. It started inside osu!droid, which now checks it out
+as a git submodule in its `verktex` folder and includes it as a composite build:
 
 ```
 verktex/
@@ -26,8 +26,9 @@ version catalog, and nothing in it refers to the build that includes it.
 
 ## Using it from an application
 
-The modules have the coordinates `com.reco1l.verktex:<module>`. An application includes the build
-and depends on them, and Gradle substitutes the projects:
+The modules have the coordinates `com.reco1l.verktex:<module>`. An application checks this repository out
+(e.g. `git submodule add <url> verktex`), includes the build and depends on them, and Gradle
+substitutes the projects:
 
 ```groovy
 // settings.gradle
@@ -53,9 +54,8 @@ implementation 'com.reco1l.verktex:verktex'
 ## Rules
 
 - Verktex never depends on the game.
-- `commonMain` never depends on Android or the JVM. With only JVM targets it could still use the
-  JVM's API, so check it with `./gradlew -Pverktex.checkCommon :verktex:compileKotlinJs`, which
-  compiles it for JavaScript as well.
+- `commonMain` never depends on Android or the JVM. With only JVM targets the compiler doesn't
+  enforce it, a target without a JVM would.
 - What the common code needs from a platform is expected there and actual in the source set of each
   target. `Platform` is an `expect object`: resources (`Provider`), audio (`AudioDriver`), the
   display, the keyboard, threads (`LoopWorker`, which also paces its loop), the storage folders
@@ -82,16 +82,11 @@ implementation 'com.reco1l.verktex:verktex'
 
 ## What's left
 
-1. **Building on its own.** Done, see above.
-2. **More targets.** Adding a target takes its actual declarations (`Platform`, `PixelBuffer`,
-   `fairReentrantLock()`, `systemFileSystem`) and its graphics and audio implementations, in a
-   source set of its own. The JavaScript target of `verktex.checkCommon` has stubs of them.
-3. **Shared shaders.** Done: the built-in shaders and fonts are in `../verktex/assets`, a plain
-   folder rather than the core's resources, so they aren't packaged twice in the APK (as assets and
-   as jar resources). Each platform packages it itself, see `desktop-platform.md`.
-
-4. **Its own repository.** Move this folder, with its history, to a repository, and check it out
-   here as a submodule. Nothing else changes for the game.
+- **More targets.** Adding a target takes its actual declarations (`Platform`, `PixelBuffer`,
+  `fairReentrantLock()`, `systemFileSystem`) and its graphics and audio implementations, in a
+  source set of its own.
+- **Published artifacts.** Applications consume the engine as an included build. Publishing it to a
+  Maven repository would let them depend on a version instead.
 
 Features the game still implements itself (settings, localization, toasts, networking, the database,
 paths, video) are being moved into Verktex, see `engine-consolidation.md`.
