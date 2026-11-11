@@ -116,6 +116,10 @@ open class UILabeledBadge : UILinearContainer() {
     val labelComponent = UIText().apply {
         alignment = Anchor.Center
         backgroundColor = Color4.Black.alpha(0.1f)
+        radius = themed { badgeStyle[density].radius }
+        color = themed { if (variant == UIBadge.Variant.Solid) palette.contentOnSolid else palette.accent }
+        padding = themed { badgeStyle[density].padding }
+        fontSize = themed { badgeStyle[density].fontSize }
     }
 
     /**
@@ -123,6 +127,9 @@ open class UILabeledBadge : UILinearContainer() {
      */
     val valueComponent = UIText().apply {
         alignment = Anchor.Center
+        color = themed { if (variant == UIBadge.Variant.Solid) palette.contentOnSolid else palette.accent }
+        padding = themed { badgeStyle[density].padding }
+        fontSize = themed { badgeStyle[density].fontSize }
     }
 
     //region Delegation
@@ -135,21 +142,11 @@ open class UILabeledBadge : UILinearContainer() {
 
     init {
         orientation = Orientation.Horizontal
+        backgroundColor = themed { if (variant == UIBadge.Variant.Solid) palette.badgeBackgroundSolid else palette.badgeBackgroundSoft }
+        radius = themed { badgeStyle[density].radius }
 
         +labelComponent
         +valueComponent
-
-        backgroundColor = themed {
-            if (variant == UIBadge.Variant.Solid) palette.badgeBackgroundSolid else palette.badgeBackgroundSoft
-        }
-        radius = themed { badgeStyle[density].radius }
-
-        for (component in listOf(labelComponent, valueComponent)) {
-            component.color = themed { if (variant == UIBadge.Variant.Solid) palette.contentOnSolid else Color4.White }
-            component.padding = themed { badgeStyle[density].padding }
-            component.fontSize = themed { badgeStyle[density].fontSize }
-        }
-        labelComponent.radius = themed { badgeStyle[density].radius }
     }
 }
 

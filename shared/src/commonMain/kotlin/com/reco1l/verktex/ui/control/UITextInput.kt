@@ -181,8 +181,7 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
         // Its color is animated towards the target one on update.
         border = Border(1.5f.dip, borderTargetColor(resolvedTheme))
 
-        textComponent.color = Color4.White
-        placeholderText.color = Color4.White.alpha(0.5f)
+        placeholderText.color = themed { palette.accent.alpha(0.5f) }
         caret.backgroundColor = themed { palette.accent }
         leadingIconComponent.color = themed { palette.accent }
         trailingIconComponent.color = themed { palette.accent }
