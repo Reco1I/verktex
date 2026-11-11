@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:label="Verktex UI tests"
+        android:largeHeap="true"
+        android:resizeableActivity="false"
+        tools:ignore="MissingApplicationIcon,UnusedAttribute">
+
+        <!-- The UI test browser. Open a test directly with:
+             adb shell am start -S -n com.reco1l.verktex.tests/.VerktexUITestActivity -es test "'Verktex/Text'"
+             and add -es backend <OpenGLES3|OpenGLES2|Vulkan> to pick the graphics backend. -->
+        <activity
+            android:name=".VerktexUITestActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
+            android:screenOrientation="sensorLandscape"
+            android:windowSoftInputMode="adjustPan"
+            android:exported="true"
+            tools:ignore="LockedOrientationActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

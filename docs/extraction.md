@@ -6,14 +6,16 @@ as a git submodule in its `verktex` folder and includes it as a composite build:
 ```
 verktex/
   settings.gradle.kts, build.gradle.kts, gradle/libs.versions.toml, gradlew
-  verktex/          :verktex          The engine, Kotlin Multiplatform with an android and a desktop target.
+  shared/           :shared           The engine, Kotlin Multiplatform with an android and a desktop target.
     src/commonMain    Platform independent: scenes, UI, graphics abstractions, audio, input, clocks.
     src/jvmMain       What both platforms share because they run on a JVM.
     src/androidMain   The Android platform: graphics backends (GLES, Vulkan), windowing, input, the
                       BASS audio library (com.un4seen.bass and its natives).
-    src/desktopMain   The desktop platform: OpenGL 3.3 (LWJGL, GLFW), BASS through JNA. Runs the UI
-                      tests, see desktop-platform.md.
+    src/desktopMain   The desktop platform: OpenGL 3.3 (LWJGL, GLFW), BASS through JNA, see
+                      desktop-platform.md.
     assets/           The built-in shaders and fonts, which each platform packages.
+  androidApp/       :androidApp       The browser of the UI tests on Android.
+  desktopApp/       :desktopApp       The browser of the UI tests on desktop.
   android-natives/  :android-natives  The Vulkan backend's native library, SPIR-V compilation of the
                                       built-in shaders, the validation layer of debug builds.
   shadertools/      :shadertools      The shader translator, used by the Vulkan backend and by the build.
@@ -35,7 +37,7 @@ substitutes the projects:
 includeBuild('verktex')
 
 // build.gradle
-implementation 'com.reco1l.verktex:verktex'
+implementation 'com.reco1l.verktex:shared'
 ```
 
 - The dependency resolves to the Android variant in an Android module and to the desktop one in
@@ -43,8 +45,8 @@ implementation 'com.reco1l.verktex:verktex'
   `jvm("desktop")`, and can share code between them in a `jvm` source set as Verktex does.
 - An Android application also lists `verktex/maven` as a repository, see its README.
 - Verktex's tasks run from the application as `:verktex:<project>:<task>`, e.g.
-  `./gradlew :verktex:verktex:desktopTest`, and from a script as
-  `gradle.includedBuild("verktex").task(":verktex:prepareFFmpeg")`.
+  `./gradlew :verktex:shared:desktopTest`, and from a script as
+  `gradle.includedBuild("verktex").task(":shared:prepareFFmpeg")`.
 - The Android Gradle plugin reads the SDK's path from the `local.properties` of each build, so
   Verktex needs its own (or `ANDROID_HOME`). osu!droid's `settings.gradle` copies the game's when
   it's missing. `verktex.validationLayers` is read from it too.

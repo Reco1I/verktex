@@ -8,7 +8,7 @@ import kotlin.system.exitProcess
  * Runs Verktex's own UI tests on desktop:
  *
  * ```
- * ./gradlew :verktex:run --args="--test 'Verktex/<test>' --screenshot build/test.png"
+ * ./gradlew :desktopApp:run --args="--test 'Verktex/<test>' --screenshot build/test.png"
  * ```
  *
  * `--test` opens a test first (`suite/test` or the test name), `--screenshot` saves a frame after a

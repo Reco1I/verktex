@@ -1,9 +1,9 @@
 import java.util.Properties
 
 // What the Android platform needs from the NDK, which the Kotlin Multiplatform Android plugin of
-// :verktex can't build: the native library of the Vulkan backend (see docs/vulkan-backend.md), the
+// :shared can't build: the native library of the Vulkan backend (see docs/vulkan-backend.md), the
 // SPIR-V of the built-in shaders, compiled with the NDK's glslc, and the Vulkan validation layer of
-// debug builds. It has no code of its own, the androidMain of :verktex depends on it.
+// debug builds. It has no code of its own, the androidMain of :shared depends on it.
 plugins {
     alias(libs.plugins.android.library)
 }
@@ -112,8 +112,8 @@ dependencies {
     vulkanShaderTools(project(":shadertools"))
 }
 
-// The built-in shaders, which :verktex packages itself.
-val sharedAssets: Directory = rootProject.layout.projectDirectory.dir("verktex/assets")
+// The built-in shaders, which :shared packages itself.
+val sharedAssets: Directory = rootProject.layout.projectDirectory.dir("shared/assets")
 
 val compileVulkanShaders = tasks.register<CompileVulkanShaders>("compileVulkanShaders") {
     val os = System.getProperty("os.name").lowercase()

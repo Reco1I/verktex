@@ -20,8 +20,12 @@ dependencyResolutionManagement {
 
 rootProject.name = "verktex"
 
-// The engine, with a target per platform.
-include(":verktex")
+// The engine, with a target per platform, shared by the applications.
+include(":shared")
+
+// The applications: the browsers of the engine's own UI tests on each platform.
+include(":androidApp")
+include(":desktopApp")
 
 // The native code and the compiled shaders of the Android platform.
 include(":android-natives")

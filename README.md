@@ -6,7 +6,9 @@ settings, localization, networking and video.
 
 | Module | |
 | --- | --- |
-| `:verktex` | The engine, with an `android` and a `desktop` target over common code. |
+| `:shared` | The engine, with an `android` and a `desktop` target over common code. |
+| `:androidApp` | The browser of its UI tests on Android. |
+| `:desktopApp` | The browser of its UI tests on desktop. |
 | `:android-natives` | The native code of the Android platform, and its compiled shaders. |
 | `:shadertools` | The shader translator, used by the Vulkan backend and by the build. |
 
@@ -19,17 +21,20 @@ Requires Java 17, and for the Android target the Android SDK (platform `android-
 ./gradlew build
 
 # Tests
-./gradlew :verktex:desktopTest :verktex:testAndroidHostTest :shadertools:test
+./gradlew :shared:desktopTest :shared:testAndroidHostTest :shadertools:test
 
 # The UI test browser, on desktop
-./gradlew :verktex:run
-./gradlew :verktex:run --args="--test 'Verktex/Text' --screenshot build/text.png"
+./gradlew :desktopApp:run
+./gradlew :desktopApp:run --args="--test 'Verktex/Text' --screenshot build/text.png"
+
+# The UI test browser, on a device
+./gradlew :androidApp:installDebug
 ```
 
 ## Using it
 
 Applications check this repository out, usually as a git submodule, include its build and depend
-on `com.reco1l.verktex:verktex`, whose Android or
+on `com.reco1l.verktex:shared`, whose Android or
 desktop variant Gradle picks for each of their modules, see [docs/extraction.md](docs/extraction.md).
 
 ## Documentation

@@ -13,7 +13,7 @@ import java.io.File
  * JNA bindings to the parts of FFmpeg that [FFmpegVideoDecoder] uses.
  *
  * The libraries are loaded from `<verktex.ffmpeg.path>/<platform>` when that system property is set
- * (the build downloads them there, see `prepareFFmpeg` in verktex/build.gradle.kts), from the
+ * (the build downloads them there, see `prepareFFmpeg` in shared/build.gradle.kts), from the
  * system otherwise. Structs are read at the offsets of [AVUTIL_MAJOR], [AVCODEC_MAJOR] and
  * [AVFORMAT_MAJOR], so other versions are refused.
  */

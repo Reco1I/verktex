@@ -3,17 +3,17 @@ import java.security.MessageDigest
 import java.util.zip.ZipFile
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmCompilation
 
-// The engine, one Kotlin Multiplatform module with a target per platform:
+// The engine, one Kotlin Multiplatform module with a target per platform, shared by the applications
+// built on it (com.reco1l.verktex:shared) and by its own, :androidApp and :desktopApp:
 //
 // - commonMain: everything platform independent (scenes, UI, graphics abstractions, audio, input,
 //   clocks). It can't depend on Android or the JVM, and expects what differs per platform, e.g.
 //   Platform.
 // - jvmMain: what Android and desktop share because both run on a JVM, e.g. ThreadLoopWorker.
 // - androidMain: the Android platform. Its native code is in :android-natives.
-// - desktopMain: the desktop platform (OpenGL 3.3 through LWJGL and GLFW, BASS through JNA), which
-//   also runs the UI tests, see docs/desktop-platform.md.
+// - desktopMain: the desktop platform (OpenGL 3.3 through LWJGL and GLFW, BASS through JNA), see
+//   docs/desktop-platform.md.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlinMultiplatformLibrary)
@@ -246,25 +246,4 @@ val prepareFFmpeg by tasks.registering {
         }
         root.resolve("LICENSE.txt").copyTo(target.resolve("FFMPEG-LICENSE.txt"), overwrite = true)
     }
-}
-
-// The UI test browser on desktop: ./gradlew :verktex:run --args="--test 'Verktex/Text'"
-tasks.register<JavaExec>("run") {
-    group = "application"
-    description = "Runs the UI test browser of Verktex on desktop."
-
-    val main = kotlin.targets.getByName("desktop").compilations.getByName("main") as KotlinJvmCompilation
-    classpath = files(main.output.allOutputs, main.runtimeDependencyFiles)
-    mainClass.set("com.reco1l.verktex.desktop.testing.VerktexUITestsMainKt")
-
-    // GLFW has to run on the first thread on macOS.
-    if (System.getProperty("os.name").lowercase().contains("mac")) {
-        jvmArgs("-XstartOnFirstThread")
-    }
-
-    // Relative paths given in --args, e.g. --screenshot, resolve against the root of Verktex.
-    workingDir = rootProject.projectDir
-
-    dependsOn(prepareFFmpeg)
-    systemProperty("verktex.ffmpeg.path", layout.buildDirectory.dir("ffmpeg").get().asFile.absolutePath)
 }
