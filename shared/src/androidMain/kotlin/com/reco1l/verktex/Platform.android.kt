@@ -6,7 +6,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -262,14 +261,7 @@ actual object Platform {
             PlatformDisplay(density = context.resources.displayMetrics.density, width = metrics.widthPixels, height = metrics.heightPixels)
         }
 
-        val application = PlatformApplication(
-            versionName = try {
-                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
-            } catch (_: Exception) {
-                ""
-            },
-            isDebug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
-        )
+        val application = (context as? AndroidGameHost)?.platformApplication ?: AndroidGameHost.readApplication(context)
 
         val isLowEndDevice: Boolean by lazy {
             val activityManager = context.getSystemService<ActivityManager>() ?: return@lazy false
