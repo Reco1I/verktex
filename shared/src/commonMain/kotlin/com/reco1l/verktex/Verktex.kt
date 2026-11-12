@@ -226,6 +226,7 @@ object Verktex {
         }
 
         PerformanceStats.onFrameStart()
+        graphics.isSimulatingBatches = PerformanceStats.measureMergedDrawCommands
         graphics.begin()
         treeLock.withLock {
             val recordStartNanos = monotonicNanos()
@@ -235,6 +236,7 @@ object Verktex {
             if (capture != null) capture.drawCapture(graphics) else rootScene.draw(graphics)
 
             PerformanceStats.drawCommands = graphics.commandCount
+            PerformanceStats.mergedDrawCommands = graphics.simulatedCommandCount
             overlayContainer.draw(graphics)
             diagnosticsContainer.draw(graphics)
             PerformanceStats.recordTime = (monotonicNanos() - recordStartNanos) / 1_000_000f
