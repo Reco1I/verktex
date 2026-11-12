@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.form
 
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.ui.control.UISlider
@@ -28,7 +29,7 @@ open class FormSlider(initialValue: Float = 0f) : FormControl<Float, UISlider>(i
         fontSettings = themed { typography.caption }
         padding = themed { Padding(gap.sm, gap.xs) }
         backgroundColor = themed { palette.controlInactiveBackground }
-        radius = themed { radius.md }
+        radius = themed { CornerRadius(radius.md) }
     }
 
 

@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import com.reco1l.verktex.*
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.data.Anchor
@@ -37,7 +38,7 @@ class UICheckbox(initialValue: Boolean = false) : UIControl<Boolean>(initialValu
         width = themed { controlStyle.minimumHeight }
         height = themed { controlStyle.minimumHeight }
         backgroundColor = themed { if (value) palette.controlActiveBackground else palette.controlInactiveBackground }
-        radius = themed { radius.lg }
+        radius = themed { CornerRadius(radius.lg) }
         +checkIcon
     }
 

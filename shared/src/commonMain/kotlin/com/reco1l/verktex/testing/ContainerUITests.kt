@@ -1,6 +1,7 @@
 package com.reco1l.verktex.testing
 
 import com.reco1l.verktex.math.toFixed
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Axis
@@ -33,7 +34,7 @@ private fun colorAt(index: Int) = COLORS[index % COLORS.size]
  */
 private inline fun UIContainer.block(label: String, tint: Color4, builder: UIContainer.() -> Unit = {}) = container {
     backgroundColor = tint
-    radius = 6f.dip
+    radius = CornerRadius(6f.dip)
     padding = Padding(10f.dip, 6f.dip)
     builder()
 
@@ -495,7 +496,7 @@ private class RecyclerRow : RecyclableComponent<Int>() {
     init {
         width = fill()
         height = 44f.dip
-        radius = 6f.dip
+        radius = CornerRadius(6f.dip)
         padding = Padding(12f.dip, 0f.dip)
 
         +label.apply {

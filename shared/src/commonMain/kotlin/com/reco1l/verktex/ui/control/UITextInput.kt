@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import com.reco1l.verktex.ui.text.codePointCount
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.*
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.ClipMode
@@ -176,7 +177,7 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
     init {
         height = themed { controlStyle.minimumHeight }
         padding = themed { horizontalPadding(gap.md) }
-        radius = themed { radius.md }
+        radius = themed { CornerRadius(radius.md) }
         backgroundColor = themed { palette.controlInactiveBackground }
         // Its color is animated towards the target one on update.
         border = Border(1.5f.dip, borderTargetColor(resolvedTheme))
@@ -238,7 +239,7 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
         val border = border
         if (border != null) {
             val color = clock.interpolateColor(0.2f, border.color, targetBorderColor)
-            this.border = border.copy(color = color, colorBottom = color)
+            this.border = border.withColor(color)
         }
 
         val contentWidth = textArea.bounds.width
@@ -306,7 +307,7 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
      */
     open fun notifyInputError() {
         errorColor = ERROR_COLOR
-        border = border.copy(color = ERROR_COLOR, colorBottom = ERROR_COLOR)
+        border = border.withColor(ERROR_COLOR)
     }
 
     //endregion

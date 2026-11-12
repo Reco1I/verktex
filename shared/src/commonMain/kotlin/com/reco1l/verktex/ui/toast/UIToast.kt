@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.toast
 
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
@@ -44,14 +45,14 @@ open class UIToast : UILinearContainer() {
         height = fill()
         width = fill(0f)
         backgroundColor = themed { palette.accent }
-        radius = 2f.dip
+        radius = CornerRadius(2f.dip)
     }
 
     private val progressTrack = UIContainer().apply {
         width = fill()
         height = 4f.dip
         backgroundColor = themed { palette.controlInactiveBackground }
-        radius = 2f.dip
+        radius = CornerRadius(2f.dip)
         isVisible = false
         +progressFill
     }
@@ -108,7 +109,7 @@ open class UIToast : UILinearContainer() {
         spacing = themed { gap.md }
         padding = themed { Padding(gap.md) }
         backgroundColor = themed { palette.surface }
-        radius = themed { radius.lg }
+        radius = themed { CornerRadius(radius.lg) }
 
         +loadingIndicator
         +UILinearContainer().apply {

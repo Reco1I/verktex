@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.math.toFixed
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.Verktex
 
 import com.reco1l.verktex.BuiltIn
@@ -35,7 +36,7 @@ class UIPerformanceOverlay : UIClickableContainer() {
         anchor = Anchor.BottomRight
         origin = Anchor.BottomRight
         padding = Padding(8f.dip, 4f.dip)
-        radius = 8f.dip
+        radius = CornerRadius(8f.dip)
         backgroundColor = BACKGROUND_COLOR
         fontSize = 12f.dip
     }
@@ -110,7 +111,7 @@ class UIPerformanceOverlay : UIClickableContainer() {
             width = PANEL_WIDTH.dip
             padding = Padding(PANEL_PADDING.dip)
             spacing = 8f.dip
-            radius = 8f.dip
+            radius = CornerRadius(8f.dip)
             backgroundColor = BACKGROUND_COLOR
 
             +UIContainer().apply {
@@ -130,7 +131,7 @@ class UIPerformanceOverlay : UIClickableContainer() {
                         fontSize = 9f.dip
                         color = GUIDE_COLOR
                         padding = Padding(3f.dip, 0f.dip)
-                        radius = 3f.dip
+                        radius = CornerRadius(3f.dip)
                         backgroundColor = BACKGROUND_COLOR
                         anchor = Anchor.TopRight
                         origin = Anchor.BottomRight
@@ -239,7 +240,7 @@ class UIPerformanceOverlay : UIClickableContainer() {
         init {
             width = fill()
             height = GRAPH_HEIGHT.dip
-            radius = 4f.dip
+            radius = CornerRadius(4f.dip)
             backgroundColor = GRAPH_BACKGROUND_COLOR
         }
 

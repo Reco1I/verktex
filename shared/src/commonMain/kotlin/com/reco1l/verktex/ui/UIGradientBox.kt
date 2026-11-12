@@ -70,7 +70,10 @@ open class UIGradientBox : UICanvas() {
             bottomLeft = colorAt(0f, height),
             borderWidth = border?.width?.toPixels() ?: 0f,
             borderColor = border?.color ?: Color4.Transparent,
-            radius = radius.toPixels()
+            radiusTopLeft = radius.topLeft.toPixels(),
+            radiusTopRight = radius.topRight.toPixels(),
+            radiusBottomRight = radius.bottomRight.toPixels(),
+            radiusBottomLeft = radius.bottomLeft.toPixels()
         )
     }
 }

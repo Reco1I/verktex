@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
@@ -109,14 +110,14 @@ open class UISlider(initialValue: Float = 0f) : UIControl<Float>(initialValue) {
         width = fill()
 
         height = themed { controlStyle.minimumHeight }
-        radius = themed { radius.lg }
+        radius = themed { CornerRadius(radius.lg) }
         backgroundColor = themed { palette.controlInactiveBackground }
 
-        progressBar.radius = themed { radius.lg }
+        progressBar.radius = themed { CornerRadius(radius.lg) }
         progressBar.backgroundColor = themed { palette.controlActiveBackground }
 
         thumb.width = 16f.dip
-        thumb.radius = themed { radius.lg }
+        thumb.radius = themed { CornerRadius(radius.lg) }
         thumb.backgroundColor = themed { palette.accent }
 
         +progressBar

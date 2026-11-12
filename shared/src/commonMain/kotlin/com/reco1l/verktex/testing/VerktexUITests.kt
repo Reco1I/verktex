@@ -11,6 +11,7 @@ import com.reco1l.verktex.ui.UIPath
 import com.reco1l.verktex.math.Path
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Border
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.dip
@@ -20,8 +21,6 @@ import com.reco1l.verktex.ui.FAIcon
 import com.reco1l.verktex.ui.UIBadge
 import com.reco1l.verktex.ui.UIButton
 import com.reco1l.verktex.ui.UIScene
-import com.reco1l.verktex.ui.UICanvas
-import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.ui.shape.UIBox
 import com.reco1l.verktex.ui.badge
 import com.reco1l.verktex.ui.card
@@ -56,6 +55,7 @@ import com.reco1l.verktex.ui.text.faSolidIcon
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.ui.text.spans
 import com.reco1l.verktex.ui.textButton
+import com.reco1l.verktex.ui.themed
 import com.reco1l.verktex.ui.transformSequence
 import com.reco1l.verktex.ui.toast.Toasts
 import kotlin.math.roundToInt
@@ -462,7 +462,7 @@ object VerktexUITests : UITestSuite("Verktex") {
             column {
                 section("Shapes") {
                     box { width = 80f.dip; height = 80f.dip; color = Color4.Red400 }
-                    box { width = 80f.dip; height = 80f.dip; radius = 16f.dip; color = Color4.Green400 }
+                    box { width = 80f.dip; height = 80f.dip; radius = CornerRadius(16f.dip); color = Color4.Green400 }
                     circle { width = 80f.dip; height = 80f.dip; color = Color4.Blue400 }
                     circle { width = 80f.dip; height = 80f.dip; endAngle = 270f; color = Color4.Yellow400 }
                     triangle { width = 80f.dip; height = 80f.dip; color = Color4.Purple400 }
@@ -494,7 +494,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                     container {
                         width = 120f.dip
                         height = 80f.dip
-                        radius = 12f.dip
+                        radius = CornerRadius(12f.dip)
                         border = Border(2f.dip, Color4.White)
                     }
                 }
@@ -502,58 +502,49 @@ object VerktexUITests : UITestSuite("Verktex") {
         }
 
         test("Borders and corners") {
-            fun rect(block: GraphicsRenderer.(width: Float, height: Float) -> Unit) = object : UICanvas() {
-                init {
-                    width = 140f.dip
-                    height = 90f.dip
-                }
-
-                override fun onDraw(renderer: GraphicsRenderer) = renderer.block(bounds.width, bounds.height)
+            fun UIContainer.panel(radius: CornerRadius, border: Border = Border.None) = container {
+                width = 140f.dip
+                height = 90f.dip
+                backgroundColor = Color4(0.2f, 0.22f, 0.3f)
+                this.radius = radius
+                this.border = border
             }
 
-            val fill = Color4(0.2f, 0.22f, 0.3f)
-            val border = 6f.dip.toPixels()
-            val large = 30f.dip.toPixels()
-            val small = 8f.dip.toPixels()
+            val red = Color4.Red400
+            val green = Color4.Green400
+            val blue = Color4.Blue400
+            val yellow = Color4.Yellow400
 
             column {
                 section("Corners") {
-                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radiusTopLeft = large, radiusBottomRight = large) }
-                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radiusTopLeft = large, radiusTopRight = large) }
-                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radiusTopLeft = small, radiusTopRight = large, radiusBottomRight = small, radiusBottomLeft = 0f) }
-                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radius = 1000f) }
+                    panel(CornerRadius(30f.dip, 0f.dip, 30f.dip, 0f.dip))
+                    panel(CornerRadius.top(30f.dip))
+                    panel(CornerRadius(8f.dip, 30f.dip, 8f.dip, 0f.dip))
+                    panel(CornerRadius(1000f.dip))
                 }
 
                 section("Sides") {
-                    this += rect { w, h ->
-                        drawRect(0f, 0f, w, h, fill, border, radius = small,
-                            borderTop = Color4.Red400, borderRight = Color4.Green400, borderBottom = Color4.Blue400, borderLeft = Color4.Yellow400)
-                    }
-                    this += rect { w, h ->
-                        drawRect(0f, 0f, w, h, fill, border, radiusTopLeft = large, radiusBottomRight = large,
-                            borderTop = Color4.Red400, borderRight = Color4.Green400, borderBottom = Color4.Blue400, borderLeft = Color4.Yellow400)
-                    }
-                    this += rect { w, h ->
-                        drawRect(0f, 0f, w, h, fill, border, radius = small,
-                            borderTop = Color4.Transparent, borderRight = Color4.Transparent, borderBottom = Color4.White, borderLeft = Color4.Transparent)
-                    }
+                    panel(CornerRadius(8f.dip), Border(6f.dip, red, green, blue, yellow))
+                    panel(CornerRadius(30f.dip, 0f.dip, 30f.dip, 0f.dip), Border(6f.dip, red, green, blue, yellow))
+                    panel(CornerRadius(8f.dip), Border(6f.dip, Color4.Transparent, Color4.Transparent, Color4.White, Color4.Transparent))
                 }
 
                 section("Fading sides") {
                     // Left and right fade from the top color to the bottom one, the gradient of a bezel.
-                    this += rect { w, h ->
-                        drawRect(0f, 0f, w, h, fill, border, radius = small,
-                            borderTop = Color4.Red400, borderRight = null, borderBottom = Color4.Blue400, borderLeft = null)
-                    }
+                    panel(CornerRadius(8f.dip), Border(6f.dip, red, blue))
                     // Top and bottom fade from left to right.
-                    this += rect { w, h ->
-                        drawRect(0f, 0f, w, h, fill, border, radius = small,
-                            borderTop = null, borderRight = Color4.Green400, borderBottom = null, borderLeft = Color4.Yellow400)
-                    }
+                    panel(CornerRadius(8f.dip), Border(6f.dip, null, green, null, yellow))
                     // Only the left side fades, between the top and bottom colors.
-                    this += rect { w, h ->
-                        drawRect(0f, 0f, w, h, fill, border, radius = small,
-                            borderTop = Color4.Red400, borderRight = Color4.Green400, borderBottom = Color4.Blue400, borderLeft = null)
+                    panel(CornerRadius(8f.dip), Border(6f.dip, red, green, blue, null))
+                }
+
+                section("Themed") {
+                    container {
+                        width = 140f.dip
+                        height = 90f.dip
+                        backgroundColor = themed { palette.surface }
+                        radius = themed { CornerRadius.top(radius.xl) }
+                        border = themed { buttonStyle.elevation.border }
                     }
                 }
             }
@@ -658,7 +649,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                 origin = Anchor.Center
                 width = 100f.dip
                 height = 100f.dip
-                radius = 12f.dip
+                radius = CornerRadius(12f.dip)
                 backgroundColor = Color4.Pink400
             }
 

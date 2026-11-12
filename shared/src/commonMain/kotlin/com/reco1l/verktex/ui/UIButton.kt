@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.ui.container.UIClickableContainer
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Dimension
@@ -75,7 +76,7 @@ open class UIButton : UIClickableContainer() {
 
         height = themed { buttonStyle[density].height }
         padding = horizontalPadding(themed { buttonStyle[density].horizontalPadding })
-        radius = themed { buttonStyle[density].radius }
+        radius = themed { CornerRadius(buttonStyle[density].radius) }
         color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
         border = themed {
             when (variant) {
