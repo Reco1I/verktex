@@ -97,7 +97,7 @@ abstract class DesktopGameHost(
                 width = mode?.width() ?: initialWidth,
                 height = mode?.height() ?: initialHeight,
                 applicationName = title,
-                application = application,
+                application = platformApplication,
                 onExit = ::close,
             )
 
@@ -131,7 +131,7 @@ abstract class DesktopGameHost(
     /**
      * The application this host runs, see [Platform.application].
      */
-    protected open val application: PlatformApplication
+    open val platformApplication: PlatformApplication
         get() = PlatformApplication()
 
     /**

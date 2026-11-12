@@ -220,9 +220,20 @@ class PlatformStorage(
 data class PlatformApplication(
 
     /**
+     * Its id, e.g. its package name on Android. Empty when the host doesn't say.
+     */
+    val id: String = "",
+
+    /**
      * The name of its version, e.g. `1.8.2`.
      */
     val versionName: String = "",
+
+    /**
+     * The type of its build, as the application names them (e.g. `debug` or `release`). Empty when
+     * the host doesn't say.
+     */
+    val buildType: String = "",
 
     /**
      * Whether it's a debug build.

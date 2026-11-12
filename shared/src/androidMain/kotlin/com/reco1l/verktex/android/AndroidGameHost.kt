@@ -1,6 +1,9 @@
 package com.reco1l.verktex.android
 
 import com.reco1l.verktex.Platform
+import com.reco1l.verktex.PlatformApplication
+import android.content.Context
+import android.content.pm.ApplicationInfo
 
 import android.os.Build
 import android.os.Bundle
@@ -70,6 +73,14 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
             field = value
             runOnUiThread { applyKeepScreenOn() }
         }
+
+    /**
+     * The application this host runs, see [Platform.application]. It's read from the package by
+     * default, which can't tell the build type: an application sets it from its `BuildConfig`, e.g.
+     * `super.platformApplication.copy(buildType = BuildConfig.BUILD_TYPE)`.
+     */
+    open val platformApplication: PlatformApplication
+        get() = readApplication(this)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -335,5 +346,22 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
     override fun onDestroy() {
         super.onDestroy()
         Verktex.dispose()
+    }
+
+
+    internal companion object {
+
+        /**
+         * The application of [context], as its package says.
+         */
+        fun readApplication(context: Context) = PlatformApplication(
+            id = context.packageName,
+            versionName = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+            } catch (_: Exception) {
+                ""
+            },
+            isDebug = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+        )
     }
 }
