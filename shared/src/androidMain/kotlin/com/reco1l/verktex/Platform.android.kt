@@ -1,6 +1,5 @@
 package com.reco1l.verktex
 
-import android.app.Activity
 import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -14,7 +13,6 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.getSystemService
 import com.reco1l.verktex.android.AndroidGameHost
@@ -31,6 +29,7 @@ import com.reco1l.verktex.video.VideoDecoder
 import com.reco1l.verktex.worker.LoopWorker
 import com.reco1l.verktex.worker.ThreadLoopWorker
 import java.io.File
+import java.lang.ref.WeakReference
 import java.util.Locale
 import kotlin.time.Duration
 import okio.FileSystem
@@ -48,18 +47,23 @@ actual object Platform {
     private val attached: Host
         get() = host ?: throw IllegalStateException("The platform isn't attached to a host yet")
 
+    // The application's context, for what doesn't need the activity.
     private val context: Context
         get() = attached.context
+
+    // The activity hosting the engine, null once it's gone.
+    private val activity: AndroidGameHost?
+        get() = attached.activity
 
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
 
     /**
-     * Attaches the platform to the [context] that hosts the engine, an [AndroidGameHost] for
-     * everything to work.
+     * Attaches the platform to the [activity] that hosts the engine. It's only weakly referenced,
+     * so a destroyed activity isn't kept alive by the platform.
      */
-    internal fun attach(context: Context) {
-        host = Host(context)
+    internal fun attach(activity: AndroidGameHost) {
+        host = Host(activity)
     }
 
 
@@ -110,7 +114,7 @@ actual object Platform {
         get() = host?.application ?: PlatformApplication()
 
     actual val isInForeground: Boolean
-        get() = (context as? AndroidGameHost)?.isInForeground ?: true
+        get() = activity?.isInForeground ?: false
 
     // Without OpenGL ES 3 or with less than 2 GB of memory.
     actual val isLowEndDevice: Boolean
@@ -137,7 +141,7 @@ actual object Platform {
         }
 
     actual val canPickFiles: Boolean
-        get() = context is ComponentActivity
+        get() = activity != null
 
     // The thread's handler ends the application, reporting the crash.
     actual var onUncaughtException: (Throwable) -> Unit = { throwable ->
@@ -156,7 +160,7 @@ actual object Platform {
 
 
     actual fun openWebPage(url: String, userAgent: String?) {
-        WebPageActivity.open(context, url, userAgent)
+        WebPageActivity.open(activity ?: context, url, userAgent)
     }
 
     actual fun openUrl(url: String) {
@@ -178,7 +182,7 @@ actual object Platform {
     }
 
     actual fun exit() {
-        (context as? Activity)?.finish()
+        activity?.finish()
     }
 
     actual fun copyToClipboard(text: String, label: String) {
@@ -186,7 +190,7 @@ actual object Platform {
     }
 
     actual fun pickFiles(mimeType: String, onPicked: (List<Path>) -> Unit) {
-        val activity = context as? ComponentActivity ?: return
+        val activity = activity ?: return
 
         runOnMainThread {
             // Registered when needed, since the engine's scenes aren't tied to the activity's lifecycle.
@@ -219,7 +223,7 @@ actual object Platform {
 
 
     private fun applyForceMaxRefreshRate(enabled: Boolean) {
-        val activity = context as? Activity ?: return
+        val activity = activity ?: return
 
         activity.runOnUiThread {
             @Suppress("DEPRECATION")
@@ -239,9 +243,17 @@ actual object Platform {
 
 
     /**
-     * What's read from the context hosting the engine, once per host.
+     * What's read from the activity hosting the engine, once per host. It keeps the application's
+     * context, and the activity only weakly: the platform is a singleton, which outlives activities.
      */
-    private class Host(val context: Context) {
+    private class Host(activity: AndroidGameHost) {
+
+        private val activityReference = WeakReference(activity)
+
+        val activity: AndroidGameHost?
+            get() = activityReference.get()?.takeUnless { it.isDestroyed }
+
+        val context: Context = activity.applicationContext
 
         val provider = AndroidProvider(context)
 
@@ -249,19 +261,19 @@ actual object Platform {
 
         val display: PlatformDisplay = run {
             val metrics = DisplayMetrics()
-            val windowManager = context.getSystemService<WindowManager>()
+            val windowManager = activity.getSystemService<WindowManager>()
 
             if (windowManager != null) {
                 @Suppress("DEPRECATION")
                 windowManager.defaultDisplay.getRealMetrics(metrics)
             } else {
-                metrics.setTo(context.resources.displayMetrics)
+                metrics.setTo(activity.resources.displayMetrics)
             }
 
-            PlatformDisplay(density = context.resources.displayMetrics.density, width = metrics.widthPixels, height = metrics.heightPixels)
+            PlatformDisplay(density = activity.resources.displayMetrics.density, width = metrics.widthPixels, height = metrics.heightPixels)
         }
 
-        val application = (context as? AndroidGameHost)?.platformApplication ?: AndroidGameHost.readApplication(context)
+        val application = activity.platformApplication
 
         val isLowEndDevice: Boolean by lazy {
             val activityManager = context.getSystemService<ActivityManager>() ?: return@lazy false
