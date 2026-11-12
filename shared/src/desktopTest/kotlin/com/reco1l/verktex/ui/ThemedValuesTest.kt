@@ -3,6 +3,7 @@ package com.reco1l.verktex.ui
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.Color4
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.ui.container.UIContainer
@@ -43,10 +44,10 @@ class ThemedValuesTest {
     fun themedValuesResolveWhenAssigned() {
         val box = UIBox()
         box.color = themed { palette.accent }
-        box.radius = themed { radius.md }
+        box.radius = themed { CornerRadius(radius.md) }
 
         assertEquals(Color4.Red500, box.color)
-        assertEquals(4f.px, box.radius)
+        assertEquals(CornerRadius(4f.px), box.radius)
     }
 
     @Test
@@ -64,13 +65,13 @@ class ThemedValuesTest {
     fun themedValuesFollowTheThemeOfTheirParent() {
         val parent = UIContainer().apply { theme = blueTheme }
         val box = UIBox()
-        box.radius = themed { radius.md }
+        box.radius = themed { CornerRadius(radius.md) }
 
         parent += box
-        assertEquals(8f.px, box.radius)
+        assertEquals(CornerRadius(8f.px), box.radius)
 
         parent.theme = redTheme
-        assertEquals(4f.px, box.radius)
+        assertEquals(CornerRadius(4f.px), box.radius)
     }
 
     @Test
@@ -143,5 +144,63 @@ class ThemedValuesTest {
 
         val (r, g, b, a) = color
         assertEquals(listOf(0.1f, 0.2f, 0.3f, 0.4f), listOf(r, g, b, a))
+    }
+
+    @Test
+    fun cornersCanBeThemedOneByOne() {
+        val box = UIBox().apply { theme = redTheme }
+        box.radius = CornerRadius(themed { radius.md }, 2f.px, 2f.px, themed { radius.md })
+
+        box.theme = blueTheme
+
+        assertEquals(CornerRadius(8f.px, 2f.px, 2f.px, 8f.px), box.radius)
+        assertFalse(box.radius.isThemed)
+    }
+
+    @Test
+    fun themedCornerRadiusFallsBackToTheGlobalTheme() {
+        val radius = themed { CornerRadius.top(radius.md) }
+        assertTrue(radius.isThemed)
+        assertEquals(4f.px, radius.topLeft)
+        assertEquals(0f.px, radius.bottomLeft)
+
+        Verktex.theme = blueTheme
+        assertEquals(8f.px, radius.topRight)
+    }
+
+    @Test
+    fun themedBordersResolveWithTheThemeOfTheirComponent() {
+        val box = UIBox().apply { theme = redTheme }
+        box.border = themed { Border(1f.px, palette.accent, Color4.Black) }
+
+        assertEquals(Border(1f.px, Color4.Red500, Color4.Black), box.border)
+
+        box.theme = blueTheme
+        assertEquals(Border(1f.px, Color4.Blue500, Color4.Black), box.border)
+    }
+
+    @Test
+    fun changingTheColorOfAThemedBorderKeepsItsWidthThemed() {
+        val box = UIBox().apply { theme = redTheme }
+        box.border = themed { Border(radius.md, Color4.Black) }.withColor(Color4.White)
+
+        assertEquals(Border(4f.px, Color4.White), box.border)
+
+        box.theme = blueTheme
+        assertEquals(Border(8f.px, Color4.White), box.border)
+    }
+
+    @Test
+    fun aGradientBorderLeavesItsSidesWithoutColor() {
+        val gradient = Border(1f.px, Color4.White, Color4.Black)
+        assertEquals(Color4.White, gradient.top)
+        assertEquals(Color4.Black, gradient.bottom)
+        assertEquals(null, gradient.left)
+        assertEquals(null, gradient.right)
+
+        val single = Border(1f.px, Color4.White)
+        assertEquals(Color4.White, single.left)
+        assertEquals(Color4.White, single.right)
+        assertEquals(Border(1f.px, Color4.White, Color4.White, Color4.White, Color4.White), single)
     }
 }

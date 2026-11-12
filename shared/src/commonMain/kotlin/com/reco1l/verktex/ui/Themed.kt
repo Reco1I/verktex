@@ -5,6 +5,7 @@ package com.reco1l.verktex.ui
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Border
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.Shadow
@@ -80,14 +81,18 @@ fun themed(block: Theme.() -> Padding): Padding = Padding(
 )
 
 /**
- * A border taken from the theme, made of [themed] dimensions and colors.
+ * A border taken from the theme, e.g. `border = themed { cardStyle.elevation.border }`, see
+ * [Border.Themed].
  */
 @OverloadResolutionByLambdaReturnType
-fun themed(block: Theme.() -> Border): Border = Border(
-    width = themed { block().width },
-    color = themed { block().color },
-    colorBottom = themed { block().colorBottom },
-)
+fun themed(block: Theme.() -> Border): Border = Border.Themed(block)
+
+/**
+ * A corner radius taken from the theme, e.g. `radius = themed { CornerRadius(radius.md) }`, see
+ * [CornerRadius.Themed].
+ */
+@OverloadResolutionByLambdaReturnType
+fun themed(block: Theme.() -> CornerRadius): CornerRadius = CornerRadius.Themed(block)
 
 /**
  * A shadow taken from the theme, made of [themed] dimensions and colors. Whether it's a cutout is

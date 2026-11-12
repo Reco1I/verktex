@@ -8,6 +8,7 @@ import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Shadow
 import com.reco1l.verktex.data.Border
+import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Mat2
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
@@ -489,9 +490,9 @@ abstract class UIComponent {
     var shadow: Shadow by themeable(Shadow.None)
 
     /**
-     * The radius of the corners of this component. If the radius is greater than 0, the component will be drawn with rounded corners.
+     * The radius of each corner of this component, which rounds its background, border and shadow.
      */
-    var radius: Dimension.Fixed by themeable(Dimension.Zero)
+    var radius: CornerRadius by themeable(CornerRadius.Zero)
 
 
     /**
@@ -794,6 +795,7 @@ abstract class UIComponent {
         renderer.pushMatrix(localToSceneMatrix)
         renderer.pushColor(color)
 
+        val radius = radius
         val shadow = shadow
         if (shadow.isVisible && shadow.color.alpha > 0f) {
             val blur = shadow.blur.toPixels()
@@ -807,9 +809,12 @@ abstract class UIComponent {
                 color = shadow.color,
                 // A negative border width tells the shader to cut the shape out.
                 borderWidth = if (shadow.cutout) -1f else 0f,
-                radius = radius.toPixels(),
                 softness = blur,
-                inset = blur
+                inset = blur,
+                radiusTopLeft = radius.topLeft.toPixels(),
+                radiusTopRight = radius.topRight.toPixels(),
+                radiusBottomRight = radius.bottomRight.toPixels(),
+                radiusBottomLeft = radius.bottomLeft.toPixels()
             )
         }
 
@@ -823,12 +828,14 @@ abstract class UIComponent {
                 height = bounds.height,
                 color = backgroundColor,
                 borderWidth = border.width.toPixels(),
-                radius = radius.toPixels(),
-                borderTop = border.color,
-                borderBottom = border.colorBottom,
-                // Without colors of their own, the sides fade from the top color to the bottom one.
-                borderLeft = border.color.takeIf { it == border.colorBottom },
-                borderRight = border.color.takeIf { it == border.colorBottom }
+                radiusTopLeft = radius.topLeft.toPixels(),
+                radiusTopRight = radius.topRight.toPixels(),
+                radiusBottomRight = radius.bottomRight.toPixels(),
+                radiusBottomLeft = radius.bottomLeft.toPixels(),
+                borderTop = border.top,
+                borderRight = border.right,
+                borderBottom = border.bottom,
+                borderLeft = border.left
             )
         }
 
@@ -1230,7 +1237,7 @@ abstract class UIComponent {
 var UIComponent.borderColor: Color4
     get() = border.color
     set(value) {
-        border = border.copy(color = value, colorBottom = value)
+        border = border.withColor(value)
     }
 
 /**
@@ -1240,7 +1247,7 @@ var UIComponent.borderColor: Color4
 var UIComponent.borderWidth: Dimension.Fixed
     get() = border.width
     set(value) {
-        border = border.copy(width = value)
+        border = border.withWidth(value)
     }
 
 //endregion
