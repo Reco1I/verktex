@@ -660,8 +660,13 @@ object Verktex {
         }
     }
 
-    fun onGameWindowFocusChange(hasFocus: Boolean) {
-        sceneStack.forEach { scene ->
+    /**
+     * Tells every scene in the stack that the game's window gained or lost the focus, see
+     * [UIScene.onGameWindowFocusChange]. The platform calls it from its own thread.
+     */
+    fun onGameWindowFocusChange(hasFocus: Boolean) = treeLock.withLock {
+        // A copy, a scene can push or pop others in response.
+        for (scene in sceneStack.toList()) {
             scene.onGameWindowFocusChange(hasFocus)
         }
     }
