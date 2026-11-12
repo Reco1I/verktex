@@ -4,6 +4,7 @@ package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Dimension
@@ -86,6 +87,13 @@ fun themed(block: Theme.() -> Padding): Padding = Padding(
  */
 @OverloadResolutionByLambdaReturnType
 fun themed(block: Theme.() -> Border): Border = Border.Themed(block)
+
+/**
+ * A background taken from the theme, e.g. `background = themed { Background.Color(palette.surface) }`,
+ * see [Background.Themed].
+ */
+@OverloadResolutionByLambdaReturnType
+fun themed(block: Theme.() -> Background): Background = Background.Themed(block)
 
 /**
  * A corner radius taken from the theme, e.g. `radius = themed { CornerRadius(radius.md) }`, see

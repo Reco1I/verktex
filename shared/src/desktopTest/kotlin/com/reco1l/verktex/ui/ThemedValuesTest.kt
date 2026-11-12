@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.Verktex
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.CornerRadius
@@ -202,5 +203,31 @@ class ThemedValuesTest {
         assertEquals(Color4.White, single.left)
         assertEquals(Color4.White, single.right)
         assertEquals(Border(1f.px, Color4.White, Color4.White, Color4.White, Color4.White), single)
+    }
+
+    @Test
+    fun backgroundsTakeTheirColorFromTheTheme() {
+        val box = UIBox().apply { theme = redTheme }
+        box.background = Background.Color(themed { palette.accent })
+
+        assertEquals(Background.Color(Color4.Red500), box.background)
+
+        box.theme = blueTheme
+        assertEquals(Background.Color(Color4.Blue500), box.background)
+    }
+
+    @Test
+    fun themedBackgroundsResolveWithTheThemeOfTheirComponent() {
+        val box = UIBox().apply { theme = redTheme }
+        box.background = themed { Background.Color(palette.accent.alpha(0.5f)) }
+
+        assertEquals(Background.Color(Color4.Red500.alpha(0.5f)), box.background)
+
+        box.theme = blueTheme
+        assertEquals(Background.Color(Color4.Blue500.alpha(0.5f)), box.background)
+
+        box.background = Background.None
+        box.theme = redTheme
+        assertEquals(Background.None, box.background)
     }
 }

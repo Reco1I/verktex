@@ -20,7 +20,7 @@ inline fun UIContainer.extendIntoSafeAreaContainer(builder: UIExtendIntoSafeArea
  * of its parent, and only on the sides that touch it.
  *
  * Its children are laid out where they would be without growing, so they stay in the safe area,
- * while the [background] covers the whole container.
+ * while the [backgroundComponent] covers the whole container.
  */
 open class UIExtendIntoSafeAreaContainer : UIContainer() {
 
@@ -28,7 +28,7 @@ open class UIExtendIntoSafeAreaContainer : UIContainer() {
      * Drawn below the children and laid out over the whole container, including the part grown
      * into the safe area.
      */
-    var background: UIComponent? = null
+    var backgroundComponent: UIComponent? = null
         set(value) {
             if (field === value) return
             field?.parent = null
@@ -87,7 +87,7 @@ open class UIExtendIntoSafeAreaContainer : UIContainer() {
     }
 
     override fun onLayout(bounds: Vec4) {
-        background?.let {
+        backgroundComponent?.let {
             it.measure(LayoutConstraints(bounds.width, bounds.width, bounds.height, bounds.height))
             it.layout(Vec4(0f, 0f, bounds.width, bounds.height))
         }
@@ -107,16 +107,16 @@ open class UIExtendIntoSafeAreaContainer : UIContainer() {
 
     override fun calculateTransformations() {
         super.calculateTransformations()
-        background?.calculateTransformations()
+        backgroundComponent?.calculateTransformations()
     }
 
     override fun onUpdate(clock: FrameClock) {
-        background?.update(clock)
+        backgroundComponent?.update(clock)
         super.onUpdate(clock)
     }
 
     override fun onDraw(renderer: GraphicsRenderer) {
-        background?.draw(renderer)
+        backgroundComponent?.draw(renderer)
         super.onDraw(renderer)
     }
 

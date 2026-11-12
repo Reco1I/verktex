@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import kotlin.concurrent.Volatile
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.*
 import com.reco1l.verktex.data.Dimension
@@ -123,7 +124,7 @@ class UIDropdown(var trigger: UIComponent) : UIScrollableContainer() {
         clipping = ClipMode.Bounds
 
         radius = themed { CornerRadius(radius.md) }
-        backgroundColor = themed { palette.surface }
+        background = Background.Color(themed { palette.surface })
 
         scaleOrigin = Anchor.TopCenter
         alpha = 0f

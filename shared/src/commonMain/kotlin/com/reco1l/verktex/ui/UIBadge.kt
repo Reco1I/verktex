@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.Color4
@@ -44,13 +45,13 @@ open class UIBadge : UIText() {
         alignment = Anchor.Center
         color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
 
-        backgroundColor = themed {
-            when (variant) {
+        background = themed {
+            Background.Color(when (variant) {
                 Variant.Solid -> palette.badgeBackgroundSolid
                 Variant.Soft -> palette.badgeBackgroundSoft
                 Variant.Surface -> palette.badgeBackgroundSurface
                 Variant.Outline -> Color4.Transparent
-            }
+            })
         }
 
         fontSize = themed { badgeStyle[density].fontSize }
@@ -116,7 +117,7 @@ open class UILabeledBadge : UILinearContainer() {
      */
     val labelComponent = UIText().apply {
         alignment = Anchor.Center
-        backgroundColor = Color4.Black.alpha(0.1f)
+        background = Background.Color(Color4.Black.alpha(0.1f))
         radius = themed { CornerRadius(badgeStyle[density].radius) }
         color = themed { if (variant == UIBadge.Variant.Solid) palette.contentOnSolid else palette.accent }
         padding = themed { badgeStyle[density].padding }
@@ -143,7 +144,7 @@ open class UILabeledBadge : UILinearContainer() {
 
     init {
         orientation = Orientation.Horizontal
-        backgroundColor = themed { if (variant == UIBadge.Variant.Solid) palette.badgeBackgroundSolid else palette.badgeBackgroundSoft }
+        background = Background.Color(themed { if (variant == UIBadge.Variant.Solid) palette.badgeBackgroundSolid else palette.badgeBackgroundSoft })
         radius = themed { CornerRadius(badgeStyle[density].radius) }
 
         +labelComponent

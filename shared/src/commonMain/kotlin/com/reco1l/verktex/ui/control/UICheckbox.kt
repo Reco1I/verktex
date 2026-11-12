@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import com.reco1l.verktex.*
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
@@ -37,7 +38,7 @@ class UICheckbox(initialValue: Boolean = false) : UIControl<Boolean>(initialValu
     init {
         width = themed { controlStyle.minimumHeight }
         height = themed { controlStyle.minimumHeight }
-        backgroundColor = themed { if (value) palette.controlActiveBackground else palette.controlInactiveBackground }
+        background = Background.Color(themed { if (value) palette.controlActiveBackground else palette.controlInactiveBackground })
         radius = themed { CornerRadius(radius.lg) }
         +checkIcon
     }
@@ -51,7 +52,8 @@ class UICheckbox(initialValue: Boolean = false) : UIControl<Boolean>(initialValu
         checkScale.target = targetScaleAndAlpha
         checkIcon.scale = checkScale.update(clock)
         checkIcon.alpha = clock.interpolateFloat(0.2f, checkIcon.alpha, targetScaleAndAlpha)
-        backgroundColor = clock.interpolateColor(0.2f, backgroundColor, targetBackgroundCOlor)
+        val currentBackgroundColor = (background as? Background.Color)?.color ?: targetBackgroundCOlor
+        background = Background.Color(clock.interpolateColor(0.2f, currentBackgroundColor, targetBackgroundCOlor))
 
         super.onUpdate(clock)
     }

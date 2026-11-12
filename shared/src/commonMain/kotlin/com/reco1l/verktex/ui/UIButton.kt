@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.ui.container.UIClickableContainer
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.Color4
@@ -64,14 +65,14 @@ open class UIButton : UIClickableContainer() {
     init {
         scaleOrigin = Anchor.Center
 
-        backgroundColor = themed {
-            when {
+        background = themed {
+            Background.Color(when {
                 isSelected -> palette.controlActiveBackground
                 variant == Variant.Solid -> palette.buttonBackgroundSolid
                 variant == Variant.Soft -> palette.buttonBackgroundSoft
                 variant == Variant.Surface -> palette.buttonBackgroundSurface
                 else -> Color4.Transparent
-            }
+            })
         }
 
         height = themed { buttonStyle[density].height }

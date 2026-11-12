@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.ui.container.UILinearContainer
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.ui.text.UIText
 import com.reco1l.verktex.data.Anchor
@@ -121,7 +122,7 @@ open class UICard : UILinearContainer() {
 
     init {
         orientation = Orientation.Vertical
-        backgroundColor = themed { palette.surface }
+        background = Background.Color(themed { palette.surface })
         radius = themed { CornerRadius(radius.md) }
         border = themed { cardStyle.elevation.border }
         shadow = themed { cardStyle.elevation.shadow }
@@ -135,7 +136,7 @@ open class UICard : UILinearContainer() {
             height = 2f.px
             anchor = Anchor.BottomCenter
             origin = Anchor.BottomCenter
-            backgroundColor = themed { palette.divider }
+            background = Background.Color(themed { palette.divider })
         }
     }
 

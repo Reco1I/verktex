@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.data.Padding
@@ -43,13 +44,13 @@ class UITabSelector : UIContainer() {
 
     init {
         padding = themed { Padding(gap.xs) }
-        backgroundColor = themed { (palette.accent.shade(0.1f)).alpha(0.25f) }
+        background = Background.Color(themed { (palette.accent.shade(0.1f)).alpha(0.25f) })
         radius = themed { CornerRadius(radius.lg) }
 
         selectionIndicator = box {
             alpha = 0f
             height = Dimension.FillAvailable
-            backgroundColor = themed { palette.accent.shade(0.2f) }
+            background = Background.Color(themed { palette.accent.shade(0.2f) })
             radius = themed { CornerRadius(radius.lg) }
         }
 
