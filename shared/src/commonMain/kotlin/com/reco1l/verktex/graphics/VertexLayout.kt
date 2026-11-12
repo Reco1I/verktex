@@ -82,17 +82,18 @@ class VertexLayout(val attributes: List<Attribute>) {
         ))
 
         /**
-         * The layout of the UI shader: [Default] followed by the rounded box parameters and the mode.
+         * The layout of the UI shader: [Default] followed by the box (size, border width, mode and
+         * fade flags), the radius of each corner and the four border colors, packed two per
+         * attribute, see ui.vert. Seven attributes, OpenGL ES 2.0 only guarantees eight.
          */
         val UI = VertexLayout(listOf(
             Attribute(0, 2),
             Attribute(1, 2),
             Attribute(2, 4, Type.NormalizedByte),
-            Attribute(3, 2),
+            Attribute(3, 4),
             Attribute(4, 4),
-            Attribute(5, 4, Type.NormalizedByte),
-            Attribute(6, 4, Type.NormalizedByte),
-            Attribute(7, 1)
+            Attribute(5, 4),
+            Attribute(6, 4)
         ))
     }
 }

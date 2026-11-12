@@ -598,39 +598,106 @@ abstract class GraphicsRenderer {
         )
     }
 
-    // A vertex of VertexLayout.UI.
-    private fun GraphicsBuffer.addUIVertex(
-        x: Float, y: Float, u: Float, v: Float, color: Int,
-        boxWidth: Float, boxHeight: Float,
-        radius: Float, borderWidth: Float, softness: Float, inset: Float,
-        borderColor: Int, borderColorBottom: Int,
-        mode: Float
-    ) {
+    // A vertex of VertexLayout.UI, with the box parameters of its quad.
+    private fun GraphicsBuffer.addUIVertex(x: Float, y: Float, u: Float, v: Float, color: Int, box: FloatArray) {
         requireCapacity(UI_VERTEX_STRIDE)
         putFloat(x)
         putFloat(y)
         putFloat(u)
         putFloat(v)
         putPackedBytes(color)
-        putFloat(boxWidth)
-        putFloat(boxHeight)
-        putFloat(radius)
-        putFloat(borderWidth)
-        putFloat(softness)
-        putFloat(inset)
-        putPackedBytes(borderColor)
-        putPackedBytes(borderColorBottom)
-        putFloat(mode)
+        for (i in 0 until UI_BOX_FLOATS) {
+            putFloat(box[i])
+        }
+    }
+
+    // The box parameters shared by the vertices of a UI quad, see setUIBox.
+    private val uiBox = FloatArray(UI_BOX_FLOATS)
+
+    /**
+     * Sets [uiBox]: width, height, border width, mode plus 4 times the fade flags, the four radii,
+     * then the packed border colors, or the softness and the inset of a soft box. A null border
+     * color sets its side's fade flag, see ui.frag.
+     */
+    private fun setUIBox(
+        width: Float, height: Float, borderWidth: Float, mode: Int,
+        radiusTopLeft: Float, radiusTopRight: Float, radiusBottomRight: Float, radiusBottomLeft: Float,
+        borderTop: Color4?, borderRight: Color4?, borderBottom: Color4?, borderLeft: Color4?,
+        softness: Float, inset: Float
+    ) {
+        val box = uiBox
+
+        var flags = 0
+        if (borderTop == null) flags = flags or 1
+        if (borderRight == null) flags = flags or 2
+        if (borderBottom == null) flags = flags or 4
+        if (borderLeft == null) flags = flags or 8
+
+        box[0] = width
+        box[1] = height
+        box[2] = borderWidth
+        box[3] = (mode + 4 * flags).toFloat()
+        box[4] = radiusTopLeft
+        box[5] = radiusTopRight
+        box[6] = radiusBottomRight
+        box[7] = radiusBottomLeft
+
+        if (mode == UI_MODE_SOFT_BOX) {
+            box[8] = softness
+            box[9] = inset
+            for (i in 10 until UI_BOX_FLOATS) box[i] = 0f
+        } else {
+            packUIColor(borderTop, box, 8)
+            packUIColor(borderRight, box, 10)
+            packUIColor(borderBottom, box, 12)
+            packUIColor(borderLeft, box, 14)
+        }
+    }
+
+    // A color in two floats of 16 bits each, which floats hold exactly, unpacked by ui.vert.
+    private fun packUIColor(color: Color4?, box: FloatArray, index: Int) {
+        if (color == null) {
+            box[index] = 0f
+            box[index + 1] = 0f
+            return
+        }
+        val transformed = transformColor(color)
+        box[index] = ((transformed.red8 shl 8) or transformed.green8).toFloat()
+        box[index + 1] = ((transformed.blue8 shl 8) or transformed.alpha8).toFloat()
+    }
+
+    // A quad of the UI shader with the box set by setUIBox and a fill color at each corner.
+    private fun addUIQuad(x: Float, y: Float, width: Float, height: Float, c0: Int, c1: Int, c2: Int, c3: Int) {
+        val buffer = activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry.")
+        val transform = matrixStack.lastOrNull() ?: Mat2.Identity
+
+        val p = points
+        transform.transform(x, y, p, 0)
+        transform.transform(x + width, y, p, 2)
+        transform.transform(x + width, y + height, p, 4)
+        transform.transform(x, y + height, p, 6)
+
+        // A quad: top left, top right, bottom right, bottom left.
+        val box = uiBox
+        buffer.addUIVertex(p[0], p[1], 0f, 0f, c0, box)
+        buffer.addUIVertex(p[2], p[3], 1f, 0f, c1, box)
+        buffer.addUIVertex(p[4], p[5], 1f, 1f, c2, box)
+        buffer.addUIVertex(p[6], p[7], 0f, 1f, c3, box)
     }
 
     //endregion
 
     /**
-     * Draws a rectangle with the specified position, size, color, border width, border color, and corner radius.
+     * Draws a rectangle with the specified position, size, color, border and corner radii.
      *
-     * @param borderColorBottom The color of the border at the bottom, it fades from [borderColor] at
-     * the top (e.g. a bezel). Null for a single color.
+     * Each side of the border can have its own color. A side whose color is null has none of its
+     * own and fades between the sides next to it, so with no color on the left and the right the
+     * border fades from the top color to the bottom one (e.g. a bezel). Sides meet on the diagonals
+     * from the corners.
+     *
+     * @param radius The radius of every corner, unless given one by one.
      * @param softness The width of a soft edge in pixels, which blurs the rectangle (e.g. a shadow).
+     * A soft rectangle has no border, a negative [borderWidth] cuts the shape out of its edge.
      * @param inset How far the rectangle is inside the drawn area on each side, so a soft edge can
      * extend past it.
      */
@@ -643,30 +710,28 @@ abstract class GraphicsRenderer {
         borderWidth: Float = 0f,
         borderColor: Color4 = Color4.Transparent,
         radius: Float = 0f,
-        borderColorBottom: Color4? = null,
         softness: Float = 0f,
-        inset: Float = 0f
+        inset: Float = 0f,
+        radiusTopLeft: Float = radius,
+        radiusTopRight: Float = radius,
+        radiusBottomRight: Float = radius,
+        radiusBottomLeft: Float = radius,
+        borderTop: Color4? = borderColor,
+        borderRight: Color4? = borderColor,
+        borderBottom: Color4? = borderColor,
+        borderLeft: Color4? = borderColor
     ) {
         setUIState(null)
 
-        val buffer = activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry.")
-        val transform = matrixStack.lastOrNull() ?: Mat2.Identity
+        setUIBox(
+            width, height, borderWidth, if (softness > 0f) UI_MODE_SOFT_BOX else UI_MODE_BOX,
+            radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
+            borderTop, borderRight, borderBottom, borderLeft,
+            softness, inset
+        )
 
         val fill = transformColor(color).packedRGBA
-        val top = transformColor(borderColor).packedRGBA
-        val bottom = if (borderColorBottom != null) transformColor(borderColorBottom).packedRGBA else top
-
-        val p = points
-        transform.transform(x, y, p, 0)
-        transform.transform(x + width, y, p, 2)
-        transform.transform(x + width, y + height, p, 4)
-        transform.transform(x, y + height, p, 6)
-
-        // A quad: top left, top right, bottom right, bottom left.
-        buffer.addUIVertex(p[0], p[1], 0f, 0f, fill, width, height, radius, borderWidth, softness, inset, top, bottom, 0f)
-        buffer.addUIVertex(p[2], p[3], 1f, 0f, fill, width, height, radius, borderWidth, softness, inset, top, bottom, 0f)
-        buffer.addUIVertex(p[4], p[5], 1f, 1f, fill, width, height, radius, borderWidth, softness, inset, top, bottom, 0f)
-        buffer.addUIVertex(p[6], p[7], 0f, 1f, fill, width, height, radius, borderWidth, softness, inset, top, bottom, 0f)
+        addUIQuad(x, y, width, height, fill, fill, fill, fill)
     }
 
     /**
@@ -684,12 +749,16 @@ abstract class GraphicsRenderer {
         bottomLeft: Color4,
         borderWidth: Float = 0f,
         borderColor: Color4 = Color4.Transparent,
-        radius: Float = 0f
+        radius: Float = 0f,
+        radiusTopLeft: Float = radius,
+        radiusTopRight: Float = radius,
+        radiusBottomRight: Float = radius,
+        radiusBottomLeft: Float = radius
     ) {
         // Without a shape to cut, only the colors are needed. The UI shader costs much more per
         // pixel, which adds up for large gradients (a fullscreen one took ~3 ms on an Adreno 610),
         // even if it breaks the batch.
-        if (radius <= 0f && borderWidth <= 0f) {
+        if (borderWidth <= 0f && radiusTopLeft <= 0f && radiusTopRight <= 0f && radiusBottomRight <= 0f && radiusBottomLeft <= 0f) {
             setState(shader = BuiltIn.Shaders.Color, texture = null, uniformSet = EMPTY_UNIFORMS)
 
             drawGeometry { transform, _ ->
@@ -717,26 +786,20 @@ abstract class GraphicsRenderer {
 
         setUIState(null)
 
-        val buffer = activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry.")
-        val transform = matrixStack.lastOrNull() ?: Mat2.Identity
+        setUIBox(
+            width, height, borderWidth, UI_MODE_BOX,
+            radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
+            borderColor, borderColor, borderColor, borderColor,
+            0f, 0f
+        )
 
-        val c0 = transformColor(topLeft).packedRGBA
-        val c1 = transformColor(topRight).packedRGBA
-        val c2 = transformColor(bottomRight).packedRGBA
-        val c3 = transformColor(bottomLeft).packedRGBA
-        val border = transformColor(borderColor).packedRGBA
-
-        val p = points
-        transform.transform(x, y, p, 0)
-        transform.transform(x + width, y, p, 2)
-        transform.transform(x + width, y + height, p, 4)
-        transform.transform(x, y + height, p, 6)
-
-        // A quad: top left, top right, bottom right, bottom left.
-        buffer.addUIVertex(p[0], p[1], 0f, 0f, c0, width, height, radius, borderWidth, 0f, 0f, border, border, 0f)
-        buffer.addUIVertex(p[2], p[3], 1f, 0f, c1, width, height, radius, borderWidth, 0f, 0f, border, border, 0f)
-        buffer.addUIVertex(p[4], p[5], 1f, 1f, c2, width, height, radius, borderWidth, 0f, 0f, border, border, 0f)
-        buffer.addUIVertex(p[6], p[7], 0f, 1f, c3, width, height, radius, borderWidth, 0f, 0f, border, border, 0f)
+        addUIQuad(
+            x, y, width, height,
+            transformColor(topLeft).packedRGBA,
+            transformColor(topRight).packedRGBA,
+            transformColor(bottomRight).packedRGBA,
+            transformColor(bottomLeft).packedRGBA
+        )
     }
 
     /**
@@ -1167,10 +1230,10 @@ abstract class GraphicsRenderer {
 
                 // A quad: top left, top right, bottom right, bottom left.
                 buffer!!.apply {
-                    addUIVertex(p[0], p[1], u0, v0, packedColor, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0, 1f)
-                    addUIVertex(p[2], p[3], u1, v0, packedColor, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0, 1f)
-                    addUIVertex(p[4], p[5], u1, v1, packedColor, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0, 1f)
-                    addUIVertex(p[6], p[7], u0, v1, packedColor, 0f, 0f, 0f, 0f, 0f, 0f, 0, 0, 1f)
+                    addUIVertex(p[0], p[1], u0, v0, packedColor, UI_TEXT_BOX)
+                    addUIVertex(p[2], p[3], u1, v0, packedColor, UI_TEXT_BOX)
+                    addUIVertex(p[4], p[5], u1, v1, packedColor, UI_TEXT_BOX)
+                    addUIVertex(p[6], p[7], u0, v1, packedColor, UI_TEXT_BOX)
                 }
             }
 
@@ -1230,7 +1293,18 @@ abstract class GraphicsRenderer {
 
     companion object {
         const val VERTEX_2D_STRIDE = 20 // 8 bytes for position, 8 bytes for UV, 4 bytes for color
-        const val UI_VERTEX_STRIDE = 56 // VertexLayout.UI
+        const val UI_VERTEX_STRIDE = 84 // VertexLayout.UI
+
+        // The floats after the color in a vertex of VertexLayout.UI.
+        private const val UI_BOX_FLOATS = 16
+
+        // The modes of the UI shader, see ui.frag.
+        private const val UI_MODE_BOX = 0
+        private const val UI_MODE_TEXT = 1
+        private const val UI_MODE_SOFT_BOX = 2
+
+        // The box of every glyph, of which only the mode is read.
+        private val UI_TEXT_BOX = FloatArray(UI_BOX_FLOATS).also { it[3] = UI_MODE_TEXT.toFloat() }
 
         // Shared by every draw without uniforms of its own. Nothing writes to it, commands and
         // shaders only read their set.

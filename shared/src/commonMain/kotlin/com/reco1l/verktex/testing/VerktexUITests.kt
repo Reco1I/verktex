@@ -20,6 +20,8 @@ import com.reco1l.verktex.ui.FAIcon
 import com.reco1l.verktex.ui.UIBadge
 import com.reco1l.verktex.ui.UIButton
 import com.reco1l.verktex.ui.UIScene
+import com.reco1l.verktex.ui.UICanvas
+import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.ui.shape.UIBox
 import com.reco1l.verktex.ui.badge
 import com.reco1l.verktex.ui.card
@@ -494,6 +496,64 @@ object VerktexUITests : UITestSuite("Verktex") {
                         height = 80f.dip
                         radius = 12f.dip
                         border = Border(2f.dip, Color4.White)
+                    }
+                }
+            }
+        }
+
+        test("Borders and corners") {
+            fun rect(block: GraphicsRenderer.(width: Float, height: Float) -> Unit) = object : UICanvas() {
+                init {
+                    width = 140f.dip
+                    height = 90f.dip
+                }
+
+                override fun onDraw(renderer: GraphicsRenderer) = renderer.block(bounds.width, bounds.height)
+            }
+
+            val fill = Color4(0.2f, 0.22f, 0.3f)
+            val border = 6f.dip.toPixels()
+            val large = 30f.dip.toPixels()
+            val small = 8f.dip.toPixels()
+
+            column {
+                section("Corners") {
+                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radiusTopLeft = large, radiusBottomRight = large) }
+                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radiusTopLeft = large, radiusTopRight = large) }
+                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radiusTopLeft = small, radiusTopRight = large, radiusBottomRight = small, radiusBottomLeft = 0f) }
+                    this += rect { w, h -> drawRect(0f, 0f, w, h, fill, radius = 1000f) }
+                }
+
+                section("Sides") {
+                    this += rect { w, h ->
+                        drawRect(0f, 0f, w, h, fill, border, radius = small,
+                            borderTop = Color4.Red400, borderRight = Color4.Green400, borderBottom = Color4.Blue400, borderLeft = Color4.Yellow400)
+                    }
+                    this += rect { w, h ->
+                        drawRect(0f, 0f, w, h, fill, border, radiusTopLeft = large, radiusBottomRight = large,
+                            borderTop = Color4.Red400, borderRight = Color4.Green400, borderBottom = Color4.Blue400, borderLeft = Color4.Yellow400)
+                    }
+                    this += rect { w, h ->
+                        drawRect(0f, 0f, w, h, fill, border, radius = small,
+                            borderTop = Color4.Transparent, borderRight = Color4.Transparent, borderBottom = Color4.White, borderLeft = Color4.Transparent)
+                    }
+                }
+
+                section("Fading sides") {
+                    // Left and right fade from the top color to the bottom one, the gradient of a bezel.
+                    this += rect { w, h ->
+                        drawRect(0f, 0f, w, h, fill, border, radius = small,
+                            borderTop = Color4.Red400, borderRight = null, borderBottom = Color4.Blue400, borderLeft = null)
+                    }
+                    // Top and bottom fade from left to right.
+                    this += rect { w, h ->
+                        drawRect(0f, 0f, w, h, fill, border, radius = small,
+                            borderTop = null, borderRight = Color4.Green400, borderBottom = null, borderLeft = Color4.Yellow400)
+                    }
+                    // Only the left side fades, between the top and bottom colors.
+                    this += rect { w, h ->
+                        drawRect(0f, 0f, w, h, fill, border, radius = small,
+                            borderTop = Color4.Red400, borderRight = Color4.Green400, borderBottom = Color4.Blue400, borderLeft = null)
                     }
                 }
             }

@@ -823,9 +823,12 @@ abstract class UIComponent {
                 height = bounds.height,
                 color = backgroundColor,
                 borderWidth = border.width.toPixels(),
-                borderColor = border.color,
                 radius = radius.toPixels(),
-                borderColorBottom = border.colorBottom.takeIf { it != border.color }
+                borderTop = border.color,
+                borderBottom = border.colorBottom,
+                // Without colors of their own, the sides fade from the top color to the bottom one.
+                borderLeft = border.color.takeIf { it == border.colorBottom },
+                borderRight = border.color.takeIf { it == border.colorBottom }
             )
         }
 
