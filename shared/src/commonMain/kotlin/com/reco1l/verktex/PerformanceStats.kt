@@ -63,7 +63,9 @@ object PerformanceStats {
     var updateTime = 0f
 
     /**
-     * Draw commands the scene produced in the last frame, overlays excluded.
+     * Draw commands the scene and its overlays produced in the last frame, the diagnostics (such
+     * as the performance overlay) excluded. While an overlay shows a capture, what it covers is
+     * the one command drawing the capture.
      */
     var drawCommands = 0
 
