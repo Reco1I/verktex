@@ -7,6 +7,7 @@ import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Shadow
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Mat2
@@ -475,9 +476,10 @@ abstract class UIComponent {
     var clipping: ClipMode = ClipMode.Disabled
 
     /**
-     * The background color of this component.
+     * What this component is filled with behind its content, a color or a texture, following its
+     * shape and under its border.
      */
-    var backgroundColor: Color4 by themeable(Color4.Transparent)
+    var background: Background by themeable(Background.None)
 
     /**
      * The border drawn along the inner edge of this component. Null for none.
@@ -769,6 +771,32 @@ abstract class UIComponent {
             && minOf(y0, y1, y2, y3) <= y + height && maxOf(y0, y1, y2, y3) >= y
     }
 
+    // The rectangle and texture coordinates of a texture background, see ScaleType.place.
+    private var backgroundPlacement: FloatArray? = null
+
+    private fun drawTextureBackground(renderer: GraphicsRenderer, background: Background.Texture, radius: CornerRadius) {
+        val region = background.region
+        val p = backgroundPlacement ?: FloatArray(8).also { backgroundPlacement = it }
+
+        if (!background.scaleType.place(region, bounds.width, bounds.height, background.gravity, false, false, p)) {
+            return
+        }
+
+        renderer.drawTexture(
+            region.texture, region, p[0], p[1], p[2], p[3],
+            color = background.tint,
+            uv = Vec4(p[4], p[5], p[6], p[7]),
+            radiusTopLeft = radius.topLeft.toPixels(),
+            radiusTopRight = radius.topRight.toPixels(),
+            radiusBottomRight = radius.bottomRight.toPixels(),
+            radiusBottomLeft = radius.bottomLeft.toPixels(),
+            maskX = 0f,
+            maskY = 0f,
+            maskWidth = bounds.width,
+            maskHeight = bounds.height
+        )
+    }
+
     /**
      * Draws the component using the given renderer. This method is responsible for setting up the
      * rendering context, applying transformations, and calling [onDraw] to perform the actual
@@ -819,14 +847,23 @@ abstract class UIComponent {
         }
 
         // The background is drawn before clipping, padding clipping must only affect the content.
+        val background = background
         val border = border
-        if (backgroundColor.alpha > 0f || border.isVisible) {
+
+        // A color is drawn with the border, a texture under it.
+        val fill = if (background is Background.Color) background.color else Color4.Transparent
+
+        if (background is Background.Texture && background.isVisible) {
+            drawTextureBackground(renderer, background, radius)
+        }
+
+        if (fill.alpha > 0f || border.isVisible) {
             renderer.drawRect(
                 x = 0f,
                 y = 0f,
                 width = bounds.width,
                 height = bounds.height,
-                color = backgroundColor,
+                color = fill,
                 borderWidth = border.width.toPixels(),
                 radiusTopLeft = radius.topLeft.toPixels(),
                 radiusTopRight = radius.topRight.toPixels(),

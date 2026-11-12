@@ -1,6 +1,7 @@
 package com.reco1l.verktex.testing
 
 import com.reco1l.verktex.math.toFixed
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Anchor
@@ -33,7 +34,7 @@ private fun colorAt(index: Int) = COLORS[index % COLORS.size]
  * A colored block with a centered label, used to show how containers size and place children.
  */
 private inline fun UIContainer.block(label: String, tint: Color4, builder: UIContainer.() -> Unit = {}) = container {
-    backgroundColor = tint
+    background = Background.Color(tint)
     radius = CornerRadius(6f.dip)
     padding = Padding(10f.dip, 6f.dip)
     builder()
@@ -55,7 +56,7 @@ private inline fun UIContainer.row(builder: UILinearContainer.() -> Unit) = line
     width = 560f.dip
     padding = Padding(4f.dip)
     spacing = 4f.dip
-    backgroundColor = FAINT
+    background = Background.Color(FAINT)
     builder()
 }
 
@@ -68,7 +69,7 @@ private inline fun UIContainer.columnBox(builder: UILinearContainer.() -> Unit) 
     height = 280f.dip
     padding = Padding(4f.dip)
     spacing = 4f.dip
-    backgroundColor = FAINT
+    background = Background.Color(FAINT)
     builder()
 }
 
@@ -207,14 +208,14 @@ fun UITestSuite.addContainerTests() {
                 )) {
                     container {
                         width = 400f.dip
-                        backgroundColor = FAINT
+                        background = Background.Color(FAINT)
                         block(label, colorAt(4)) { width = size }
                     }
                 }
 
                 container {
                     width = 400f.dip
-                    backgroundColor = FAINT
+                    background = Background.Color(FAINT)
                     block("Wrap content", colorAt(4))
                 }
             }
@@ -224,7 +225,7 @@ fun UITestSuite.addContainerTests() {
                     container {
                         width = 160f.dip
                         height = 100f.dip
-                        backgroundColor = FAINT
+                        background = Background.Color(FAINT)
                         this.padding = Padding(padding.dip)
                         block("${padding.toInt()}dip", colorAt(5)) { width = fill(); height = fill() }
                     }
@@ -236,7 +237,7 @@ fun UITestSuite.addContainerTests() {
                     container {
                         width = 160f.dip
                         height = 100f.dip
-                        backgroundColor = FAINT
+                        background = Background.Color(FAINT)
                         clipping = clip
 
                         block("Overflowing", colorAt(6)) {
@@ -257,7 +258,7 @@ fun UITestSuite.addContainerTests() {
                 container {
                     width = 320f.dip
                     height = 180f.dip
-                    backgroundColor = FAINT
+                    background = Background.Color(FAINT)
 
                     for ((index, anchor) in ANCHORS.withIndex()) {
                         block("", colorAt(index)) {
@@ -274,7 +275,7 @@ fun UITestSuite.addContainerTests() {
                 container {
                     width = 320f.dip
                     height = 180f.dip
-                    backgroundColor = FAINT
+                    background = Background.Color(FAINT)
 
                     for ((index, origin) in ANCHORS.withIndex()) {
                         block("", colorAt(index).alpha(0.6f)) {
@@ -291,7 +292,7 @@ fun UITestSuite.addContainerTests() {
                 container {
                     width = 320f.dip
                     height = 180f.dip
-                    backgroundColor = FAINT
+                    background = Background.Color(FAINT)
 
                     block("x 16, y 16", colorAt(0)) { anchor = Anchor.TopLeft; x = 16f.dip; y = 16f.dip }
                     block("x -16, y -16", colorAt(4)) {
@@ -394,7 +395,7 @@ fun UITestSuite.addContainerTests() {
             scrollAxes = Axis.Y
             width = 260f.dip
             height = fill()
-            backgroundColor = FAINT
+            background = Background.Color(FAINT)
 
             linearContainer {
                 orientation = UILinearContainer.Orientation.Vertical
@@ -412,7 +413,7 @@ fun UITestSuite.addContainerTests() {
             origin = Anchor.TopRight
             width = 360f.dip
             height = 80f.dip
-            backgroundColor = FAINT
+            background = Background.Color(FAINT)
 
             linearContainer {
                 padding = Padding(4f.dip)
@@ -429,7 +430,7 @@ fun UITestSuite.addContainerTests() {
             origin = Anchor.BottomRight
             width = 360f.dip
             height = 180f.dip
-            backgroundColor = FAINT
+            background = Background.Color(FAINT)
 
             container {
                 width = 1200f.dip
@@ -508,6 +509,6 @@ private class RecyclerRow : RecyclableComponent<Int>() {
 
     override fun onBind(data: Int) {
         label.text = "Item $data"
-        backgroundColor = colorAt(data).alpha(0.3f)
+        background = Background.Color(colorAt(data).alpha(0.3f))
     }
 }

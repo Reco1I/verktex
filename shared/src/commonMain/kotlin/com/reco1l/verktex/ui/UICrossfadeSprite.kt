@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.data.fill
+import com.reco1l.verktex.data.ScaleType
 import com.reco1l.verktex.graphics.GraphicsTexture
 import com.reco1l.verktex.ui.container.UIContainer
 
@@ -37,7 +38,7 @@ open class UICrossfadeSprite : UIContainer() {
     /**
      * How the textures are scaled to the bounds, see [UISprite.scaleType].
      */
-    var scaleType: UISprite.ScaleType
+    var scaleType: ScaleType
         get() = sprites[0].scaleType
         set(value) = sprites.forEach { it.scaleType = value }
 

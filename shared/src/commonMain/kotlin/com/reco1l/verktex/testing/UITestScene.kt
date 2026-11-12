@@ -1,6 +1,7 @@
 package com.reco1l.verktex.testing
 
 import com.reco1l.verktex.BuiltIn
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.PlatformTarget
 import com.reco1l.verktex.Platform
@@ -82,7 +83,7 @@ class UITestScene(
             return LayoutConstraints(minWidth = virtualWidth, maxWidth = virtualWidth, minHeight = virtualHeight, maxHeight = virtualHeight)
         }
     }.apply {
-        backgroundColor = BACKGROUNDS[0]
+        background = Background.Color(BACKGROUNDS[0])
         anchor = Anchor.Center
         origin = Anchor.Center
         scaleOrigin = Anchor.Center
@@ -142,7 +143,7 @@ class UITestScene(
 
 
     init {
-        backgroundColor = BACKGROUNDS[0]
+        background = Background.Color(BACKGROUNDS[0])
 
         linearContainer {
             orientation = UILinearContainer.Orientation.Horizontal
@@ -154,7 +155,7 @@ class UITestScene(
                 scrollAxes = Axis.Y
                 width = 220f.dip
                 height = fill()
-                backgroundColor = Verktex.theme.palette.surface
+                background = Background.Color(Verktex.theme.palette.surface)
 
                 linearContainer {
                     orientation = UILinearContainer.Orientation.Vertical
@@ -268,7 +269,7 @@ class UITestScene(
                         variant = UIButton.Variant.Surface
                         onActionUp = {
                             backgroundIndex = (backgroundIndex + 1) % BACKGROUNDS.size
-                            viewport.backgroundColor = BACKGROUNDS[backgroundIndex]
+                            viewport.background = Background.Color(BACKGROUNDS[backgroundIndex])
                         }
                     }
 

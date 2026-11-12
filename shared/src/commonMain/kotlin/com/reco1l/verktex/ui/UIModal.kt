@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.Verktex
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.ClipMode
@@ -30,7 +31,7 @@ open class UIModal(
         anchor = Anchor.Center
         origin = Anchor.Center
         clipping = ClipMode.Bounds
-        backgroundColor = themed { palette.surface }
+        background = Background.Color(themed { palette.surface })
         radius = themed { CornerRadius(radius.lg) }
         border = themed { cardStyle.elevation.border }
         shadow = themed { cardStyle.elevation.shadow }
@@ -69,7 +70,7 @@ open class UIModal(
         width = fill()
         height = fill()
 
-        backgroundColor = BACKDROP_COLOR
+        background = Background.Color(BACKDROP_COLOR)
         isVisible = false
         alpha = 0f
 

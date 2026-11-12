@@ -1,6 +1,7 @@
 package com.reco1l.verktex.testing
 
 import com.reco1l.verktex.data.Padding
+import com.reco1l.verktex.data.Background
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.cos
@@ -505,7 +506,7 @@ object VerktexUITests : UITestSuite("Verktex") {
             fun UIContainer.panel(radius: CornerRadius, border: Border = Border.None) = container {
                 width = 140f.dip
                 height = 90f.dip
-                backgroundColor = Color4(0.2f, 0.22f, 0.3f)
+                background = Background.Color(Color4(0.2f, 0.22f, 0.3f))
                 this.radius = radius
                 this.border = border
             }
@@ -542,7 +543,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                     container {
                         width = 140f.dip
                         height = 90f.dip
-                        backgroundColor = themed { palette.surface }
+                        background = Background.Color(themed { palette.surface })
                         radius = themed { CornerRadius.top(radius.xl) }
                         border = themed { buttonStyle.elevation.border }
                     }
@@ -650,7 +651,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                 width = 100f.dip
                 height = 100f.dip
                 radius = CornerRadius(12f.dip)
-                backgroundColor = Color4.Pink400
+                background = Background.Color(Color4.Pink400)
             }
 
             linearContainer {
@@ -692,7 +693,7 @@ object VerktexUITests : UITestSuite("Verktex") {
             fun sceneAt(level: Int): UIScene = object : UIScene() {
                 init {
                     // Drawn over the whole scene and not affected by its layout.
-                    background = UIBox().apply {
+                    backgroundComponent = UIBox().apply {
                         color = BACKGROUND_COLORS[level % BACKGROUND_COLORS.size]
                     }
 

@@ -1097,7 +1097,11 @@ abstract class GraphicsRenderer {
     }
 
     /**
-     * Draws a texture with the specified position, size, color, border width, border color, and corner radius.
+     * Draws a texture with the specified position, size and color.
+     *
+     * With a radius, the texture is cut by a rounded rectangle, the mask, which is the drawn
+     * rectangle unless given (in the same space), e.g. the bounds of the component a cropped or
+     * letterboxed texture belongs to. External textures can't be rounded.
      */
     fun drawTexture(
         texture: GraphicsTexture,
@@ -1107,12 +1111,19 @@ abstract class GraphicsRenderer {
         width: Float,
         height: Float,
         color: Color4 = Color4.White,
-        borderWidth: Float = 0f,
-        borderColor: Color4 = Color4.Transparent,
         radius: Float = 0f,
-        uv: Vec4 = Vec4(region.u0, region.v0, region.u1, region.v1)
+        uv: Vec4 = Vec4(region.u0, region.v0, region.u1, region.v1),
+        radiusTopLeft: Float = radius,
+        radiusTopRight: Float = radius,
+        radiusBottomRight: Float = radius,
+        radiusBottomLeft: Float = radius,
+        maskX: Float = x,
+        maskY: Float = y,
+        maskWidth: Float = width,
+        maskHeight: Float = height
     ) {
         val externalTransform = texture.transform
+        val isRounded = radiusTopLeft > 0f || radiusTopRight > 0f || radiusBottomRight > 0f || radiusBottomLeft > 0f
 
         // The texture shader only reads the uniforms for rounded corners, so plain textures share
         // an empty set and consecutive ones from the same texture end up in one draw call.
@@ -1124,10 +1135,12 @@ abstract class GraphicsRenderer {
                 externalUniforms = GraphicsShader.UniformSet().apply { set("uTransform", externalTransform) }
             }
             externalUniforms
-        } else if (radius > 0f) {
+        } else if (isRounded && maskWidth > 0f && maskHeight > 0f) {
             GraphicsShader.UniformSet().apply {
-                set("uRadius", radius)
-                set("uSize", Vec2(width, height))
+                set("uRadii", Vec4(radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft))
+                set("uMask", Vec4(maskX, maskY, maskWidth, maskHeight))
+                set("uQuad", Vec4(x, y, width, height))
+                set("uUVRect", uv)
             }
         } else {
             EMPTY_UNIFORMS

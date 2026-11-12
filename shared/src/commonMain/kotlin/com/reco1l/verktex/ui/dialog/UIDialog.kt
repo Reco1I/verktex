@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.dialog
 
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.fill
@@ -22,7 +23,7 @@ abstract class UIDialog<T : UIComponent>(val innerContent: T) : UIModal(card = U
     width = fill(0.5f)
     anchor = Anchor.Center
     origin = Anchor.Center
-    backgroundColor = themed { palette.surface }
+    background = Background.Color(themed { palette.surface })
     radius = themed { CornerRadius(radius.xl) }
 }) {
 
@@ -77,6 +78,6 @@ abstract class UIDialog<T : UIComponent>(val innerContent: T) : UIModal(card = U
     private fun divider() = UIBox().apply {
         width = fill()
         height = 2f.px
-        backgroundColor = themed { palette.divider }
+        background = Background.Color(themed { palette.divider })
     }
 }

@@ -18,7 +18,7 @@ open class UIScene : UIContainer() {
      * The background component of the scene. This component will be drawn before any other
      * children of the scene and will not be affected by the scene's padding.
      */
-    var background: UIComponent? = null
+    var backgroundComponent: UIComponent? = null
 
 
     init {
@@ -59,13 +59,13 @@ open class UIScene : UIContainer() {
                 bottom = embeddedSafeArea.w.px
             )
             layoutEmbeddedBackground()
-            background?.draw(renderer)
+            backgroundComponent?.draw(renderer)
             super.onDraw(renderer)
             return
         }
 
         // A background left from when the scene was embedded would follow its old transformations.
-        background?.let { if (it.parent === this) it.parent = null }
+        backgroundComponent?.let { if (it.parent === this) it.parent = null }
 
         // Padding will be applied to the scene's content, but not to the background since it is not
         // present on the children list.
@@ -83,13 +83,13 @@ open class UIScene : UIContainer() {
         onPerformLayout()
         PerformanceStats.addLayoutTime(monotonicNanos() - layoutStartNanos)
 
-        background?.draw(renderer)
+        backgroundComponent?.draw(renderer)
         super.onDraw(renderer)
     }
 
 
     override fun onUpdate(clock: FrameClock) {
-        background?.update(clock)
+        backgroundComponent?.update(clock)
         super.onUpdate(clock)
     }
 
@@ -100,24 +100,24 @@ open class UIScene : UIContainer() {
      * padding.
      */
     private fun layoutEmbeddedBackground() {
-        val background = background ?: return
+        val backgroundComponent = backgroundComponent ?: return
         val width = bounds.width
         val height = bounds.height
 
-        if (background.parent !== this) {
-            background.parent = this
+        if (backgroundComponent.parent !== this) {
+            backgroundComponent.parent = this
         }
 
-        background.measure(LayoutConstraints(
+        backgroundComponent.measure(LayoutConstraints(
             minWidth = width,
             maxWidth = width,
             minHeight = height,
             maxHeight = height
         ))
-        background.layout(Vec4(x = 0f, y = 0f, z = width, w = height))
+        backgroundComponent.layout(Vec4(x = 0f, y = 0f, z = width, w = height))
 
         // The scene doesn't tell its background when it moves, as it does with its children.
-        background.calculateTransformations()
+        backgroundComponent.calculateTransformations()
     }
 
     /**
@@ -136,7 +136,7 @@ open class UIScene : UIContainer() {
         )
 
         measure(constraints)
-        background?.measure(constraints)
+        backgroundComponent?.measure(constraints)
 
         val bounds = Vec4(
             x = 0f,
@@ -146,7 +146,7 @@ open class UIScene : UIContainer() {
         )
 
         layout(bounds)
-        background?.layout(bounds)
+        backgroundComponent?.layout(bounds)
     }
 
 

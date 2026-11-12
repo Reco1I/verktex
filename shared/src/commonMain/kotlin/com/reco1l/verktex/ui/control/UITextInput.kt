@@ -1,6 +1,7 @@
 package com.reco1l.verktex.ui.control
 
 import com.reco1l.verktex.ui.text.codePointCount
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.*
 import com.reco1l.verktex.data.Anchor
@@ -178,12 +179,12 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
         height = themed { controlStyle.minimumHeight }
         padding = themed { horizontalPadding(gap.md) }
         radius = themed { CornerRadius(radius.md) }
-        backgroundColor = themed { palette.controlInactiveBackground }
+        background = Background.Color(themed { palette.controlInactiveBackground })
         // Its color is animated towards the target one on update.
         border = Border(1.5f.dip, borderTargetColor(resolvedTheme))
 
         placeholderText.color = themed { palette.accent.alpha(0.5f) }
-        caret.backgroundColor = themed { palette.accent }
+        caret.background = Background.Color(themed { palette.accent })
         leadingIconComponent.color = themed { palette.accent }
         trailingIconComponent.color = themed { palette.accent }
         row.spacing = themed { controlStyle.iconSpacing }
