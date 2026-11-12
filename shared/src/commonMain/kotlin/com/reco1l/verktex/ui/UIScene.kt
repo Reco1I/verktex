@@ -161,9 +161,12 @@ open class UIScene : UIContainer() {
      */
     open fun onLeave() {}
 
-    open fun onGameWindowFocusChange(hasFocus: Boolean) {
-        // Override this method to handle game window focus changes.
-    }
+    /**
+     * Called when the game's window gains or loses the focus (e.g. the notification shade is pulled
+     * on Android, or another window is selected on desktop), on every scene in the stack, not only
+     * the current one. It's called with the tree locked.
+     */
+    open fun onGameWindowFocusChange(hasFocus: Boolean) {}
 
 
     /**
