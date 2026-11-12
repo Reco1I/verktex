@@ -235,9 +235,11 @@ object Verktex {
             val capture = topmostCapture()
             if (capture != null) capture.drawCapture(graphics) else rootScene.draw(graphics)
 
+            overlayContainer.draw(graphics)
+
+            // Counted before the diagnostics, so that the performance overlay doesn't count itself.
             PerformanceStats.drawCommands = graphics.commandCount
             PerformanceStats.mergedDrawCommands = graphics.simulatedCommandCount
-            overlayContainer.draw(graphics)
             diagnosticsContainer.draw(graphics)
             PerformanceStats.recordTime = (monotonicNanos() - recordStartNanos) / 1_000_000f
         }
