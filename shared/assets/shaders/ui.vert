@@ -30,10 +30,10 @@ flat out vec4 vBorderRight;
 flat out vec4 vBorderBottom;
 flat out vec4 vBorderLeft;
 
-vec4 unpackColor(vec2 packed) {
-    float r = floor(packed.x / 256.0);
-    float b = floor(packed.y / 256.0);
-    return vec4(r, packed.x - r * 256.0, b, packed.y - b * 256.0) / 255.0;
+vec4 unpackColor(vec2 bits) {
+    float r = floor(bits.x / 256.0);
+    float b = floor(bits.y / 256.0);
+    return vec4(r, bits.x - r * 256.0, b, bits.y - b * 256.0) / 255.0;
 }
 
 void main() {
