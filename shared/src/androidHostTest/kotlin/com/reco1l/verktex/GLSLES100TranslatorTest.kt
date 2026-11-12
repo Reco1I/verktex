@@ -61,7 +61,9 @@ class GLSLES100TranslatorTest {
         assertEquals(0, particle["aCorner"])
         assertEquals(8, particle["aColor"])
 
-        assertEquals(7, translate("ui.vert").attributeLocations["aMode"])
+        val ui = translate("ui.vert").attributeLocations
+        assertEquals(7, ui.size)
+        assertEquals(6, ui["aBorder1"])
     }
 
     @Test
