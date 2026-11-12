@@ -85,17 +85,24 @@ object Verktex {
 
     //region Modules
 
-    /**
-     * The game host, responsible for managing the engine's lifecycle and dispatching native events.
-     */
-    lateinit var host: GameHost
-        private set
+    // Released by dispose: the host and the renderer's window may be an activity, which would
+    // otherwise outlive its destruction.
+    private var currentHost: GameHost? = null
+    private var currentGraphics: GraphicsRenderer? = null
 
     /**
-     * The rendered used by the engine. This is responsible for all rendering operations.
+     * The game host, responsible for managing the engine's lifecycle and dispatching native events.
+     * Only while the engine is initialized, see [isInitialized].
      */
-    lateinit var graphics: GraphicsRenderer
-        private set
+    val host: GameHost
+        get() = currentHost ?: throw IllegalStateException("The engine isn't initialized")
+
+    /**
+     * The rendered used by the engine. This is responsible for all rendering operations. Only while
+     * the engine is initialized, see [isInitialized].
+     */
+    val graphics: GraphicsRenderer
+        get() = currentGraphics ?: throw IllegalStateException("The engine isn't initialized")
 
     /**
      * The audio backend used by the engine. This is responsible for all audio operations.
@@ -125,9 +132,9 @@ object Verktex {
         if (isInitialized)
             throw IllegalStateException("Engine already initialized!")
 
-        this.graphics = renderer
+        this.currentGraphics = renderer
         this.audio = audio
-        this.host = host
+        this.currentHost = host
 
         // Activates the first device, without it no audio can be played.
         audio.enumerateDevices()
@@ -438,6 +445,9 @@ object Verktex {
         started = false
         paused = false
         isInitialized = false
+
+        currentHost = null
+        currentGraphics = null
     }
 
     //endregion

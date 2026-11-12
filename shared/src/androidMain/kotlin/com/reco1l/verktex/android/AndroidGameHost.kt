@@ -349,7 +349,7 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
     }
 
 
-    internal companion object {
+    private companion object {
 
         /**
          * The application of [context], as its package says.
