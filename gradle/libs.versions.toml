@@ -7,8 +7,6 @@ atomicfu = "0.33.0"
 serialization = "1.8.0"
 media3 = "1.4.1"
 lwjgl = "3.4.3"
-# Room's compiler, which applications run, must be of the same version as its runtime.
-room = "2.7.2"
 
 [libraries]
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
@@ -17,8 +15,6 @@ atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu"
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
-sqlite-bundled = "androidx.sqlite:sqlite-bundled:2.5.1"
 androidx-appcompat = "androidx.appcompat:appcompat:1.7.1"
 androidx-core-ktx = "androidx.core:core-ktx:1.13.1"
 media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }

@@ -91,11 +91,6 @@ kotlin {
             // JSON, e.g. the strings of the localizations and the settings, whose keys expose
             // their serializer.
             api(libs.kotlinx.serialization.json)
-
-            // Databases, see Databases: Room over the bundled SQLite. Applications run Room's
-            // compiler for their databases, at the version of libs.versions.toml.
-            api(libs.room.runtime)
-            api(libs.sqlite.bundled)
         }
 
         getByName("jvmMain").dependencies {
