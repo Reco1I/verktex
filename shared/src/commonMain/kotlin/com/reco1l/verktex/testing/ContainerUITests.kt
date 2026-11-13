@@ -15,6 +15,7 @@ import com.reco1l.verktex.ui.container.UIContainer
 import com.reco1l.verktex.ui.container.UILinearContainer
 import com.reco1l.verktex.ui.container.UIRecyclerContainer
 import com.reco1l.verktex.ui.container.RecyclableComponent
+import com.reco1l.verktex.ui.container.clipContainer
 import com.reco1l.verktex.ui.container.constraintContainer
 import com.reco1l.verktex.ui.container.container
 import com.reco1l.verktex.ui.container.linearContainer
@@ -245,6 +246,30 @@ fun UITestSuite.addContainerTests() {
                             origin = Anchor.Center
                             width = 240f.dip
                             height = 40f.dip
+                        }
+                    }
+                }
+            }
+
+            section("Clip container: children keep their size, revealed from the bottom") {
+                for (fraction in listOf(0.25f, 0.5f, 1f)) {
+                    container {
+                        width = 160f.dip
+                        height = 100f.dip
+                        background = Background.Color(FAINT)
+
+                        clipContainer {
+                            anchor = Anchor.BottomLeft
+                            origin = Anchor.BottomLeft
+                            width = 160f.dip
+                            height = (100f * fraction).dip
+
+                            block("${(fraction * 100).toInt()}% shown", colorAt(3)) {
+                                anchor = Anchor.BottomLeft
+                                origin = Anchor.BottomLeft
+                                width = 240f.dip
+                                height = 100f.dip
+                            }
                         }
                     }
                 }
