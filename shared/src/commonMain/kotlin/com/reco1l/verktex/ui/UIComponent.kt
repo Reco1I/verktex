@@ -877,16 +877,13 @@ abstract class UIComponent {
         }
 
         if (clipping != ClipMode.Disabled) {
-            val clippingBounds = if (clipping == ClipMode.Bounds)
-                bounds
-            else
-                bounds.shrink(padding.toVec4())
+            val area = clippingArea()
 
             renderer.pushScissor(
-                x = if (clipping == ClipMode.Bounds) 0f else paddingLeft.toPixels(),
-                y = if (clipping == ClipMode.Bounds) 0f else paddingTop.toPixels(),
-                width = clippingBounds.width.coerceAtLeast(0f),
-                height = clippingBounds.height.coerceAtLeast(0f)
+                x = area.x,
+                y = area.y,
+                width = (area.z - area.x).coerceAtLeast(0f),
+                height = (area.w - area.y).coerceAtLeast(0f)
             )
         }
 
@@ -901,6 +898,23 @@ abstract class UIComponent {
 
         renderer.popColor()
         renderer.popMatrix()
+    }
+
+    /**
+     * The rectangle the content is clipped to while [clipping] is enabled, in local space as its left, top,
+     * right and bottom edges: the bounds, or the area inside the padding.
+     */
+    protected open fun clippingArea(): Vec4 {
+        if (clipping == ClipMode.Padding) {
+            return Vec4(
+                x = paddingLeft.toPixels(),
+                y = paddingTop.toPixels(),
+                z = bounds.width - paddingRight.toPixels(),
+                w = bounds.height - paddingBottom.toPixels()
+            )
+        }
+
+        return Vec4(0f, 0f, bounds.width, bounds.height)
     }
 
     /**

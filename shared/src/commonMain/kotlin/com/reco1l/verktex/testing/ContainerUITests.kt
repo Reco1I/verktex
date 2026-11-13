@@ -251,7 +251,7 @@ fun UITestSuite.addContainerTests() {
                 }
             }
 
-            section("Clip container: children keep their size, revealed from the bottom") {
+            section("Clip container: a fraction of the height shown, from the bottom") {
                 for (fraction in listOf(0.25f, 0.5f, 1f)) {
                     container {
                         width = 160f.dip
@@ -259,16 +259,14 @@ fun UITestSuite.addContainerTests() {
                         background = Background.Color(FAINT)
 
                         clipContainer {
-                            anchor = Anchor.BottomLeft
-                            origin = Anchor.BottomLeft
-                            width = 160f.dip
-                            height = (100f * fraction).dip
+                            width = fill()
+                            height = fill()
+                            clipFactorY = fraction
+                            clipAnchor = Anchor.BottomLeft
 
                             block("${(fraction * 100).toInt()}% shown", colorAt(3)) {
-                                anchor = Anchor.BottomLeft
-                                origin = Anchor.BottomLeft
-                                width = 240f.dip
-                                height = 100f.dip
+                                width = fill()
+                                height = fill()
                             }
                         }
                     }
