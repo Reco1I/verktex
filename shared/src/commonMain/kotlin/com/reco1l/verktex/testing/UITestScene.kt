@@ -96,7 +96,7 @@ class UITestScene(
      * they do in the game. Its height fills the area, scaled the same. Otherwise it's laid out at
      * the size it has, as components are.
      */
-    private var isFittingWindow = Platform.target == PlatformTarget.Android
+    private var isFittingWindow = true
 
     /**
      * Whether the scenes of the stage keep the safe area of the window, as they do in the game.
