@@ -288,7 +288,7 @@ class Choreography internal constructor(private val target: UIComponent) {
 
             if (appliedProperties and bit == 0) {
                 appliedProperties = appliedProperties or bit
-                step.apply(target, step.startTime)
+                step.applyProgress(target, 0f)
             }
         }
     }
@@ -321,6 +321,14 @@ class Choreography internal constructor(private val target: UIComponent) {
                 else -> easing.interpolate((time - startTime) / duration).coerceIn(0f, 1f)
             }
 
+            applyProgress(target, progress)
+        }
+
+        /**
+         * Applies the value at the given eased [progress], 0 being where the step starts from, even for one
+         * without duration.
+         */
+        fun applyProgress(target: UIComponent, progress: Float) {
             val value = from + (to - from) * progress
 
             when (property) {

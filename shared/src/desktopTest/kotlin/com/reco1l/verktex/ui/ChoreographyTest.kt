@@ -44,6 +44,18 @@ class ChoreographyTest {
     }
 
     @Test
+    fun `Step without duration keeps the value it starts from until it's reached`() {
+        component.alpha = 1f
+        component.choreograph { at(10f).fadeOut() }
+
+        seek(5f)
+        assertEquals(1f, component.alpha, 1e-4f)
+
+        seek(10f)
+        assertEquals(0f, component.alpha, 1e-4f)
+    }
+
+    @Test
     fun `Next step starts from where the previous one ended`() {
         component.alpha = 0f
         component.choreograph { at(0f).fadeTo(0.5f, 1f).then().fadeTo(1f, 1f) }
