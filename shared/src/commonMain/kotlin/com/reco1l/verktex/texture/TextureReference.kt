@@ -3,10 +3,10 @@ package com.reco1l.verktex.texture
 import com.reco1l.verktex.graphics.GraphicsTexture
 
 /**
- * Refers to the texture region a component draws, either given directly or stored in [Textures]
- * under a key, see [storedTexture].
+ * Refers to the texture region a component draws: a region given directly, one stored in [Textures]
+ * under a key ([storedTexture]), or one an application looks up its own way ([Lookup]).
  */
-sealed class TextureReference {
+abstract class TextureReference {
 
     /**
      * The region this reference points to now, or null if there is none.
@@ -22,29 +22,40 @@ sealed class TextureReference {
     }
 
     /**
-     * The region stored in [Textures] under [key], followed as it's loaded, replaced or unloaded.
+     * A region looked up again only once [revision] changed, so it can be resolved every frame.
      */
-    class Stored(val key: String) : TextureReference() {
+    abstract class Lookup : TextureReference() {
 
-        // The store is read again only once it changed, see Textures.revision.
-        private var revision = -1
+        private var resolvedRevision = -1
         private var region: GraphicsTexture.Region? = null
 
-        override fun resolve(): GraphicsTexture.Region? {
-            val current = Textures.revision
+        /**
+         * Changes whenever the region [lookup] returns may have changed. By default it's
+         * [Textures.revision], references that depend on more than the store go up with that too.
+         */
+        protected open val revision: Int
+            get() = Textures.revision
 
-            if (revision != current) {
-                revision = current
-                region = Textures[key]
+        /**
+         * Looks the region up.
+         */
+        protected abstract fun lookup(): GraphicsTexture.Region?
+
+        final override fun resolve(): GraphicsTexture.Region? {
+            if (resolvedRevision != revision) {
+                region = lookup()
+                // Taken after the lookup, which may load the region and change the revision itself.
+                resolvedRevision = revision
             }
             return region
         }
+    }
 
-        override fun equals(other: Any?) = other is Stored && other.key == key
-
-        override fun hashCode() = key.hashCode()
-
-        override fun toString() = "Stored($key)"
+    /**
+     * The region stored in [Textures] under [key], followed as it's loaded, replaced or unloaded.
+     */
+    data class Stored(val key: String) : Lookup() {
+        override fun lookup() = Textures[key]
     }
 }
 
