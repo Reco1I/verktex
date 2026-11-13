@@ -257,6 +257,24 @@ abstract class GraphicsTexture : GraphicsResource() {
     ) {
 
         /**
+         * How many pixels of the texture make one pixel of the size the region is shown at, e.g. 2 for an
+         * image made at twice the resolution (an `@2x` one). [width] and [height] stay in texture pixels.
+         */
+        var density = 1f
+
+        /**
+         * The width the region is shown at, [width] divided by [density].
+         */
+        val displayWidth: Float
+            get() = width / density
+
+        /**
+         * The height the region is shown at, [height] divided by [density].
+         */
+        val displayHeight: Float
+            get() = height / density
+
+        /**
          * The u-coordinate of the top-left corner of the region in texture space (normalized).
          */
         val u0: Float

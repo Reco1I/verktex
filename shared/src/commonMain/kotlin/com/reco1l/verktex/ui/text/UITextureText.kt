@@ -122,7 +122,7 @@ open class UITextureText(val characters: Map<Char, GraphicsTexture.Region?>) : U
 
 
     private fun cellWidth(char: Char, region: GraphicsTexture.Region) =
-        (fixedCharWidths?.get(char) ?: region.width) * textureScaleX
+        (fixedCharWidths?.get(char) ?: region.displayWidth) * textureScaleX
 
     private fun measureWidth(text: String): Float {
         var width = 0f
@@ -140,7 +140,7 @@ open class UITextureText(val characters: Map<Char, GraphicsTexture.Region?>) : U
 
     override fun onMeasure(parentConstraints: LayoutConstraints, contentConstraints: LayoutConstraints): Vec2 {
         val measured = measureText ?: displayedText
-        val height = measured.maxOfOrNull { char -> characters[char]?.height ?: 0f } ?: 0f
+        val height = measured.maxOfOrNull { char -> characters[char]?.displayHeight ?: 0f } ?: 0f
 
         return parentConstraints.constrain(Vec2(measureWidth(measured), height * textureScaleY))
     }
@@ -154,7 +154,7 @@ open class UITextureText(val characters: Map<Char, GraphicsTexture.Region?>) : U
 
         for (char in displayedText) {
             val region = characters[char] ?: continue
-            val textureWidth = region.width * textureScaleX
+            val textureWidth = region.displayWidth * textureScaleX
             val cellWidth = cellWidth(char, region)
 
             renderer.drawTexture(
@@ -163,7 +163,7 @@ open class UITextureText(val characters: Map<Char, GraphicsTexture.Region?>) : U
                 offsetX + (cellWidth - textureWidth) / 2f,
                 0f,
                 textureWidth,
-                region.height * textureScaleY,
+                region.displayHeight * textureScaleY,
                 color = contentColor
             )
 

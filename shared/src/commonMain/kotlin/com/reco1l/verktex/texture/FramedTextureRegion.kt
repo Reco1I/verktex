@@ -42,6 +42,7 @@ open class FramedTextureRegion(
         y = frames[frameIndex].y
         width = frames[frameIndex].width
         height = frames[frameIndex].height
+        density = frames[frameIndex].density
     }
 
 

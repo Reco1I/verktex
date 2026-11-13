@@ -131,7 +131,7 @@ open class UIParticleSystem(val maxParticles: Int = 256) : UICanvas() {
             instanceCount = instanceCount,
             uniformSet = GraphicsShader.UniformSet().apply {
                 set("uTime", time)
-                set("uParticleSize", Vec2(region.width, region.height))
+                set("uParticleSize", Vec2(region.displayWidth, region.displayHeight))
                 set("uUVRect", Vec4(region.u0, region.v0, region.u1, region.v1))
                 set("uColorMultiplier", renderer.transformColor(contentColor))
 
