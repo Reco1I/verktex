@@ -99,36 +99,40 @@ abstract class GraphicsRenderer {
     // used within one draw helper call at a time, the renderer is driven by a single thread.
     private val points = FloatArray(8)
 
-    // Counts the commands merging across the traversal order would leave, see isSimulatingBatches.
-    private var batchSimulator: BatchSimulator? = null
-
     /**
-     * Whether every draw is also given to a [BatchSimulator], which counts the commands the frame
-     * would need if draws could join earlier commands they don't overlap ([simulatedCommandCount]).
-     * It doesn't change what is drawn, it only costs some time while recording.
+     * How many of the last commands a draw looks through for one it can join, 1 for only the last
+     * one. A draw joins an earlier command only if none of the commands after it overlaps the draw,
+     * so that moving it before them changes no pixel, e.g. the texts of list items separated by
+     * their backgrounds share one command.
      */
-    var isSimulatingBatches: Boolean
-        get() = batchSimulator != null
+    var commandLookBack = 16
         set(value) {
-            if (value != isSimulatingBatches) {
-                batchSimulator = if (value) BatchSimulator() else null
-            }
+            require(value >= 1) { "The look-back must include the last command, got $value." }
+            field = value
         }
 
-    /**
-     * The commands recorded so far in this frame would be this many with merging across the
-     * traversal order, or -1 when [isSimulatingBatches] is off.
-     */
-    val simulatedCommandCount: Int
-        get() = batchSimulator?.commandCount ?: -1
+    // The bounds in scene space of each command of commandBatch, as min x, min y, max x and max y:
+    // the union of its draws, everything for the commands whose draws aren't known.
+    private var commandBounds = FloatArray(64 * 4)
+
+    // The command activeBuffer belongs to.
+    private var activeCommandIndex = -1
+
+    // The bounds of the next draw in scene space, set before its state, and everything for draws
+    // that don't set them (e.g. geometry drawn by components).
+    private var drawMinX = Float.NEGATIVE_INFINITY
+    private var drawMinY = Float.NEGATIVE_INFINITY
+    private var drawMaxX = Float.POSITIVE_INFINITY
+    private var drawMaxY = Float.POSITIVE_INFINITY
 
 
     /**
      * Sets the current rendering state, including shader, texture, scissor rectangle, blend mode,
      * depth state, and uniform set.
      *
-     * If the last command in the batch can be reused with the new state, it will not create a new
-     * command.
+     * If one of the last [commandLookBack] commands can be reused with the new state and none of
+     * the commands after it overlaps the draw, the draw joins it instead of starting a new command.
+     * The bounds of a draw that doesn't set them aren't known, so it only joins the last command.
      */
     fun setState(
         shader: GraphicsShader? = activeShader,
@@ -143,19 +147,13 @@ abstract class GraphicsRenderer {
         // A pushed shader replaces the one the draw call asked for, see pushShader.
         val usedShader = shaderStack.lastOrNull() ?: shader
 
-        val lastCommand = commandBatch.lastOrNull()
-        if (lastCommand != null &&
-            lastCommand.canReuse(
-                usedShader,
-                texture,
-                scissor,
-                blendMode,
-                depthState,
-                uniformSet,
-                vertexLayout,
-                isQuads,
-            )
-        ) return
+        val index = findCommand {
+            it.canReuse(usedShader, texture, scissor, blendMode, depthState, uniformSet, vertexLayout, isQuads)
+        }
+        if (index >= 0) {
+            useCommand(index)
+            return
+        }
 
         val vertexBuffer = bufferPool.getOrNull(buffersUsed) ?: createVertexBuffer().also(bufferPool::add)
         buffersUsed++
@@ -181,7 +179,146 @@ abstract class GraphicsRenderer {
         )
 
         commandBatch.addLast(command)
+        activeCommandIndex = commandBatch.lastIndex
+        setCommandBounds(activeCommandIndex)
     }
+
+    //region Command merging
+
+    // The newest of the last commandLookBack commands the next draw can join, or -1. The search
+    // stops at a command the draw overlaps, which must stay below it.
+    private inline fun findCommand(canJoin: (DrawCommand) -> Boolean): Int {
+        val oldest = max(0, commandBatch.size - commandLookBack)
+        var index = commandBatch.lastIndex
+
+        while (index >= oldest) {
+            if (canJoin(commandBatch[index])) {
+                return index
+            }
+            if (drawOverlaps(index)) {
+                return -1
+            }
+            index--
+        }
+        return -1
+    }
+
+    // The next draw joins the command.
+    private fun useCommand(index: Int) {
+        val command = commandBatch[index]
+
+        activeCommandIndex = index
+        activeBuffer = command.buffer
+        activeShader = command.shader
+        activeTexture = command.texture
+        activeScissor = command.scissor
+        activeUniformSet = command.uniformSet
+
+        unionCommandBounds(index)
+    }
+
+    // Records a command that draws what isn't known, or that nothing may be moved across.
+    private fun addUnboundedCommand(command: DrawCommand) {
+        commandBatch.addLast(command)
+        resetDrawBounds()
+        setCommandBounds(commandBatch.lastIndex)
+    }
+
+    private fun drawOverlaps(index: Int): Boolean {
+        val bounds = commandBounds
+        val i = index * 4
+        return drawMinX < bounds[i + 2] && drawMaxX > bounds[i] && drawMinY < bounds[i + 3] && drawMaxY > bounds[i + 1]
+    }
+
+    // The command's bounds are those of the next draw, which then has none set.
+    private fun setCommandBounds(index: Int) {
+        if (commandBounds.size < (index + 1) * 4) {
+            commandBounds = commandBounds.copyOf(max(commandBounds.size * 2, (index + 1) * 4))
+        }
+
+        val bounds = commandBounds
+        val i = index * 4
+        bounds[i] = drawMinX
+        bounds[i + 1] = drawMinY
+        bounds[i + 2] = drawMaxX
+        bounds[i + 3] = drawMaxY
+        resetDrawBounds()
+    }
+
+    // The command's bounds grow to the next draw, which then has none set.
+    private fun unionCommandBounds(index: Int) {
+        val bounds = commandBounds
+        val i = index * 4
+        if (drawMinX < bounds[i]) bounds[i] = drawMinX
+        if (drawMinY < bounds[i + 1]) bounds[i + 1] = drawMinY
+        if (drawMaxX > bounds[i + 2]) bounds[i + 2] = drawMaxX
+        if (drawMaxY > bounds[i + 3]) bounds[i + 3] = drawMaxY
+        resetDrawBounds()
+    }
+
+    private fun resetDrawBounds() {
+        drawMinX = Float.NEGATIVE_INFINITY
+        drawMinY = Float.NEGATIVE_INFINITY
+        drawMaxX = Float.POSITIVE_INFINITY
+        drawMaxY = Float.POSITIVE_INFINITY
+    }
+
+    // The next draw draws nothing more, it only joins a command, e.g. the last one.
+    private fun setEmptyDrawBounds() {
+        drawMinX = Float.POSITIVE_INFINITY
+        drawMinY = Float.POSITIVE_INFINITY
+        drawMaxX = Float.NEGATIVE_INFINITY
+        drawMaxY = Float.NEGATIVE_INFINITY
+    }
+
+    private fun setDrawBounds(minX: Float, minY: Float, maxX: Float, maxY: Float) {
+        // Nothing is drawn outside the scissor. A draw entirely outside of it ends up with a
+        // minimum above its maximum, which overlaps nothing.
+        val scissor = scissorStack.lastOrNull()
+        if (scissor != null) {
+            drawMinX = max(minX, scissor.x)
+            drawMinY = max(minY, scissor.y)
+            drawMaxX = min(maxX, scissor.x + scissor.z)
+            drawMaxY = min(maxY, scissor.y + scissor.w)
+        } else {
+            drawMinX = minX
+            drawMinY = minY
+            drawMaxX = maxX
+            drawMaxY = maxY
+        }
+    }
+
+    // The next draw covers the first count transformed points of points.
+    private fun setDrawBoundsOfPoints(count: Int) {
+        val p = points
+        var minX = p[0]
+        var minY = p[1]
+        var maxX = minX
+        var maxY = minY
+        for (i in 1 until count) {
+            val x = p[i * 2]
+            val y = p[i * 2 + 1]
+            if (x < minX) minX = x
+            if (x > maxX) maxX = x
+            if (y < minY) minY = y
+            if (y > maxY) maxY = y
+        }
+        setDrawBounds(minX, minY, maxX, maxY)
+    }
+
+    // Transforms the corners of the rectangle into points, clockwise from the top left, and the
+    // next draw covers them.
+    private fun transformQuad(x: Float, y: Float, width: Float, height: Float) {
+        val transform = currentTransform
+        val p = points
+        transform.transform(x, y, p, 0)
+        transform.transform(x + width, y, p, 2)
+        transform.transform(x + width, y + height, p, 4)
+        transform.transform(x, y + height, p, 6)
+        setDrawBoundsOfPoints(4)
+    }
+
+    //endregion
 
     /**
      * Records an instanced draw, in which [vertexBuffer] is drawn [instanceCount] times advancing through
@@ -207,7 +344,7 @@ abstract class GraphicsRenderer {
         vertexBuffer.isRecorded = true
         instanceBuffer.isRecorded = true
 
-        commandBatch.addLast(DrawCommand(
+        addUnboundedCommand(DrawCommand(
             buffer = vertexBuffer,
             shader = shaderStack.lastOrNull() ?: shader,
             texture = texture,
@@ -220,7 +357,6 @@ abstract class GraphicsRenderer {
             instanceLayout = instanceLayout,
             instanceCount = instanceCount
         ))
-        simulateUnbounded(texture)
     }
 
     /**
@@ -251,7 +387,7 @@ abstract class GraphicsRenderer {
 
         buffer.isRecorded = true
 
-        commandBatch.addLast(DrawCommand(
+        addUnboundedCommand(DrawCommand(
             buffer = buffer,
             shader = shaderStack.lastOrNull() ?: shader,
             texture = texture,
@@ -263,7 +399,6 @@ abstract class GraphicsRenderer {
             firstVertex = firstVertex,
             vertexCount = vertexCount
         ))
-        simulateUnbounded(texture)
     }
 
     /**
@@ -277,8 +412,7 @@ abstract class GraphicsRenderer {
      * and the next draw starts a new command.
      */
     fun clearDepth() {
-        commandBatch.addLast(DrawCommand(clearDepth = true))
-        batchSimulator?.barrier()
+        addUnboundedCommand(DrawCommand(clearDepth = true))
 
         // A geometry draw without a new setState() would otherwise write into a buffer already queued before the clear.
         activeBuffer = null
@@ -295,8 +429,7 @@ abstract class GraphicsRenderer {
      * window. Its orientation follows the backend's [framebufferOrigin].
      */
     fun captureFramebuffer(texture: GraphicsTexture) {
-        commandBatch.addLast(DrawCommand(captureTexture = texture))
-        batchSimulator?.barrier()
+        addUnboundedCommand(DrawCommand(captureTexture = texture))
 
         // A geometry draw without a new setState() would otherwise write into a buffer already queued before the copy.
         activeBuffer = null
@@ -587,31 +720,22 @@ abstract class GraphicsRenderer {
      * Sets the state for the UI shader, which draws boxes and text in the same commands. Boxes
      * don't sample the texture, so they join the current command whatever its texture is, and
      * [texture] is only needed for text: it joins a command with the same texture or without one
-     * yet, which then takes it. Its vertices are quads of four, see [DrawCommand.isQuads].
+     * yet, which then takes it. Its vertices are quads of four, see [DrawCommand.isQuads]. Like
+     * [setState], it joins one of the last [commandLookBack] commands the draw doesn't overlap.
      */
     private fun setUIState(texture: GraphicsTexture?) {
-        val last = commandBatch.lastOrNull()
+        if (shaderStack.isEmpty()) {
+            val scissor = scissorStack.lastOrNull()
+            val blendMode = blendModeStack.lastOrNull() ?: BlendMode.Alpha
+            val depthState = depthStateStack.lastOrNull() ?: DepthState.Default
 
-        if (shaderStack.isEmpty() && last != null &&
-            last.shader === BuiltIn.Shaders.UI &&
-            last.vertexLayout === VertexLayout.UI &&
-            last.isQuads &&
-            !last.clearDepth &&
-            last.instanceBuffer == null &&
-            last.uniformSet === EMPTY_UNIFORMS &&
-            last.scissor == scissorStack.lastOrNull() &&
-            last.blendMode == (blendModeStack.lastOrNull() ?: BlendMode.Alpha) &&
-            last.depthState == (depthStateStack.lastOrNull() ?: DepthState.Default)
-        ) {
-            if (texture == null || last.texture === texture) {
-                activeBuffer = last.buffer
-                return
-            }
-
-            if (last.texture == null) {
-                commandBatch[commandBatch.lastIndex] = last.copy(texture = texture)
-                activeTexture = texture
-                activeBuffer = last.buffer
+            val index = findCommand { it.acceptsUI(texture, scissor, blendMode, depthState) }
+            if (index >= 0) {
+                val command = commandBatch[index]
+                if (texture != null && command.texture == null) {
+                    commandBatch[index] = command.copy(texture = texture)
+                }
+                useCommand(index)
                 return
             }
         }
@@ -623,6 +747,21 @@ abstract class GraphicsRenderer {
             vertexLayout = VertexLayout.UI,
             isQuads = true
         )
+    }
+
+    // Whether a draw of the UI shader sampling the texture (null for a box) can join the command.
+    private fun DrawCommand.acceptsUI(texture: GraphicsTexture?, scissor: Vec4?, blendMode: BlendMode, depthState: DepthState): Boolean {
+        return shader === BuiltIn.Shaders.UI &&
+                vertexLayout === VertexLayout.UI &&
+                isQuads &&
+                !clearDepth &&
+                instanceBuffer == null &&
+                vertexCount < 0 &&
+                uniformSet === EMPTY_UNIFORMS &&
+                this.scissor == scissor &&
+                this.blendMode == blendMode &&
+                this.depthState == depthState &&
+                (texture == null || this.texture == null || this.texture === texture)
     }
 
     // A vertex of VertexLayout.UI, with the box parameters of its quad.
@@ -693,16 +832,12 @@ abstract class GraphicsRenderer {
         box[index + 1] = ((transformed.blue8 shl 8) or transformed.alpha8).toFloat()
     }
 
-    // A quad of the UI shader with the box set by setUIBox and a fill color at each corner.
-    private fun addUIQuad(x: Float, y: Float, width: Float, height: Float, c0: Int, c1: Int, c2: Int, c3: Int) {
+    // A quad of the UI shader at the corners transformQuad left in points, with the box set by
+    // setUIBox and a fill color at each corner.
+    private fun addUIQuad(c0: Int, c1: Int, c2: Int, c3: Int) {
         val buffer = activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry.")
-        val transform = matrixStack.lastOrNull() ?: Mat2.Identity
 
         val p = points
-        transform.transform(x, y, p, 0)
-        transform.transform(x + width, y, p, 2)
-        transform.transform(x + width, y + height, p, 4)
-        transform.transform(x, y + height, p, 6)
 
         // A quad: top left, top right, bottom right, bottom left.
         val box = uiBox
@@ -710,49 +845,6 @@ abstract class GraphicsRenderer {
         buffer.addUIVertex(p[2], p[3], 1f, 0f, c1, box)
         buffer.addUIVertex(p[4], p[5], 1f, 1f, c2, box)
         buffer.addUIVertex(p[6], p[7], 0f, 1f, c3, box)
-    }
-
-    //endregion
-
-    //region Batch simulation
-
-    // The draw just recorded covers the first count points of points.
-    private fun simulatePoints(texture: GraphicsTexture?, count: Int) {
-        val simulator = batchSimulator ?: return
-        val p = points
-        var minX = p[0]
-        var minY = p[1]
-        var maxX = minX
-        var maxY = minY
-        for (i in 1 until count) {
-            val x = p[i * 2]
-            val y = p[i * 2 + 1]
-            if (x < minX) minX = x
-            if (x > maxX) maxX = x
-            if (y < minY) minY = y
-            if (y > maxY) maxY = y
-        }
-        simulator.draw(commandBatch.last(), texture, minX, minY, maxX, maxY)
-    }
-
-    // The draw just recorded is inside the rectangle, in local space.
-    private fun simulateRect(texture: GraphicsTexture?, x: Float, y: Float, width: Float, height: Float) {
-        if (batchSimulator == null) return
-        val transform = currentTransform
-        val p = points
-        transform.transform(x, y, p, 0)
-        transform.transform(x + width, y, p, 2)
-        transform.transform(x + width, y + height, p, 4)
-        transform.transform(x, y + height, p, 6)
-        simulatePoints(texture, 4)
-    }
-
-    // The draw just recorded has vertices the shader transforms, so it may cover anything.
-    private fun simulateUnbounded(texture: GraphicsTexture?) {
-        batchSimulator?.draw(
-            commandBatch.last(), texture,
-            Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY
-        )
     }
 
     //endregion
@@ -791,6 +883,7 @@ abstract class GraphicsRenderer {
         borderBottom: Color4? = borderColor,
         borderLeft: Color4? = borderColor
     ) {
+        transformQuad(x, y, width, height)
         setUIState(null)
 
         setUIBox(
@@ -801,8 +894,7 @@ abstract class GraphicsRenderer {
         )
 
         val fill = transformColor(color).packedRGBA
-        addUIQuad(x, y, width, height, fill, fill, fill, fill)
-        simulatePoints(null, 4)
+        addUIQuad(fill, fill, fill, fill)
     }
 
     /**
@@ -829,15 +921,13 @@ abstract class GraphicsRenderer {
         // Without a shape to cut, only the colors are needed. The UI shader costs much more per
         // pixel, which adds up for large gradients (a fullscreen one took ~3 ms on an Adreno 610),
         // even if it breaks the batch.
+        transformQuad(x, y, width, height)
+
         if (borderWidth <= 0f && radiusTopLeft <= 0f && radiusTopRight <= 0f && radiusBottomRight <= 0f && radiusBottomLeft <= 0f) {
             setState(shader = BuiltIn.Shaders.Color, texture = null, uniformSet = EMPTY_UNIFORMS)
 
-            drawGeometry { transform, _ ->
+            drawGeometry { _, _ ->
                 val p = points
-                transform.transform(x, y, p, 0)
-                transform.transform(x + width, y, p, 2)
-                transform.transform(x + width, y + height, p, 4)
-                transform.transform(x, y + height, p, 6)
 
                 val c0 = transformColor(topLeft).packedRGBA
                 val c1 = transformColor(topRight).packedRGBA
@@ -852,7 +942,6 @@ abstract class GraphicsRenderer {
                 putVertex(p[4], p[5], 1f, 1f, c2)
                 putVertex(p[6], p[7], 0f, 1f, c3)
             }
-            simulatePoints(null, 4)
             return
         }
 
@@ -866,13 +955,11 @@ abstract class GraphicsRenderer {
         )
 
         addUIQuad(
-            x, y, width, height,
             transformColor(topLeft).packedRGBA,
             transformColor(topRight).packedRGBA,
             transformColor(bottomRight).packedRGBA,
             transformColor(bottomLeft).packedRGBA
         )
-        simulatePoints(null, 4)
     }
 
     /**
@@ -886,6 +973,13 @@ abstract class GraphicsRenderer {
         middle: Float = 0.5f,
         color: Color4 = Color4.White
     ) {
+        val transform = currentTransform
+        val p = points
+        transform.transform(x, y, p, 0)
+        transform.transform(x + width, y, p, 2)
+        transform.transform(x + width * middle, y + height, p, 4)
+        setDrawBoundsOfPoints(3)
+
         setState(
             shader = BuiltIn.Shaders.SolidQuad,
             uniformSet = EMPTY_UNIFORMS
@@ -893,20 +987,13 @@ abstract class GraphicsRenderer {
 
         // The quad shader fades out at UV edges, so every vertex samples its center to keep the
         // shape opaque up to its geometric edges.
-        drawGeometry { transform, baseColor ->
+        drawGeometry { _, _ ->
             val color = transformColor(color)
-
-            val p = points
-
-            transform.transform(x, y, p, 0)
-            transform.transform(x + width, y, p, 2)
-            transform.transform(x + width * middle, y + height, p, 4)
 
             addVertex(p[0], p[1], 0.5f, 0.5f, color)
             addVertex(p[2], p[3], 0.5f, 0.5f, color)
             addVertex(p[4], p[5], 0.5f, 0.5f, color)
         }
-        simulatePoints(null, 3)
     }
 
     /**
@@ -919,6 +1006,22 @@ abstract class GraphicsRenderer {
     fun drawTriangles(vertices: FloatArray, vertexCount: Int, color: Color4) {
         require(vertexCount % 3 == 0) { "The vertex count must be a multiple of 3, got $vertexCount." }
         require(vertices.size >= vertexCount * 2) { "Expected ${vertexCount * 2} floats, got ${vertices.size}." }
+
+        if (vertexCount > 0) {
+            var minX = vertices[0]
+            var minY = vertices[1]
+            var maxX = minX
+            var maxY = minY
+            for (i in 1 until vertexCount) {
+                val x = vertices[i * 2]
+                val y = vertices[i * 2 + 1]
+                if (x < minX) minX = x
+                if (x > maxX) maxX = x
+                if (y < minY) minY = y
+                if (y > maxY) maxY = y
+            }
+            transformQuad(minX, minY, maxX - minX, maxY - minY)
+        }
 
         setState(
             shader = BuiltIn.Shaders.SolidQuad,
@@ -933,22 +1036,6 @@ abstract class GraphicsRenderer {
                 transform.transform(vertices[i * 2], vertices[i * 2 + 1], p, 0)
                 addVertex(p[0], p[1], 0.5f, 0.5f, color)
             }
-        }
-
-        if (batchSimulator != null && vertexCount > 0) {
-            var minX = Float.POSITIVE_INFINITY
-            var minY = Float.POSITIVE_INFINITY
-            var maxX = Float.NEGATIVE_INFINITY
-            var maxY = Float.NEGATIVE_INFINITY
-            for (i in 0 until vertexCount) {
-                val x = vertices[i * 2]
-                val y = vertices[i * 2 + 1]
-                if (x < minX) minX = x
-                if (x > maxX) maxX = x
-                if (y < minY) minY = y
-                if (y > maxY) maxY = y
-            }
-            simulateRect(null, minX, minY, maxX - minX, maxY - minY)
         }
     }
 
@@ -966,24 +1053,25 @@ abstract class GraphicsRenderer {
         val length = hypot(x2 - x1, y2 - y1)
         if (length <= 0f || lineWidth <= 0f) return
 
+        // Perpendicular offset of half the line width.
+        val nx = -(y2 - y1) / length * lineWidth / 2f
+        val ny = (x2 - x1) / length * lineWidth / 2f
+
+        val transform = currentTransform
+        val p = points
+        transform.transform(x1 + nx, y1 + ny, p, 0)
+        transform.transform(x2 + nx, y2 + ny, p, 2)
+        transform.transform(x2 - nx, y2 - ny, p, 4)
+        transform.transform(x1 - nx, y1 - ny, p, 6)
+        setDrawBoundsOfPoints(4)
+
         setState(
             shader = BuiltIn.Shaders.SolidQuad,
             uniformSet = EMPTY_UNIFORMS
         )
 
-        drawGeometry { transform, baseColor ->
+        drawGeometry { _, _ ->
             val color = transformColor(color)
-
-            // Perpendicular offset of half the line width.
-            val nx = -(y2 - y1) / length * lineWidth / 2f
-            val ny = (x2 - x1) / length * lineWidth / 2f
-
-            val p = points
-
-            transform.transform(x1 + nx, y1 + ny, p, 0)
-            transform.transform(x2 + nx, y2 + ny, p, 2)
-            transform.transform(x2 - nx, y2 - ny, p, 4)
-            transform.transform(x1 - nx, y1 - ny, p, 6)
 
             addVertex(p[0], p[1], 0.5f, 0.5f, color)
             addVertex(p[2], p[3], 0.5f, 0.5f, color)
@@ -993,7 +1081,6 @@ abstract class GraphicsRenderer {
             addVertex(p[4], p[5], 0.5f, 0.5f, color)
             addVertex(p[6], p[7], 0.5f, 0.5f, color)
         }
-        simulatePoints(null, 4)
     }
 
     // The points of the last arc on a unit circle, cos and sin of each segment boundary. Arcs of
@@ -1071,6 +1158,7 @@ abstract class GraphicsRenderer {
 
         val segments = calculateArcResolution(width, height, abs(endAngle - startAngle)).coerceAtLeast(1)
 
+        transformQuad(x, y, width, height)
         setState(
             shader = BuiltIn.Shaders.SolidQuad,
             uniformSet = EMPTY_UNIFORMS
@@ -1123,7 +1211,6 @@ abstract class GraphicsRenderer {
                 previousY = y
             }
         }
-        simulateRect(null, x, y, width, height)
     }
 
     /**
@@ -1147,6 +1234,7 @@ abstract class GraphicsRenderer {
         val segments = calculateArcResolution(width, height, abs(endAngle - startAngle))
         if (segments <= 0) return
 
+        transformQuad(x, y, width, height)
         setState(
             shader = BuiltIn.Shaders.SolidQuad,
             uniformSet = EMPTY_UNIFORMS
@@ -1186,7 +1274,6 @@ abstract class GraphicsRenderer {
                 addVertex(p[4], p[5], 0.5f, 0.5f, color)
             }
         }
-        simulateRect(null, x, y, width, height)
     }
 
     /**
@@ -1239,6 +1326,8 @@ abstract class GraphicsRenderer {
             EMPTY_UNIFORMS
         }
 
+        transformQuad(x, y, width, height)
+
         // A pushed shader replaces the video one too, see pushShader.
         setState(
             shader = if (texture.isExternal) BuiltIn.Shaders.Video else BuiltIn.Shaders.TextureQuad,
@@ -1246,15 +1335,10 @@ abstract class GraphicsRenderer {
             texture = texture
         )
 
-        drawGeometry { transform, baseColor ->
+        drawGeometry { _, _ ->
             val color = transformColor(color)
 
             val p = points
-
-            transform.transform(x, y, p, 0)
-            transform.transform(x + width, y, p, 2)
-            transform.transform(x + width, y + height, p, 4)
-            transform.transform(x, y + height, p, 6)
 
             // Triangle 1
             addVertex(p[0], p[1], uv.x, uv.y, color)
@@ -1266,7 +1350,6 @@ abstract class GraphicsRenderer {
             addVertex(p[4], p[5], uv.z, uv.w, color)
             addVertex(p[6], p[7], uv.x, uv.w, color)
         }
-        simulatePoints(texture, 4)
     }
 
     /**
@@ -1295,8 +1378,7 @@ abstract class GraphicsRenderer {
         var page: GraphicsTexture? = null
         var buffer: GraphicsBuffer? = null
 
-        // The bounds of the glyphs drawn from the current page, for the batch simulation.
-        val simulator = batchSimulator
+        // The bounds of the glyphs drawn from the current page.
         var runMinX = Float.POSITIVE_INFINITY
         var runMinY = Float.POSITIVE_INFINITY
         var runMaxX = Float.NEGATIVE_INFINITY
@@ -1319,14 +1401,32 @@ abstract class GraphicsRenderer {
             if (glyph.region != null) {
                 // Text shares the UI batches with boxes, a glyph on another atlas page needs another one.
                 if (glyph.region.texture !== page) {
-                    if (simulator != null && page != null) {
-                        simulator.draw(commandBatch.last(), page, runMinX, runMinY, runMaxX, runMaxY)
+                    if (page != null) {
+                        setDrawBounds(runMinX, runMinY, runMaxX, runMaxY)
+                        unionCommandBounds(activeCommandIndex)
                         runMinX = Float.POSITIVE_INFINITY
                         runMinY = Float.POSITIVE_INFINITY
                         runMaxX = Float.NEGATIVE_INFINITY
                         runMaxY = Float.NEGATIVE_INFINITY
                     }
                     page = glyph.region.texture
+
+                    // The glyphs add their bounds to the command once drawn. Joining the last
+                    // command needs none before, any other needs the bounds of the rest of the
+                    // text, which are only measured then.
+                    val last = commandBatch.lastOrNull()
+                    if (last != null && shaderStack.isEmpty() && last.acceptsUI(
+                            page,
+                            scissorStack.lastOrNull(),
+                            blendModeStack.lastOrNull() ?: BlendMode.Alpha,
+                            depthStateStack.lastOrNull() ?: DepthState.Default
+                        )
+                    ) {
+                        setEmptyDrawBounds()
+                    } else {
+                        setTextBounds(text, font, charIndex, cursor, baseline, transform)
+                    }
+
                     setUIState(page)
                     buffer = activeBuffer
                 }
@@ -1357,15 +1457,13 @@ abstract class GraphicsRenderer {
                     addUIVertex(p[6], p[7], u0, v1, packedColor, UI_TEXT_BOX)
                 }
 
-                if (simulator != null) {
-                    for (i in 0 until 4) {
-                        val px = p[i * 2]
-                        val py = p[i * 2 + 1]
-                        if (px < runMinX) runMinX = px
-                        if (px > runMaxX) runMaxX = px
-                        if (py < runMinY) runMinY = py
-                        if (py > runMaxY) runMaxY = py
-                    }
+                for (i in 0 until 4) {
+                    val px = p[i * 2]
+                    val py = p[i * 2 + 1]
+                    if (px < runMinX) runMinX = px
+                    if (px > runMaxX) runMaxX = px
+                    if (py < runMinY) runMinY = py
+                    if (py > runMaxY) runMaxY = py
                 }
             }
 
@@ -1373,9 +1471,61 @@ abstract class GraphicsRenderer {
             charIndex += charCount
         }
 
-        if (simulator != null && page != null) {
-            simulator.draw(commandBatch.last(), page, runMinX, runMinY, runMaxX, runMaxY)
+        if (page != null) {
+            setDrawBounds(runMinX, runMinY, runMaxX, runMaxY)
+            unionCommandBounds(activeCommandIndex)
         }
+    }
+
+    // The next draw covers the glyphs of the text from startIndex, whose glyph starts at the
+    // cursor (its kerning already applied).
+    private fun setTextBounds(text: String, font: Font, startIndex: Int, startCursor: Float, baseline: Float, transform: Mat2) {
+        var minX = Float.POSITIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
+
+        var charIndex = startIndex
+        var cursor = startCursor
+        var previousCodePoint = -1
+        val p = points
+
+        while (charIndex < text.length) {
+            val codePoint = text.codePointAt(charIndex)
+
+            if (previousCodePoint != -1) {
+                cursor += font.getKerning(previousCodePoint, codePoint)
+            }
+            previousCodePoint = codePoint
+
+            val glyph = font[codePoint]
+
+            if (glyph.region != null) {
+                val left = cursor + glyph.bearingX
+                val top = baseline + glyph.bearingY
+                val right = left + glyph.width
+                val bottom = top + glyph.height
+
+                transform.transform(left, top, p, 0)
+                transform.transform(right, top, p, 2)
+                transform.transform(right, bottom, p, 4)
+                transform.transform(left, bottom, p, 6)
+
+                for (i in 0 until 4) {
+                    val x = p[i * 2]
+                    val y = p[i * 2 + 1]
+                    if (x < minX) minX = x
+                    if (x > maxX) maxX = x
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
+            }
+
+            cursor += glyph.advance
+            charIndex += charCountOf(codePoint)
+        }
+
+        setDrawBounds(minX, minY, maxX, maxY)
     }
 
     //endregion
@@ -1395,6 +1545,8 @@ abstract class GraphicsRenderer {
         activeTexture = null
         activeScissor = null
         activeUniformSet = EMPTY_UNIFORMS
+        activeCommandIndex = -1
+        resetDrawBounds()
 
         // Should not happen but just in case, clear the command batch to avoid rendering stale commands.
         for (command in commandBatch) {
@@ -1402,7 +1554,6 @@ abstract class GraphicsRenderer {
         }
         commandBatch.clear()
         buffersUsed = 0
-        batchSimulator?.reset()
     }
 
     abstract fun drawCommand(command: DrawCommand)
