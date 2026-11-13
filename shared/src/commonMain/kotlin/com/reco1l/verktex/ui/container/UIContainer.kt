@@ -90,7 +90,7 @@ open class UIContainer : UIComponent(), MutableIterable<UIComponent> {
         val childConstraints = contentConstraints.loosen()
 
         forEach { child ->
-            val childMeasuredSize = child.measure(constraintsForChild(child, childConstraints))
+            val childMeasuredSize = child.measure(childConstraints.withoutFillLimits(child))
 
             measuredWidth = max(measuredWidth, child.x.resolve(contentConstraints.availableWidth) + childMeasuredSize.x)
             measuredHeight = max(measuredHeight, child.y.resolve(contentConstraints.availableHeight) + childMeasuredSize.y)
@@ -102,13 +102,6 @@ open class UIContainer : UIComponent(), MutableIterable<UIComponent> {
         stretchFillingChildren(measuredSize) { childConstraints }
         return measuredSize
     }
-
-    /**
-     * The constraints [child] is measured with, given those of the content area of this container
-     * without their minimum size.
-     */
-    protected open fun constraintsForChild(child: UIComponent, constraints: LayoutConstraints) =
-        constraints.withoutFillLimits(child)
 
     /**
      * Whether [child] fills the width while this container wraps its own. Such a child would take
