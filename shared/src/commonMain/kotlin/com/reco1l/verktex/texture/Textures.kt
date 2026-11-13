@@ -19,6 +19,14 @@ object Textures {
 
 
     /**
+     * Goes up every time a region is stored or removed, so [TextureReference.Stored] reads the
+     * store again only after it changed.
+     */
+    var revision = 0
+        private set
+
+
+    /**
      * Forgets every texture without releasing it, for when the graphics context they belong to was
      * destroyed along with them.
      */
@@ -26,6 +34,7 @@ object Textures {
         atlases.clear()
         standaloneTextures.clear()
         textureRegions.clear()
+        revision++
     }
 
     //region Load and Unload
@@ -113,6 +122,7 @@ object Textures {
         if (existingRegion != null) {
             Logger.w("TextureManager", "Texture with key '$key' already exists. Overwriting...")
             release(existingRegion)
+            revision++
         }
 
         val region = if (destinationAtlas == null && (standalone || source.width > atlasSize() || source.height > atlasSize())) {
@@ -124,6 +134,7 @@ object Textures {
             storeOnTextureAtlas(source, destinationAtlas)
         }
         textureRegions[key] = region
+        revision++
         return region
     }
 
@@ -144,6 +155,7 @@ object Textures {
 
         textureRegions.remove(key)
         release(region)
+        revision++
     }
 
     /**
