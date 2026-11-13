@@ -7,6 +7,10 @@ import com.reco1l.verktex.graphics.GraphicsTexture
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.ScaleType
 import com.reco1l.verktex.data.LayoutConstraints
+import com.reco1l.verktex.texture.TextureReference
+import com.reco1l.verktex.texture.reference
+import com.reco1l.verktex.texture.storedTexture
+import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.container.UIContainer
 
 
@@ -16,8 +20,13 @@ inline fun UIContainer.sprite(builder: UISprite.() -> Unit): UISprite {
 
 /**
  * Sprite that allows to change texture once created.
+ *
+ * Its [texture] can be a region given directly or one stored in [com.reco1l.verktex.texture.Textures]
+ * under a key ([storedTexture]), which the sprite follows as it's replaced.
  */
-open class UISprite(texture: GraphicsTexture.Region? = null) : UICanvas() {
+open class UISprite(texture: TextureReference? = null) : UICanvas() {
+
+    constructor(region: GraphicsTexture.Region?) : this(region?.reference)
 
     /**
      * Whether the texture should be flipped horizontally.
@@ -30,13 +39,26 @@ open class UISprite(texture: GraphicsTexture.Region? = null) : UICanvas() {
     var flippedVertical = false
 
     /**
-     * The texture region of the sprite.
+     * The texture of the sprite.
      */
-    var textureRegion: GraphicsTexture.Region? = texture
+    var texture: TextureReference? = texture
         set(value) {
             if (field == value) return
             field = value
-            invalidateMeasure()
+            refresh()
+        }
+
+    // The region the texture resolved to, the one the sprite is measured and drawn with.
+    private var resolvedRegion: GraphicsTexture.Region? = texture?.resolve()
+
+    /**
+     * The texture region the sprite draws. Setting it is a shorthand for setting [texture] to the
+     * region itself.
+     */
+    var textureRegion: GraphicsTexture.Region?
+        get() = texture?.resolve()
+        set(value) {
+            texture = value?.reference
         }
 
     /**
@@ -52,11 +74,30 @@ open class UISprite(texture: GraphicsTexture.Region? = null) : UICanvas() {
     var gravity: Vec2 = Anchor.Center
 
 
+    /**
+     * Resolves the texture again, measuring the sprite again if its region changed.
+     */
+    private fun refresh() {
+        val region = texture?.resolve()
+
+        if (region !== resolvedRegion) {
+            resolvedRegion = region
+            invalidateMeasure()
+        }
+    }
+
+    override fun onUpdate(clock: FrameClock) {
+        refresh()
+        super.onUpdate(clock)
+    }
+
     override fun onMeasure(
         parentConstraints: LayoutConstraints,
         contentConstraints: LayoutConstraints
     ): Vec2 {
-        val textureSize = textureRegion?.let { region ->
+        refresh()
+
+        val textureSize = resolvedRegion?.let { region ->
             Vec2(
                 x = region.width,
                 y = region.height
@@ -71,7 +112,10 @@ open class UISprite(texture: GraphicsTexture.Region? = null) : UICanvas() {
 
     override fun onDraw(renderer: GraphicsRenderer) {
 
-        val region = textureRegion ?: return
+        // A region replaced after this sprite was updated this frame is released, never draw it.
+        refresh()
+
+        val region = resolvedRegion ?: return
         val p = placement
 
         if (!scaleType.place(region, bounds.width, bounds.height, gravity, flippedHorizontal, flippedVertical, p)) {
