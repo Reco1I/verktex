@@ -70,20 +70,6 @@ object PerformanceStats {
     var drawCommands = 0
 
     /**
-     * Whether the renderer simulates merging draws across the traversal order, see
-     * [com.reco1l.verktex.graphics.GraphicsRenderer.isSimulatingBatches]. Set while the
-     * performance overlay shows its panel.
-     */
-    @Volatile
-    var measureMergedDrawCommands = false
-
-    /**
-     * The [drawCommands] the scene would need if draws could join earlier commands they don't
-     * overlap, or -1 when it isn't measured ([measureMergedDrawCommands]).
-     */
-    var mergedDrawCommands = -1
-
-    /**
      * Average time between frames in milliseconds over the kept frame times.
      */
     val frameTime: Float
