@@ -19,8 +19,8 @@ object Textures {
 
 
     /**
-     * Goes up every time a region is stored or removed, so [TextureReference.Stored] reads the
-     * store again only after it changed.
+     * Goes up every time a region is stored or removed, so a [TextureReference.Lookup] looks its
+     * region up again only after the store changed.
      */
     var revision = 0
         private set
