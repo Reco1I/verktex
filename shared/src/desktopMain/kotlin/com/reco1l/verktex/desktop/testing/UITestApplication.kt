@@ -18,14 +18,16 @@ import java.util.prefs.Preferences
  *
  * @param initialTest The test to open first, as `suite/test` or just the test name. Without it,
  * the last opened test is shown again.
- * @param screenshot When set, the frame shown [SCREENSHOT_DELAY_SECONDS] after starting is saved
+ * @param screenshot When set, the frame shown [screenshotDelay] seconds after starting is saved
  * to this PNG and the window closes, e.g. for smoke checks.
+ * @param screenshotDelay How long after starting the screenshot is taken.
  * @param vsync Whether frames wait for the display's refresh, see [DesktopGameHost].
  */
 abstract class UITestApplication(
     private val initialTest: String? = null,
     private val screenshot: File? = null,
     vsync: Boolean = false,
+    private val screenshotDelay: Double = SCREENSHOT_DELAY_SECONDS,
 ) : DesktopGameHost(title = "Verktex UI tests", vsync = vsync) {
 
     private val preferences = Preferences.userRoot().node("com/reco1l/verktex/uitests")
@@ -58,7 +60,7 @@ abstract class UITestApplication(
         }
 
         if (screenshot != null) {
-            captureScreenshot(screenshot, SCREENSHOT_DELAY_SECONDS)
+            captureScreenshot(screenshot, screenshotDelay)
         }
     }
 

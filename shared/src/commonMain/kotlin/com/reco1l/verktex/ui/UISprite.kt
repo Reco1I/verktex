@@ -99,8 +99,8 @@ open class UISprite(texture: TextureReference? = null) : UICanvas() {
 
         val textureSize = resolvedRegion?.let { region ->
             Vec2(
-                x = region.width,
-                y = region.height
+                x = region.displayWidth,
+                y = region.displayHeight
             )
         } ?: Vec2.Zero
 

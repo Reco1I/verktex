@@ -78,17 +78,17 @@ object Textures {
      * @param key A unique key to associate with the loaded texture.
      * @param path The file path of the texture to load.
      * @param isInternal A boolean indicating whether the file path is internal to the application.
+     * @param density How many pixels of the image make one pixel of the size it's shown at, see
+     * [GraphicsTexture.Region.density], e.g. 2 for an `@2x` image.
      * @return A [GraphicsTexture.Region] representing the loaded texture.
      */
-    fun load(key: String, path: String, isInternal: Boolean = false, destinationAtlas: GraphicsTexture? = null): GraphicsTexture.Region? {
-
-        /*val highDefinitionVariantPath = filePath.substringAfterLast('.') + "@2x." + filePath.substringAfterLast('.')
-
-        val path = if (VerktexEngine.platform.sourceProvider.exists(highDefinitionVariantPath, !isInternal)) {
-            highDefinitionVariantPath
-        } else {
-            filePath
-        }*/
+    fun load(
+        key: String,
+        path: String,
+        isInternal: Boolean = false,
+        destinationAtlas: GraphicsTexture? = null,
+        density: Float = 1f
+    ): GraphicsTexture.Region? {
 
         val textureSource = Platform.provider.createTextureSource(path, !isInternal)
             ?: run {
@@ -96,7 +96,7 @@ object Textures {
                 return null
             }
 
-        return load(key, textureSource, destinationAtlas = destinationAtlas)
+        return load(key, textureSource, destinationAtlas = destinationAtlas, density = density)
     }
 
     /**
@@ -108,6 +108,8 @@ object Textures {
      * @param standalone Whether the source gets its own texture instead of being packed into an atlas. Sources
      * larger than the atlas size are always standalone.
      * @param destinationAtlas The atlas to store the source in, if any.
+     * @param density How many pixels of the source make one pixel of the size it's shown at, see
+     * [GraphicsTexture.Region.density].
      * @return A [GraphicsTexture.Region] representing the loaded texture, or null if the source exceeds the
      * maximum texture size.
      */
@@ -115,7 +117,8 @@ object Textures {
         key: String,
         source: GraphicsTexture.Source,
         standalone: Boolean = false,
-        destinationAtlas: GraphicsTexture? = null
+        destinationAtlas: GraphicsTexture? = null,
+        density: Float = 1f
     ): GraphicsTexture.Region? {
 
         val existingRegion = textureRegions.remove(key)
@@ -133,6 +136,7 @@ object Textures {
         } else {
             storeOnTextureAtlas(source, destinationAtlas)
         }
+        region.density = density
         textureRegions[key] = region
         revision++
         return region
