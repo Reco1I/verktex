@@ -64,6 +64,9 @@ class UIPerformanceOverlay : UIClickableContainer() {
     private val recordTimeText = statValue()
     private val submitTimeText = statValue()
     private val backendText = statValue()
+    private val allocationText = statValue()
+    private val collectionText = statValue()
+    private val drawAllocationText = statValue()
 
     // Fixed once the engine is initialized.
     private val backendName by lazy { Verktex.graphics.backend?.displayName ?: "Unknown" }
@@ -168,6 +171,16 @@ class UIPerformanceOverlay : UIClickableContainer() {
                 +stat("DRAW CALLS", drawCallsText)
                 +stat("BACKEND", backendText)
             }
+
+            // What the process allocates, and the collections it causes.
+            +UILinearContainer().apply {
+                width = fill()
+                spacing = STAT_SPACING.dip
+
+                +stat("ALLOC", allocationText)
+                +stat("GC", collectionText)
+                +stat("DRAW ALLOC", drawAllocationText)
+            }
         }
     }
 
@@ -227,6 +240,9 @@ class UIPerformanceOverlay : UIClickableContainer() {
             recordTimeText.text = "${PerformanceStats.recordTime.toFixed(2)} ms"
             submitTimeText.text = "${PerformanceStats.submitTime.toFixed(2)} ms"
             backendText.text = backendName
+            allocationText.text = PerformanceStats.allocationRate.let { if (it >= 0f) "${it.toFixed(1)} MB/s" else "n/a" }
+            collectionText.text = PerformanceStats.collectionRate.let { if (it >= 0f) "${it.toFixed(0)} /min" else "n/a" }
+            drawAllocationText.text = PerformanceStats.drawAllocation.let { if (it >= 0f) "${it.toFixed(1)} KB/f" else "n/a" }
         }
 
         super.onUpdate(clock)
@@ -253,13 +269,13 @@ class UIPerformanceOverlay : UIClickableContainer() {
             // All bars share one draw call, as a plain quad shader needs no per-rectangle uniforms.
             setState(shader = BuiltIn.Shaders.SolidQuad, uniformSet = GraphicsShader.UniformSet())
 
-            drawGeometry { transform, baseColor ->
+            drawGeometry { transform, alpha ->
                 for (i in 0 until PerformanceStats.HISTORY_SIZE) {
                     val frameTime = PerformanceStats.frameTimeAt(i)
                     if (frameTime <= 0f) continue
 
                     val barHeight = min(frameTime / MAX_FRAME_TIME, 1f) * height
-                    val color = colorFor(frameTime).alpha(baseColor.alpha)
+                    val color = colorFor(frameTime).alpha(alpha)
 
                     val x = i * barWidth
                     val y = height - barHeight

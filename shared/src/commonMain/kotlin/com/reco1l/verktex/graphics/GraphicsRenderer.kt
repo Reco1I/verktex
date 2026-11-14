@@ -20,6 +20,7 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -76,8 +77,15 @@ abstract class GraphicsRenderer {
 
     //region Stacks
     private val matrixStack = ArrayDeque<Mat2>()
-    private val colorStack = ArrayDeque<Color4>()
-    private val tintStack = ArrayDeque<Color4>()
+
+    // The alpha pushed by pushColor at each level, multiplied with the parent ones. Plain floats so
+    // that drawing a component doesn't allocate.
+    private var alphaStack = FloatArray(16)
+    private var alphaDepth = 0
+
+    // The red, green and blue pushed by pushTint at each level, multiplied with the parent ones.
+    private var tintStack = FloatArray(3 * 8)
+    private var tintDepth = 0
     private val scissorStack = ArrayDeque<Vec4>()
     private val blendModeStack = ArrayDeque<BlendMode>()
     private val depthStateStack = ArrayDeque<DepthState>()
@@ -297,17 +305,21 @@ abstract class GraphicsRenderer {
      * The alpha the pushed colors multiply everything drawn by.
      */
     val currentAlpha: Float
-        get() = colorStack.lastOrNull()?.alpha ?: 1f
+        get() = if (alphaDepth > 0) alphaStack[alphaDepth - 1] else 1f
 
     fun pushColor(color: Color4) {
-        colorStack.addLast(color.alpha(color.alpha * (colorStack.lastOrNull()?.alpha ?: 1f)))
+        if (alphaDepth == alphaStack.size) {
+            alphaStack = alphaStack.copyOf(alphaDepth * 2)
+        }
+        alphaStack[alphaDepth] = (color.alpha * currentAlpha).coerceIn(0f, 1f)
+        alphaDepth++
     }
 
     /**
-     * Pops a color from the color stack and returns it.
+     * Pops the last color pushed with [pushColor].
      */
-    fun popColor(): Color4? {
-        return colorStack.removeLastOrNull()
+    fun popColor() {
+        if (alphaDepth > 0) alphaDepth--
     }
 
     /**
@@ -315,16 +327,31 @@ abstract class GraphicsRenderer {
      * into the RGB of everything drawn until the matching [popTint], on top of the tints already pushed.
      */
     fun pushTint(color: Color4) {
-        val parent = tintStack.lastOrNull() ?: Color4.White
-        tintStack.addLast(Color4(parent.red * color.red, parent.green * color.green, parent.blue * color.blue))
+        if (tintDepth * 3 == tintStack.size) {
+            tintStack = tintStack.copyOf(tintStack.size * 2)
+        }
+        val i = tintDepth * 3
+        tintStack[i] = tintRed * color.red
+        tintStack[i + 1] = tintGreen * color.green
+        tintStack[i + 2] = tintBlue * color.blue
+        tintDepth++
     }
 
     /**
      * Pops the last tint pushed with [pushTint].
      */
     fun popTint() {
-        tintStack.removeLastOrNull()
+        if (tintDepth > 0) tintDepth--
     }
+
+    private val tintRed: Float
+        get() = if (tintDepth > 0) tintStack[tintDepth * 3 - 3] else 1f
+
+    private val tintGreen: Float
+        get() = if (tintDepth > 0) tintStack[tintDepth * 3 - 2] else 1f
+
+    private val tintBlue: Float
+        get() = if (tintDepth > 0) tintStack[tintDepth * 3 - 1] else 1f
 
     /**
      * The area drawing is currently limited to, in scene space as x, y, width and height: the
@@ -443,15 +470,32 @@ abstract class GraphicsRenderer {
      * If the color stack is empty, the original color is returned.
      */
     fun transformColor(color: Color4): Color4 {
-        val tint = tintStack.lastOrNull() ?: Color4.White
-
         return Color4(
-            color.red * tint.red,
-            color.green * tint.green,
-            color.blue * tint.blue,
-            color.alpha * (colorStack.lastOrNull()?.alpha ?: 1f)
+            color.red * tintRed,
+            color.green * tintGreen,
+            color.blue * tintBlue,
+            color.alpha * currentAlpha
         )
     }
+
+    /**
+     * [transformColor] packed as [Color4.packedRGBA], without allocating a color. Without a tint or
+     * an alpha to apply it's the color's own cached packing.
+     */
+    fun transformColorPacked(color: Color4): Int {
+        val alpha = currentAlpha
+        if (tintDepth == 0 && alpha == 1f) {
+            return color.packedRGBA
+        }
+
+        return channel8(color.red * tintRed) or
+            (channel8(color.green * tintGreen) shl 8) or
+            (channel8(color.blue * tintBlue) shl 16) or
+            (channel8(color.alpha * alpha) shl 24)
+    }
+
+    // A channel in 8 bits, as Color4's red8 and the others.
+    private fun channel8(value: Float) = (value * 255f).roundToInt().coerceIn(0, 255)
 
     //endregion
 
@@ -541,18 +585,23 @@ abstract class GraphicsRenderer {
         putVertex(x, y, u, v, color.packedRGBA)
     }
 
+    fun GraphicsBuffer.addVertex(x: Float, y: Float, u: Float, v: Float, packedColor: Int) {
+        putVertex(x, y, u, v, packedColor)
+    }
+
 
     /**
-     * Allows to draw custom geometry by providing a block that operates on the active vertex buffer.
+     * Allows to draw custom geometry by providing a block that operates on the active vertex buffer,
+     * given the current transformation and the alpha everything drawn is multiplied by ([currentAlpha]).
      */
-    fun drawGeometry(block: GraphicsBuffer.(transform: Mat2, baseColor: Color4) -> Unit) {
-        activeBuffer?.apply {
-            val transform = matrixStack.lastOrNull() ?: Mat2.Identity
-            val baseColor = colorStack.lastOrNull() ?: Color4.White
-
-            block(transform, baseColor)
-        } ?: throw IllegalStateException("No active vertex buffer to draw geometry. Make sure to call setState() before drawing.")
+    // Inline, so that drawing neither allocates the block nor boxes the alpha.
+    inline fun drawGeometry(block: GraphicsBuffer.(transform: Mat2, alpha: Float) -> Unit) {
+        geometryBuffer().block(currentTransform, currentAlpha)
     }
+
+    @PublishedApi
+    internal fun geometryBuffer(): GraphicsBuffer =
+        activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry. Make sure to call setState() before drawing.")
 
     //region UI batches
 
@@ -661,9 +710,13 @@ abstract class GraphicsRenderer {
             box[index + 1] = 0f
             return
         }
-        val transformed = transformColor(color)
-        box[index] = ((transformed.red8 shl 8) or transformed.green8).toFloat()
-        box[index + 1] = ((transformed.blue8 shl 8) or transformed.alpha8).toFloat()
+        val packed = transformColorPacked(color)
+        val red = packed and 0xFF
+        val green = (packed ushr 8) and 0xFF
+        val blue = (packed ushr 16) and 0xFF
+        val alpha = packed ushr 24
+        box[index] = ((red shl 8) or green).toFloat()
+        box[index + 1] = ((blue shl 8) or alpha).toFloat()
     }
 
     // A quad of the UI shader with the box set by setUIBox and a fill color at each corner.
@@ -730,7 +783,7 @@ abstract class GraphicsRenderer {
             softness, inset
         )
 
-        val fill = transformColor(color).packedRGBA
+        val fill = transformColorPacked(color)
         addUIQuad(x, y, width, height, fill, fill, fill, fill)
     }
 
@@ -768,10 +821,10 @@ abstract class GraphicsRenderer {
                 transform.transform(x + width, y + height, p, 4)
                 transform.transform(x, y + height, p, 6)
 
-                val c0 = transformColor(topLeft).packedRGBA
-                val c1 = transformColor(topRight).packedRGBA
-                val c2 = transformColor(bottomRight).packedRGBA
-                val c3 = transformColor(bottomLeft).packedRGBA
+                val c0 = transformColorPacked(topLeft)
+                val c1 = transformColorPacked(topRight)
+                val c2 = transformColorPacked(bottomRight)
+                val c3 = transformColorPacked(bottomLeft)
 
                 putVertex(p[0], p[1], 0f, 0f, c0)
                 putVertex(p[2], p[3], 1f, 0f, c1)
@@ -795,10 +848,10 @@ abstract class GraphicsRenderer {
 
         addUIQuad(
             x, y, width, height,
-            transformColor(topLeft).packedRGBA,
-            transformColor(topRight).packedRGBA,
-            transformColor(bottomRight).packedRGBA,
-            transformColor(bottomLeft).packedRGBA
+            transformColorPacked(topLeft),
+            transformColorPacked(topRight),
+            transformColorPacked(bottomRight),
+            transformColorPacked(bottomLeft)
         )
     }
 
@@ -820,8 +873,8 @@ abstract class GraphicsRenderer {
 
         // The quad shader fades out at UV edges, so every vertex samples its center to keep the
         // shape opaque up to its geometric edges.
-        drawGeometry { transform, baseColor ->
-            val color = transformColor(color)
+        drawGeometry { transform, _ ->
+            val color = transformColorPacked(color)
 
             val p = points
 
@@ -852,7 +905,7 @@ abstract class GraphicsRenderer {
         )
 
         drawGeometry { transform, _ ->
-            val color = transformColor(color)
+            val color = transformColorPacked(color)
             val p = points
 
             for (i in 0 until vertexCount) {
@@ -881,8 +934,8 @@ abstract class GraphicsRenderer {
             uniformSet = EMPTY_UNIFORMS
         )
 
-        drawGeometry { transform, baseColor ->
-            val color = transformColor(color)
+        drawGeometry { transform, _ ->
+            val color = transformColorPacked(color)
 
             // Perpendicular offset of half the line width.
             val nx = -(y2 - y1) / length * lineWidth / 2f
@@ -985,8 +1038,8 @@ abstract class GraphicsRenderer {
             uniformSet = EMPTY_UNIFORMS
         )
 
-        drawGeometry { transform, baseColor ->
-            val color = transformColor(color)
+        drawGeometry { transform, _ ->
+            val color = transformColorPacked(color)
 
             val cx = x + width / 2f
             val cy = y + height / 2f
@@ -1061,7 +1114,7 @@ abstract class GraphicsRenderer {
         )
 
         drawGeometry { transform, _ ->
-            val color = transformColor(color)
+            val color = transformColorPacked(color)
 
             val cx = x + width / 2f
             val cy = y + height / 2f
@@ -1153,8 +1206,8 @@ abstract class GraphicsRenderer {
             texture = texture
         )
 
-        drawGeometry { transform, baseColor ->
-            val color = transformColor(color)
+        drawGeometry { transform, _ ->
+            val color = transformColorPacked(color)
 
             val p = points
 
@@ -1187,7 +1240,7 @@ abstract class GraphicsRenderer {
         color: Color4 = Color4.White
     ) {
         val transform = matrixStack.lastOrNull() ?: Mat2.Identity
-        val packedColor = transformColor(color).packedRGBA
+        val packedColor = transformColorPacked(color)
 
         // Glyphs are laid out in local space and every corner is transformed, so rotation and
         // scale apply to text as well.

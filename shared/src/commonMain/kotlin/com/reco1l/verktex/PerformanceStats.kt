@@ -70,6 +70,27 @@ object PerformanceStats {
     var drawCommands = 0
 
     /**
+     * Megabytes per second the whole process allocated over the last sampling window, or -1 when
+     * the platform can't tell.
+     */
+    var allocationRate = -1f
+        private set
+
+    /**
+     * Garbage collections per minute over the last sampling window, or -1 when the platform can't
+     * tell.
+     */
+    var collectionRate = -1f
+        private set
+
+    /**
+     * Kilobytes the draw worker allocated per frame on average over the last sampling window,
+     * from the start of a frame to its last graphics call, or -1 when the platform can't tell.
+     */
+    var drawAllocation = -1f
+        private set
+
+    /**
      * Average time between frames in milliseconds over the kept frame times.
      */
     val frameTime: Float
@@ -106,6 +127,15 @@ object PerformanceStats {
     private var lastFrameNanos = 0L
     private var frameStartNanos = 0L
 
+    // The counters at the start of the sampling window, see sampleMemory.
+    private var windowStartNanos = 0L
+    private var windowStartAllocated = 0L
+    private var windowStartCollections = 0L
+    private var windowDrawAllocated = 0L
+    private var windowFrames = 0
+    private var frameStartAllocated = 0L
+    private var frameDrawAllocated = -1L
+
 
     /**
      * Returns the time in milliseconds between the starts of two frames, `0` is the oldest kept one.
@@ -125,9 +155,53 @@ object PerformanceStats {
 
         layoutTime = frameLayoutNanos / 1_000_000f
         frameLayoutNanos = 0L
+
+        if (frameDrawAllocated >= 0L) {
+            windowDrawAllocated += frameDrawAllocated
+            windowFrames++
+            frameDrawAllocated = -1L
+        }
+        sampleMemory(now)
+        frameStartAllocated = threadAllocatedBytes()
     }
 
     fun onFrameDrawn() {
         drawTime = (monotonicNanos() - frameStartNanos) / 1_000_000f
+
+        // Vulkan calls it again once it submitted, the last call counts.
+        val allocated = threadAllocatedBytes()
+        frameDrawAllocated = if (allocated >= 0L && frameStartAllocated >= 0L) allocated - frameStartAllocated else -1L
     }
+
+    // The process counters may allocate, so they're read once per window.
+    private fun sampleMemory(now: Long) {
+        if (windowStartNanos != 0L && now - windowStartNanos < MEMORY_WINDOW_NANOS) {
+            return
+        }
+
+        val allocated = processAllocatedBytes()
+        val collections = garbageCollectionCount()
+
+        if (windowStartNanos != 0L) {
+            val seconds = (now - windowStartNanos) / 1_000_000_000f
+
+            allocationRate = if (allocated >= 0L && windowStartAllocated >= 0L) {
+                (allocated - windowStartAllocated).coerceAtLeast(0L) / (1024f * 1024f) / seconds
+            } else -1f
+
+            collectionRate = if (collections >= 0L && windowStartCollections >= 0L) {
+                (collections - windowStartCollections) * 60f / seconds
+            } else -1f
+
+            drawAllocation = if (windowFrames > 0) windowDrawAllocated / 1024f / windowFrames else -1f
+        }
+
+        windowStartNanos = now
+        windowStartAllocated = allocated
+        windowStartCollections = collections
+        windowDrawAllocated = 0L
+        windowFrames = 0
+    }
+
+    private const val MEMORY_WINDOW_NANOS = 2_000_000_000L
 }
