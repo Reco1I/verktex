@@ -220,59 +220,6 @@ class GraphicsRendererCommandsTest {
         assertEquals(2 * VERTICES_PER_RECT * GraphicsRenderer.VERTEX_2D_STRIDE, command.buffer!!.position)
     }
 
-    // A texture, a box and the texture again, the box somewhere else or over the first texture.
-    private fun simulateTextureBoxTexture(boxX: Float, boxY: Float, clearBetween: Boolean = false): GraphicsRenderer {
-        val renderer = RecordingRenderer()
-        val texture = FakeExternalTexture()
-        val region = GraphicsTexture.Region(texture, FakeSource, 0f, 0f, 16f, 16f)
-
-        renderer.isSimulatingBatches = true
-        renderer.begin()
-        renderer.drawTexture(texture, region, 0f, 0f, 16f, 16f)
-        renderer.drawRect(boxX, boxY, 10f, 10f)
-        if (clearBetween) renderer.clearDepth()
-        renderer.drawTexture(texture, region, 32f, 0f, 16f, 16f)
-        return renderer
-    }
-
-    @Test
-    fun simulationMergesADrawAcrossCommandsItDoesNotOverlap() {
-        val renderer = simulateTextureBoxTexture(100f, 100f)
-
-        assertEquals(3, renderer.commandCount)
-        assertEquals(2, renderer.simulatedCommandCount)
-        renderer.end()
-    }
-
-    @Test
-    fun simulationDoesNotMoveADrawBeforeOneItOverlaps() {
-        // The box covers the second texture, which must stay above it.
-        val renderer = simulateTextureBoxTexture(35f, 5f)
-
-        assertEquals(3, renderer.commandCount)
-        assertEquals(3, renderer.simulatedCommandCount)
-        renderer.end()
-    }
-
-    @Test
-    fun simulationDoesNotMergeAcrossADepthClear() {
-        val renderer = simulateTextureBoxTexture(100f, 100f, clearBetween = true)
-
-        assertEquals(4, renderer.commandCount)
-        assertEquals(4, renderer.simulatedCommandCount)
-        renderer.end()
-    }
-
-    @Test
-    fun simulationIsOffByDefault() {
-        val renderer = RecordingRenderer()
-
-        renderer.begin()
-        renderer.drawRect(0f, 0f, 10f, 10f)
-        assertEquals(-1, renderer.simulatedCommandCount)
-        renderer.end()
-    }
-
     private object FakeSource : GraphicsTexture.Source {
         override val width = 16f
         override val height = 16f

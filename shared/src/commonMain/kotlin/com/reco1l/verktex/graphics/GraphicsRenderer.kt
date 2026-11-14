@@ -99,29 +99,6 @@ abstract class GraphicsRenderer {
     // used within one draw helper call at a time, the renderer is driven by a single thread.
     private val points = FloatArray(8)
 
-    // Counts the commands merging across the traversal order would leave, see isSimulatingBatches.
-    private var batchSimulator: BatchSimulator? = null
-
-    /**
-     * Whether every draw is also given to a [BatchSimulator], which counts the commands the frame
-     * would need if draws could join earlier commands they don't overlap ([simulatedCommandCount]).
-     * It doesn't change what is drawn, it only costs some time while recording.
-     */
-    var isSimulatingBatches: Boolean
-        get() = batchSimulator != null
-        set(value) {
-            if (value != isSimulatingBatches) {
-                batchSimulator = if (value) BatchSimulator() else null
-            }
-        }
-
-    /**
-     * The commands recorded so far in this frame would be this many with merging across the
-     * traversal order, or -1 when [isSimulatingBatches] is off.
-     */
-    val simulatedCommandCount: Int
-        get() = batchSimulator?.commandCount ?: -1
-
 
     /**
      * Sets the current rendering state, including shader, texture, scissor rectangle, blend mode,
@@ -220,7 +197,6 @@ abstract class GraphicsRenderer {
             instanceLayout = instanceLayout,
             instanceCount = instanceCount
         ))
-        simulateUnbounded(texture)
     }
 
     /**
@@ -263,7 +239,6 @@ abstract class GraphicsRenderer {
             firstVertex = firstVertex,
             vertexCount = vertexCount
         ))
-        simulateUnbounded(texture)
     }
 
     /**
@@ -278,7 +253,6 @@ abstract class GraphicsRenderer {
      */
     fun clearDepth() {
         commandBatch.addLast(DrawCommand(clearDepth = true))
-        batchSimulator?.barrier()
 
         // A geometry draw without a new setState() would otherwise write into a buffer already queued before the clear.
         activeBuffer = null
@@ -296,7 +270,6 @@ abstract class GraphicsRenderer {
      */
     fun captureFramebuffer(texture: GraphicsTexture) {
         commandBatch.addLast(DrawCommand(captureTexture = texture))
-        batchSimulator?.barrier()
 
         // A geometry draw without a new setState() would otherwise write into a buffer already queued before the copy.
         activeBuffer = null
@@ -714,49 +687,6 @@ abstract class GraphicsRenderer {
 
     //endregion
 
-    //region Batch simulation
-
-    // The draw just recorded covers the first count points of points.
-    private fun simulatePoints(texture: GraphicsTexture?, count: Int) {
-        val simulator = batchSimulator ?: return
-        val p = points
-        var minX = p[0]
-        var minY = p[1]
-        var maxX = minX
-        var maxY = minY
-        for (i in 1 until count) {
-            val x = p[i * 2]
-            val y = p[i * 2 + 1]
-            if (x < minX) minX = x
-            if (x > maxX) maxX = x
-            if (y < minY) minY = y
-            if (y > maxY) maxY = y
-        }
-        simulator.draw(commandBatch.last(), texture, minX, minY, maxX, maxY)
-    }
-
-    // The draw just recorded is inside the rectangle, in local space.
-    private fun simulateRect(texture: GraphicsTexture?, x: Float, y: Float, width: Float, height: Float) {
-        if (batchSimulator == null) return
-        val transform = currentTransform
-        val p = points
-        transform.transform(x, y, p, 0)
-        transform.transform(x + width, y, p, 2)
-        transform.transform(x + width, y + height, p, 4)
-        transform.transform(x, y + height, p, 6)
-        simulatePoints(texture, 4)
-    }
-
-    // The draw just recorded has vertices the shader transforms, so it may cover anything.
-    private fun simulateUnbounded(texture: GraphicsTexture?) {
-        batchSimulator?.draw(
-            commandBatch.last(), texture,
-            Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY
-        )
-    }
-
-    //endregion
-
     /**
      * Draws a rectangle with the specified position, size, color, border and corner radii.
      *
@@ -802,7 +732,6 @@ abstract class GraphicsRenderer {
 
         val fill = transformColor(color).packedRGBA
         addUIQuad(x, y, width, height, fill, fill, fill, fill)
-        simulatePoints(null, 4)
     }
 
     /**
@@ -852,7 +781,6 @@ abstract class GraphicsRenderer {
                 putVertex(p[4], p[5], 1f, 1f, c2)
                 putVertex(p[6], p[7], 0f, 1f, c3)
             }
-            simulatePoints(null, 4)
             return
         }
 
@@ -872,7 +800,6 @@ abstract class GraphicsRenderer {
             transformColor(bottomRight).packedRGBA,
             transformColor(bottomLeft).packedRGBA
         )
-        simulatePoints(null, 4)
     }
 
     /**
@@ -906,7 +833,6 @@ abstract class GraphicsRenderer {
             addVertex(p[2], p[3], 0.5f, 0.5f, color)
             addVertex(p[4], p[5], 0.5f, 0.5f, color)
         }
-        simulatePoints(null, 3)
     }
 
     /**
@@ -933,22 +859,6 @@ abstract class GraphicsRenderer {
                 transform.transform(vertices[i * 2], vertices[i * 2 + 1], p, 0)
                 addVertex(p[0], p[1], 0.5f, 0.5f, color)
             }
-        }
-
-        if (batchSimulator != null && vertexCount > 0) {
-            var minX = Float.POSITIVE_INFINITY
-            var minY = Float.POSITIVE_INFINITY
-            var maxX = Float.NEGATIVE_INFINITY
-            var maxY = Float.NEGATIVE_INFINITY
-            for (i in 0 until vertexCount) {
-                val x = vertices[i * 2]
-                val y = vertices[i * 2 + 1]
-                if (x < minX) minX = x
-                if (x > maxX) maxX = x
-                if (y < minY) minY = y
-                if (y > maxY) maxY = y
-            }
-            simulateRect(null, minX, minY, maxX - minX, maxY - minY)
         }
     }
 
@@ -993,7 +903,6 @@ abstract class GraphicsRenderer {
             addVertex(p[4], p[5], 0.5f, 0.5f, color)
             addVertex(p[6], p[7], 0.5f, 0.5f, color)
         }
-        simulatePoints(null, 4)
     }
 
     // The points of the last arc on a unit circle, cos and sin of each segment boundary. Arcs of
@@ -1123,7 +1032,6 @@ abstract class GraphicsRenderer {
                 previousY = y
             }
         }
-        simulateRect(null, x, y, width, height)
     }
 
     /**
@@ -1186,7 +1094,6 @@ abstract class GraphicsRenderer {
                 addVertex(p[4], p[5], 0.5f, 0.5f, color)
             }
         }
-        simulateRect(null, x, y, width, height)
     }
 
     /**
@@ -1266,7 +1173,6 @@ abstract class GraphicsRenderer {
             addVertex(p[4], p[5], uv.z, uv.w, color)
             addVertex(p[6], p[7], uv.x, uv.w, color)
         }
-        simulatePoints(texture, 4)
     }
 
     /**
@@ -1295,13 +1201,6 @@ abstract class GraphicsRenderer {
         var page: GraphicsTexture? = null
         var buffer: GraphicsBuffer? = null
 
-        // The bounds of the glyphs drawn from the current page, for the batch simulation.
-        val simulator = batchSimulator
-        var runMinX = Float.POSITIVE_INFINITY
-        var runMinY = Float.POSITIVE_INFINITY
-        var runMaxX = Float.NEGATIVE_INFINITY
-        var runMaxY = Float.NEGATIVE_INFINITY
-
         while (charIndex < text.length) {
 
             val codePoint = text.codePointAt(charIndex)
@@ -1319,13 +1218,6 @@ abstract class GraphicsRenderer {
             if (glyph.region != null) {
                 // Text shares the UI batches with boxes, a glyph on another atlas page needs another one.
                 if (glyph.region.texture !== page) {
-                    if (simulator != null && page != null) {
-                        simulator.draw(commandBatch.last(), page, runMinX, runMinY, runMaxX, runMaxY)
-                        runMinX = Float.POSITIVE_INFINITY
-                        runMinY = Float.POSITIVE_INFINITY
-                        runMaxX = Float.NEGATIVE_INFINITY
-                        runMaxY = Float.NEGATIVE_INFINITY
-                    }
                     page = glyph.region.texture
                     setUIState(page)
                     buffer = activeBuffer
@@ -1356,25 +1248,10 @@ abstract class GraphicsRenderer {
                     addUIVertex(p[4], p[5], u1, v1, packedColor, UI_TEXT_BOX)
                     addUIVertex(p[6], p[7], u0, v1, packedColor, UI_TEXT_BOX)
                 }
-
-                if (simulator != null) {
-                    for (i in 0 until 4) {
-                        val px = p[i * 2]
-                        val py = p[i * 2 + 1]
-                        if (px < runMinX) runMinX = px
-                        if (px > runMaxX) runMaxX = px
-                        if (py < runMinY) runMinY = py
-                        if (py > runMaxY) runMaxY = py
-                    }
-                }
             }
 
             cursor += glyph.advance
             charIndex += charCount
-        }
-
-        if (simulator != null && page != null) {
-            simulator.draw(commandBatch.last(), page, runMinX, runMinY, runMaxX, runMaxY)
         }
     }
 
@@ -1402,7 +1279,6 @@ abstract class GraphicsRenderer {
         }
         commandBatch.clear()
         buffersUsed = 0
-        batchSimulator?.reset()
     }
 
     abstract fun drawCommand(command: DrawCommand)
