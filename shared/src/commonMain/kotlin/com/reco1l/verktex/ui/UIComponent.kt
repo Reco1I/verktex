@@ -24,6 +24,7 @@ import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.time.Clock
 import com.reco1l.verktex.time.FrameClock
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * The base class for all UI components.
@@ -762,13 +763,20 @@ abstract class UIComponent {
             calculateTransformations()
         }
 
-        val (x0, y0) = localToSceneMatrix.transform(0f, 0f)
-        val (x1, y1) = localToSceneMatrix.transform(bounds.width, 0f)
-        val (x2, y2) = localToSceneMatrix.transform(bounds.width, bounds.height)
-        val (x3, y3) = localToSceneMatrix.transform(0f, bounds.height)
+        // The bounds of the transformed corners, computed from the matrix without transforming
+        // each corner: every term of an affine transform reaches its extremes on its own.
+        val m = localToSceneMatrix
+        val ax = m.a * bounds.width
+        val cy = m.c * bounds.height
+        val bx = m.b * bounds.width
+        val dy = m.d * bounds.height
 
-        return minOf(x0, x1, x2, x3) <= x + width && maxOf(x0, x1, x2, x3) >= x
-            && minOf(y0, y1, y2, y3) <= y + height && maxOf(y0, y1, y2, y3) >= y
+        val minX = m.tx + min(0f, ax) + min(0f, cy)
+        val maxX = m.tx + max(0f, ax) + max(0f, cy)
+        val minY = m.ty + min(0f, bx) + min(0f, dy)
+        val maxY = m.ty + max(0f, bx) + max(0f, dy)
+
+        return minX <= x + width && maxX >= x && minY <= y + height && maxY >= y
     }
 
     // The rectangle and texture coordinates of a texture background, see ScaleType.place.
