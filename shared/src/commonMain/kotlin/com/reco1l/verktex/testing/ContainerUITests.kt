@@ -11,7 +11,12 @@ import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
+import com.reco1l.verktex.data.Vec2
+import com.reco1l.verktex.data.pct
+import com.reco1l.verktex.data.px
+import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.container.UIContainer
+import com.reco1l.verktex.ui.container.UIScalingContainer
 import com.reco1l.verktex.ui.container.UILinearContainer
 import com.reco1l.verktex.ui.container.UIRecyclerContainer
 import com.reco1l.verktex.ui.container.RecyclableComponent
@@ -406,6 +411,77 @@ fun UITestSuite.addContainerTests() {
                     isWide = !isWide
                     target.width = if (isWide) 280f.dip else 160f.dip
                     target.height = if (isWide) 60f.dip else 100f.dip
+                }
+            }
+        }
+    }
+
+    test("Scaling container") {
+        lateinit var area: UIContainer
+        lateinit var scaling: UIScalingContainer
+        lateinit var factorText: UIText
+
+        area = container {
+            anchor = Anchor.Center
+            origin = Anchor.Center
+            width = 0.8f.pct
+            height = 0.7f.pct
+            background = Background.Color(FAINT)
+
+            scaling = object : UIScalingContainer() {
+                override fun onUpdate(clock: FrameClock) {
+                    super.onUpdate(clock)
+
+                    val label = "$mode, factor ${factor.toFixed(2)}"
+                    if (factorText.text.toString() != label) {
+                        factorText.text = label
+                    }
+                }
+            }.also { +it }
+
+            scaling.apply {
+                referenceSize = Vec2(1280f, 720f)
+
+                // Sized in reference pixels, as a HUD designed for 1280x720.
+                for ((index, anchor) in ANCHORS.withIndex()) {
+                    block("", colorAt(index)) {
+                        this.anchor = anchor
+                        origin = anchor
+                        width = 120f.px
+                        height = 120f.px
+                    }
+                }
+
+                factorText = text {
+                    anchor = Anchor.TopCenter
+                    origin = Anchor.TopCenter
+                    y = 140f.px
+                    fontSize = 48f.px
+                }
+            }
+        }
+
+        linearContainer {
+            anchor = Anchor.BottomCenter
+            origin = Anchor.BottomCenter
+            y = (-16f).dip
+            spacing = 8f.dip
+
+            textButton {
+                text = "Change mode"
+                onActionUp = {
+                    val modes = UIScalingContainer.Mode.entries
+                    scaling.mode = modes[(scaling.mode.ordinal + 1) % modes.size]
+                }
+            }
+
+            var isNarrow = false
+
+            textButton {
+                text = "Resize area"
+                onActionUp = {
+                    isNarrow = !isNarrow
+                    area.width = if (isNarrow) 0.45f.pct else 0.8f.pct
                 }
             }
         }
