@@ -22,6 +22,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * The main renderer class that handles drawing commands and manages the rendering state.
@@ -724,6 +725,10 @@ abstract class GraphicsRenderer {
         val buffer = activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry.")
         val transform = matrixStack.lastOrNull() ?: Mat2.Identity
 
+        if (c0 == c1 && c1 == c2 && c2 == c3 && addSlicedUIBox(buffer, transform, x, y, width, height, c0)) {
+            return
+        }
+
         val p = points
         transform.transform(x, y, p, 0)
         transform.transform(x + width, y, p, 2)
@@ -736,6 +741,97 @@ abstract class GraphicsRenderer {
         buffer.addUIVertex(p[2], p[3], 1f, 0f, c1, box)
         buffer.addUIVertex(p[4], p[5], 1f, 1f, c2, box)
         buffer.addUIVertex(p[6], p[7], 0f, 1f, c3, box)
+    }
+
+    /**
+     * Draws the box set by [uiBox] as its edges, where the corners, the border and the antialiasing
+     * are, and its inside, filled with the color alone (UI_MODE_FILL) or not drawn at all when the
+     * fill is transparent. The UI shader's shape costs most of its time on low end GPUs, and it's
+     * the same for every pixel inside. The edges cover the same box, so they're drawn exactly as the
+     * whole quad would.
+     *
+     * Returns false, without drawing, when the box isn't worth slicing: a small one, one with little
+     * inside, or while writing depth, where the transparent inside must still write it.
+     */
+    private fun addSlicedUIBox(buffer: GraphicsBuffer, transform: Mat2, x: Float, y: Float, width: Float, height: Float, color: Int): Boolean {
+        val box = uiBox
+        val boxFlags = box[3]
+        if ((boxFlags.toInt() and 3) != UI_MODE_BOX) {
+            return false
+        }
+
+        val depthState = depthStateStack.lastOrNull() ?: DepthState.Default
+        if (depthState.enabled && depthState.writeEnabled) {
+            return false
+        }
+
+        // The size of a local unit on screen. The antialiased edge is about a pixel wide whatever
+        // the scale, so the inside starts two pixels in from the shape.
+        val scale = sqrt(min(transform.a * transform.a + transform.b * transform.b, transform.c * transform.c + transform.d * transform.d))
+        if (scale <= 0f || width * height * scale * scale < MIN_SLICED_UI_BOX_AREA) {
+            return false
+        }
+        val margin = 2f / scale
+
+        // Radii larger than the box are reduced by the shader the same way.
+        val maxRadius = min(width, height) / 2f
+        val radiusTopLeft = min(box[4], maxRadius)
+        val radiusTopRight = min(box[5], maxRadius)
+        val radiusBottomRight = min(box[6], maxRadius)
+        val radiusBottomLeft = min(box[7], maxRadius)
+        val borderWidth = max(box[2], 0f)
+
+        val top = max(max(radiusTopLeft, radiusTopRight), borderWidth) + margin
+        val bottom = max(max(radiusBottomLeft, radiusBottomRight), borderWidth) + margin
+        val left = max(max(radiusTopLeft, radiusBottomLeft), borderWidth) + margin
+        val right = max(max(radiusTopRight, radiusBottomRight), borderWidth) + margin
+
+        val innerWidth = width - left - right
+        val innerHeight = height - top - bottom
+        if (innerWidth <= 0f || innerHeight <= 0f || innerWidth * innerHeight < width * height * MIN_SLICED_UI_BOX_INSIDE) {
+            return false
+        }
+
+        // The edges: the top and bottom rows across the box, then the left and right columns
+        // between them.
+        addUIBoxPart(buffer, transform, x, y, width, height, 0f, 0f, width, top, color)
+        addUIBoxPart(buffer, transform, x, y, width, height, 0f, height - bottom, width, height, color)
+        addUIBoxPart(buffer, transform, x, y, width, height, 0f, top, left, height - bottom, color)
+        addUIBoxPart(buffer, transform, x, y, width, height, width - right, top, width, height - bottom, color)
+
+        // Without alpha the inside adds nothing.
+        if (color ushr 24 != 0) {
+            box[3] = UI_MODE_FILL.toFloat()
+            addUIBoxPart(buffer, transform, x, y, width, height, left, top, width - right, height - bottom, color)
+            box[3] = boxFlags
+        }
+        return true
+    }
+
+    // The part of a box from (left, top) to (right, bottom) in the box's space, with the texture
+    // coordinates the whole box has there, which the UI shader computes the shape from.
+    private fun addUIBoxPart(
+        buffer: GraphicsBuffer, transform: Mat2,
+        x: Float, y: Float, width: Float, height: Float,
+        left: Float, top: Float, right: Float, bottom: Float,
+        color: Int
+    ) {
+        val p = points
+        transform.transform(x + left, y + top, p, 0)
+        transform.transform(x + right, y + top, p, 2)
+        transform.transform(x + right, y + bottom, p, 4)
+        transform.transform(x + left, y + bottom, p, 6)
+
+        val u0 = left / width
+        val v0 = top / height
+        val u1 = right / width
+        val v1 = bottom / height
+
+        val box = uiBox
+        buffer.addUIVertex(p[0], p[1], u0, v0, color, box)
+        buffer.addUIVertex(p[2], p[3], u1, v0, color, box)
+        buffer.addUIVertex(p[4], p[5], u1, v1, color, box)
+        buffer.addUIVertex(p[6], p[7], u0, v1, color, box)
     }
 
     //endregion
@@ -1368,6 +1464,12 @@ abstract class GraphicsRenderer {
         private const val UI_MODE_BOX = 0
         private const val UI_MODE_TEXT = 1
         private const val UI_MODE_SOFT_BOX = 2
+        private const val UI_MODE_FILL = 3
+
+        // Boxes smaller than this many pixels on screen aren't sliced, see addSlicedUIBox, nor
+        // those whose inside is less than this fraction of them.
+        private const val MIN_SLICED_UI_BOX_AREA = 64f * 64f
+        private const val MIN_SLICED_UI_BOX_INSIDE = 0.25f
 
         // The box of every glyph, of which only the mode is read.
         private val UI_TEXT_BOX = FloatArray(UI_BOX_FLOATS).also { it[3] = UI_MODE_TEXT.toFloat() }
