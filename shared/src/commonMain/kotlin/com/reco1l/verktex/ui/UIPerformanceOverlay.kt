@@ -194,6 +194,9 @@ class UIPerformanceOverlay : UIClickableContainer() {
 
 
     override fun onUpdate(clock: FrameClock) {
+        // The merged draw commands cost some recording time, they're measured while shown.
+        PerformanceStats.measureMergedDrawCommands = isExpanded
+
         // Re-measuring the texts is not free, so they refresh a few times per second only.
         timeSinceTextUpdate += clock.elapsedFrameTime
 
@@ -222,7 +225,9 @@ class UIPerformanceOverlay : UIClickableContainer() {
             // The time the GPU spent on a frame, shown when the device can measure it.
             gpuTimeText.text = if (PerformanceStats.gpuTime >= 0f) "${PerformanceStats.gpuTime.toFixed(1)} ms" else "n/a"
             updateTimeText.text = "${PerformanceStats.updateTime.toFixed(2)} ms"
-            drawCallsText.text = PerformanceStats.drawCommands.toString()
+            // With the commands merging across the traversal order would leave, when measured.
+            val merged = PerformanceStats.mergedDrawCommands
+            drawCallsText.text = if (merged >= 0) "${PerformanceStats.drawCommands} ($merged)" else PerformanceStats.drawCommands.toString()
             layoutTimeText.text = "${PerformanceStats.layoutTime.toFixed(2)} ms"
             recordTimeText.text = "${PerformanceStats.recordTime.toFixed(2)} ms"
             submitTimeText.text = "${PerformanceStats.submitTime.toFixed(2)} ms"
