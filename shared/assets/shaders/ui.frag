@@ -22,7 +22,9 @@ out vec4 fragColor;
 
 // Colours given to shaders have straight alpha, textures and the output are premultiplied.
 
-// Modes: 0 draws a rounded box, 1 samples the texture, 2 draws a soft rounded box (a shadow).
+// Modes: 0 draws a rounded box, 1 samples the texture, 2 draws a soft rounded box (a shadow), 3
+// fills with the color alone: the inside of a rounded box, away from its corners and border, which
+// the renderer draws as a quad of its own so that most of its pixels skip the shape.
 //
 // The fade flags tell which sides have no color of their own and fade between their neighbors:
 // 1 top, 2 right, 4 bottom, 8 left. Without a color on the left and the right, the whole border
@@ -93,7 +95,13 @@ void main() {
         return;
     }
 
-    bool isSoft = mode > 1.5;
+    if (mode > 2.5) {
+        vec4 fill = uColor * vColor;
+        fragColor = vec4(fill.rgb * fill.a, fill.a);
+        return;
+    }
+
+    bool isSoft = mode > 1.5 && mode < 2.5;
     float borderWidth = vBox.z;
     float softness = isSoft ? vBorderTop.x : 0.0;
     float inset = isSoft ? vBorderTop.y : 0.0;
