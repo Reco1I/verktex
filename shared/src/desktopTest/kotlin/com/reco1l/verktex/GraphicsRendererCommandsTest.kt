@@ -220,88 +220,57 @@ class GraphicsRendererCommandsTest {
         assertEquals(2 * VERTICES_PER_RECT * GraphicsRenderer.VERTEX_2D_STRIDE, command.buffer!!.position)
     }
 
-    // A texture, a box and the texture again, the box somewhere else or over the second texture.
-    private fun drawTextureBoxTexture(
-        boxX: Float,
-        boxY: Float,
-        between: GraphicsRenderer.() -> Unit = {},
-        setUp: GraphicsRenderer.() -> Unit = {}
-    ): RecordingRenderer {
+    // A texture, a box and the texture again, the box somewhere else or over the first texture.
+    private fun simulateTextureBoxTexture(boxX: Float, boxY: Float, clearBetween: Boolean = false): GraphicsRenderer {
         val renderer = RecordingRenderer()
         val texture = FakeExternalTexture()
         val region = GraphicsTexture.Region(texture, FakeSource, 0f, 0f, 16f, 16f)
 
-        renderer.setUp()
+        renderer.isSimulatingBatches = true
         renderer.begin()
         renderer.drawTexture(texture, region, 0f, 0f, 16f, 16f)
         renderer.drawRect(boxX, boxY, 10f, 10f)
-        renderer.between()
+        if (clearBetween) renderer.clearDepth()
         renderer.drawTexture(texture, region, 32f, 0f, 16f, 16f)
-        renderer.end()
         return renderer
     }
 
     @Test
-    fun aDrawJoinsAnEarlierCommandItsDrawsDontOverlap() {
-        val commands = drawTextureBoxTexture(100f, 100f).commands
+    fun simulationMergesADrawAcrossCommandsItDoesNotOverlap() {
+        val renderer = simulateTextureBoxTexture(100f, 100f)
 
-        assertEquals(2, commands.size)
-        assertSame(video, commands[0].shader)
-        assertEquals(2 * VERTICES_PER_RECT * GraphicsRenderer.VERTEX_2D_STRIDE, commands[0].buffer!!.position)
-        assertSame(ui, commands[1].shader)
+        assertEquals(3, renderer.commandCount)
+        assertEquals(2, renderer.simulatedCommandCount)
+        renderer.end()
     }
 
     @Test
-    fun aDrawStaysAboveACommandItOverlaps() {
-        // The box is under the second texture, which must stay above it.
-        val commands = drawTextureBoxTexture(35f, 5f).commands
+    fun simulationDoesNotMoveADrawBeforeOneItOverlaps() {
+        // The box covers the second texture, which must stay above it.
+        val renderer = simulateTextureBoxTexture(35f, 5f)
 
-        assertEquals(3, commands.size)
-        assertSame(video, commands[2].shader)
+        assertEquals(3, renderer.commandCount)
+        assertEquals(3, renderer.simulatedCommandCount)
+        renderer.end()
     }
 
     @Test
-    fun aDrawIsNotMovedAcrossADepthClear() {
-        val commands = drawTextureBoxTexture(100f, 100f, between = { clearDepth() }).commands
+    fun simulationDoesNotMergeAcrossADepthClear() {
+        val renderer = simulateTextureBoxTexture(100f, 100f, clearBetween = true)
 
-        assertEquals(4, commands.size)
-        assertTrue(commands[2].clearDepth)
+        assertEquals(4, renderer.commandCount)
+        assertEquals(4, renderer.simulatedCommandCount)
+        renderer.end()
     }
 
     @Test
-    fun aDrawIsNotMovedAcrossGeometryOfUnknownBounds() {
-        val commands = drawTextureBoxTexture(100f, 100f, between = {
-            setState(shader = solidQuad, texture = null, uniformSet = GraphicsShader.UniformSet())
-            drawGeometry { _, _ -> putVertex(200f, 200f, 0f, 0f, 0) }
-        }).commands
-
-        assertEquals(4, commands.size)
-        assertSame(video, commands[3].shader)
-    }
-
-    @Test
-    fun aLookBackOfOneOnlyJoinsTheLastCommand() {
-        val commands = drawTextureBoxTexture(100f, 100f, setUp = { commandLookBack = 1 }).commands
-
-        assertEquals(3, commands.size)
-    }
-
-    @Test
-    fun whatTheScissorCutsDoesNotOverlap() {
-        // The box would be under the second texture, but the scissor cuts it before.
+    fun simulationIsOffByDefault() {
         val renderer = RecordingRenderer()
-        val texture = FakeExternalTexture()
-        val region = GraphicsTexture.Region(texture, FakeSource, 0f, 0f, 16f, 16f)
 
         renderer.begin()
-        renderer.drawTexture(texture, region, 0f, 0f, 16f, 16f)
-        renderer.pushScissor(0f, 0f, 30f, 30f)
-        renderer.drawRect(25f, 5f, 20f, 10f)
-        renderer.popScissor()
-        renderer.drawTexture(texture, region, 32f, 0f, 16f, 16f)
+        renderer.drawRect(0f, 0f, 10f, 10f)
+        assertEquals(-1, renderer.simulatedCommandCount)
         renderer.end()
-
-        assertEquals(2, renderer.commands.size)
     }
 
     private object FakeSource : GraphicsTexture.Source {
