@@ -42,9 +42,10 @@ builds and is tested on Linux with a null output (`natives/audio/tests/`).
 
 - **Decoders**, single-header libraries chosen for exact timing: `minimp3` (with `minimp3_ex`, which
   reads the LAME/Xing tag and removes the encoder delay and padding, as BASS does), `stb_vorbis`,
-  `dr_wav` and `dr_flac`. They seek to the exact frame. The NDK's `AMediaExtractor` isn't used: its
-  MP3 seeking is imprecise and its encoder delay differs between devices, an offset error in a
-  rhythm game. Assets are read through the `AAssetManager` into memory.
+  `dr_wav` and `dr_flac` (`third_party/README.md`). They seek to the exact frame. The NDK's
+  `AMediaExtractor` isn't used: its MP3 seeking is imprecise and its encoder delay differs between
+  devices, an offset error in a rhythm game. The driver reads files (and assets) whole in Kotlin and
+  gives their bytes to the core, which decodes them from memory.
 - **Mixer**: stereo float at the device's native rate. The application's threads never touch the
   voices: they post commands (play, pause, stop, seek, volume, rate, loop) to a lock-free queue the
   output's callback drains at the start of each callback, and read back the state (playing, paused,
@@ -54,27 +55,34 @@ builds and is tested on Linux with a null output (`natives/audio/tests/`).
 - **Samples** are decoded whole at load, at their own rate. A playback is a voice with a cubic
   resampler, whose step is `sampleRate / outputRate * pitch`. As with BASS, samples ignore `speed`
   and `adjustPitch`.
-- **Streams** are decoded by a worker thread: decoder → time stretch (when `speed != 1` and the pitch
-  is kept) → into a ring buffer of 100 ms, which the callback resamples to `frequency / outputRate`.
-  A seek flushes the buffers and seeks the decoder to the exact frame. `onEnd` is called by a
-  notifier thread, never the callback.
-- **Position of a stream**: the source frame of the audio being heard, i.e. the frames decoded
-  minus those still buffered (in the stretcher, scaled by the speed, and in the ring buffer, scaled
-  by the rate) minus the latency of the output (from Oboe's timestamps). Unlike BASS's, it includes
-  the output latency, so the offset calibrated with BASS is off by about that latency.
+- **Streams** are decoded ahead by the engine's service thread: decoder → time stretch (when the
+  speed isn't 1 and the pitch is kept) → chunks of about 100 ms in all, at the source's rate, each
+  frame labeled with its source frame. The callback resamples them to `frequency / outputRate`, so a
+  change of frequency is heard right away. A seek decodes from the exact frame synchronously and
+  starts a new generation of chunks, the callback drops the older ones. A change of tempo restarts
+  from the position heard, with a short glitch. `onEnd` is called by the service thread.
+- **Position of a stream**: the source frame of the audio being heard: the one the callback renders
+  minus the latency of the output (from Oboe's timestamps) at the current rate, extrapolated with
+  the time between callbacks, and never going back but for a loop. After a seek it stays at the
+  target until the audio after it is heard. Unlike BASS's, it includes the output latency, so the
+  offset calibrated with BASS is off by about that latency.
 - **Speed without changing the pitch**: Signalsmith Stretch (MIT, header-only,
-  https://github.com/Signalsmith-Audio/signalsmith-stretch).
-- **Spectrum**: the callback keeps the last 1024 output frames; `readFFT()` applies a Hann window
-  and a 1024 point FFT and returns 512 magnitudes, scaled as `BASS_DATA_FFT1024`.
+  https://github.com/Signalsmith-Audio/signalsmith-stretch), with its cheaper preset. It's meant for
+  0.75x to 1.5x, the speeds of HT and DT, and works beyond. BASS_FX uses a SoundTouch-like WSOLA:
+  how they compare on the same song is to be checked by ear.
+- **Spectrum**: the callback keeps the last 1024 frames of the stream; `readFFT()` applies a Hann
+  window and a 1024 point FFT and returns 512 magnitudes, a full scale sine reading about 1. That
+  BASS's `BASS_DATA_FFT1024` reads the same is to be checked against it.
 - **URL streams** aren't supported by Oboe yet (`createUrlStreamSource` returns null).
 
 ### The Oboe output (`android-natives`)
 
 `OboeOutput` opens an `oboe::AudioStream`: low latency performance mode, exclusive sharing (Oboe
 falls back to shared), `Usage::Game`, float, stereo, the device's native rate, a buffer of two
-bursts. Its timestamps give the latency. On `ErrorDisconnected` (headphones unplugged, Bluetooth) it
-reopens the stream from another thread, the voices keep their positions. The host pauses the output
-while the activity is stopped.
+bursts. Its timestamps give the latency. When the stream is disconnected (headphones unplugged,
+Bluetooth) it's reopened on the default device, the playbacks keep their positions. The host closes
+the output while its activity is stopped, unless a stream plays (BASS keeps playing in the
+background, so music may too).
 
 Oboe is built from source (pinned, see `gradle/libs.versions.toml`) with `add_subdirectory`, so it
 links with the static STL the Vulkan library already uses: its Prefab AAR is built against
@@ -86,16 +94,14 @@ osu!droid offers the choice in its audio settings (an "Output" category) when
 `Platform.availableAudioBackends` has more than one entry, applied on the next start, with a toast
 that recommends calibrating the offset again for Oboe.
 
-## Plan and status
+## Status
 
-1. Drivers open their files, `AudioBackend`, `VerktexSettings.AudioBackend`,
-   `Platform.availableAudioBackends`, `createAudioDriver()`. BASS stays the default.
-2. The native core with its tests on Linux: decoders, mixer, samples, streams, positions.
-3. Time stretch and spectrum.
-4. The Oboe output and `android-natives`' build.
-5. The Kotlin driver (`android/oboe/`), the fallback, the lifecycle.
-6. An audio UI test (`Verktex/Audio`), the backend and latency in the performance overlay.
-7. The game's setting.
+Done: drivers open their files, the setting and the fallback; the native core with its tests; the
+Oboe output and `android-natives`' build; the Kotlin driver (`android/oboe/`); the `Verktex/Audio`
+UI test and the backend in the performance overlay; the game's setting (osu!droid).
+
+The native core is built and tested on Linux. The Android build (Oboe, the JNI functions, the Kotlin
+driver) was written without the Android SDK at hand and is yet to be built and tried on devices.
 
 Left for later: choosing the output device (`AudioManager.getDevices`, Oboe's `setDeviceId`), URL
 streams, switching the backend without restarting, an `Auto` backend once Oboe is proven, the
@@ -103,8 +109,11 @@ native core on desktop.
 
 ## Testing
 
-- `natives/audio/tests/`: decoding lengths (MP3 with and without gapless tags), exact seeks,
-  monotonic positions with `speed != 1` and across seeks, `onEnd` once, looping, the spectrum.
+- `natives/audio/tests/` (`cmake -S natives/audio -B build/audio -DVERKTEX_AUDIO_TESTS=ON`, then
+  `cmake --build build/audio && ctest --test-dir build/audio`): decoded lengths (MP3s with their
+  LAME tag), exact seeks, samples' rates, loops and volume ramps, streams' positions with the
+  output's latency, tempo and frequency, ends, loops, stalls, and released playbacks. They pass with
+  the address, undefined behavior and thread sanitizers.
 - `Verktex/Audio` UI test: samples and streams, speed, pitch and frequency, rapid hits, spectrum,
   and the backend and latency.
 - By hand: the same beatmap with each backend against the calibration scene; low end devices

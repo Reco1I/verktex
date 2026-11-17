@@ -13,6 +13,9 @@ applications include it (`includeBuild`) and depend on `com.reco1l.verktex:<modu
 # Tests
 ./gradlew :shared:desktopTest :shared:testAndroidHostTest :shadertools:test
 
+# The native audio core's tests (CMake and a C++17 compiler)
+cmake -S natives/audio -B build/audio -DVERKTEX_AUDIO_TESTS=ON && cmake --build build/audio && ctest --test-dir build/audio
+
 # The UI test browser on desktop; --test opens a test, --screenshot saves a frame and exits
 ./gradlew :desktopApp:run --args="--test 'Verktex/Text' --screenshot build/text.png"
 ```
@@ -31,8 +34,9 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   - `jvmMain`: what Android and desktop share because both run on a JVM (`ThreadLoopWorker`, the
     actual `PixelBuffer`, the HTTP engine, the Vulkan backend's Kotlin side in `vulkan/`).
   - `androidMain`: the Android platform (`com/reco1l/verktex/android/`): the graphics backends
-    (OpenGL ES 2 and 3, Vulkan), the BASS audio library (`com.un4seen.bass`, in Java, and its
-    natives in `jniLibs/`) and ExoPlayer video.
+    (OpenGL ES 2 and 3, Vulkan), the audio backends: BASS (`com.un4seen.bass`, in Java, and its
+    natives in `jniLibs/`) and Oboe (`android/oboe/`, see `docs/audio-backends.md`), and ExoPlayer
+    video.
   - `desktopMain`: the desktop platform: OpenGL 3.3 through LWJGL (or the experimental Vulkan
     backend, `desktop/vulkan/`), BASS through JNA and FFmpeg video, see `docs/desktop-platform.md`.
   - `desktopTest` (the common and desktop tests) and `androidHostTest` (Robolectric).
@@ -42,7 +46,8 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   https://kotlinlang.org/docs/multiplatform/multiplatform-project-recommended-structure.html.
 - `:android-natives`: what the Android platform needs from the NDK, which the Kotlin Multiplatform
   Android plugin can't build: the native library of the Vulkan backend (its sources are shared with
-  desktop in `natives/vulkan/`, see `docs/vulkan-backend.md`), the task
+  desktop in `natives/vulkan/`, see `docs/vulkan-backend.md`), the one of the Oboe audio backend
+  (the native audio core of `natives/audio/` and Oboe, built from source), the task
   that compiles the shaders to SPIR-V, and the Vulkan validation layer of debug builds.
 - `:desktop-natives`: its desktop counterpart, a plain JVM module whose resources are the Vulkan
   backend's library, built from `natives/vulkan/` with CMake (Linux x64 so far, skipped without the
@@ -58,6 +63,8 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   (`Platform.attach`). Everything else comes from multiplatform libraries.
 - Interfaces are kept where a platform has several implementations or tests replace them:
   `GraphicsRenderer`, `AudioDriver`, `VideoDecoder`, `Logger.Implementation`.
+- The audio driver (`Verktex.audio`) opens audio files (`createSampleSource`, `createStreamSource`),
+  not `Provider`: the backend is `VerktexSettings.AudioBackend`, read when the engine starts.
 - The desktop target compiles against the API of Java 11 (`-Xjdk-release=11`): `PixelBuffer` is
   expected abstract, as `java.nio.ByteBuffer` is on Android and up to Java 16.
 - API only the platform sources should use is public under `@VerktexPlatformApi`.
