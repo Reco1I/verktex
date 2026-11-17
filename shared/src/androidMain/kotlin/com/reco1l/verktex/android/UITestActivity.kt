@@ -9,6 +9,7 @@ import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.testing.UITestScene
 import com.reco1l.verktex.testing.UITestSuite
 import com.reco1l.verktex.testing.VerktexUITests
+import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
 
 /**
  * An activity to browse and try UI components in isolation.

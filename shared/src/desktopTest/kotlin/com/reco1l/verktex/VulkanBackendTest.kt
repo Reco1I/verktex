@@ -1,9 +1,9 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.android.vulkan.VKCommandEncoder
-import com.reco1l.verktex.android.vulkan.VKFrameRing
-import com.reco1l.verktex.android.vulkan.VKPipelineState
-import com.reco1l.verktex.android.vulkan.VKUniformPacker
+import com.reco1l.verktex.vulkan.VKCommandEncoder
+import com.reco1l.verktex.vulkan.VKFrameRing
+import com.reco1l.verktex.vulkan.VKPipelineState
+import com.reco1l.verktex.vulkan.VKUniformPacker
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.graphics.BlendMode

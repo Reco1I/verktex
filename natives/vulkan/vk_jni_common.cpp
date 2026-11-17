@@ -1,63 +1,31 @@
-// The JNI surface of the Vulkan backend, see VKNative.kt. Calls are coarse: resources are created
-// one call each and a whole frame is submitted as one command stream.
+// The JNI surface of the Vulkan backend every platform shares, see VKNative.kt. Calls are coarse:
+// resources are created one call each and a whole frame is submitted as one command stream. Creating
+// the context and giving it a window is each platform's, see vk_jni_android.cpp.
 
-#include "vk_context.h"
+#include "vk_jni.h"
 
-#include <android/native_window_jni.h>
-#include <dlfcn.h>
-#include <jni.h>
+namespace verktex::jni {
 
-#include <string>
-#include <vector>
-
-using verktex::Context;
-
-namespace {
-
-// The error of the last call that failed, read with lastError(). Only the draw thread calls in after
-// the context is created.
 std::string lastError;
 
-Context *context(jlong handle) {
-    return reinterpret_cast<Context *>(handle);
-}
-
-// Non-dispatchable handles are pointers on 64-bit ABIs and uint64_t on 32-bit ones.
-template<typename T>
-jlong toHandle(T value) {
-    return static_cast<jlong>((uint64_t) value);
-}
-
-template<typename T>
-T fromHandle(jlong value) {
-    return (T) static_cast<uint64_t>(value);
-}
-
-// From API 26, the minimum SDK is 24: looked up at runtime.
-using FromHardwareBuffer = AHardwareBuffer *(*)(JNIEnv *, jobject);
-
-FromHardwareBuffer fromHardwareBuffer() {
-    static auto function = reinterpret_cast<FromHardwareBuffer>(
-            dlsym(dlopen("libandroid.so", RTLD_NOW), "AHardwareBuffer_fromHardwareBuffer"));
-    return function;
-}
-
-} // namespace
-
-#define VKNATIVE(name) Java_com_reco1l_verktex_android_vulkan_VKNative_##name
-
-extern "C" {
-
-JNIEXPORT jlong JNICALL VKNATIVE(createContext)(JNIEnv *, jclass, jboolean enableValidation) {
+jlong createContext(bool enableValidation, const std::vector<const char *> &surfaceExtensions) {
     auto *created = new Context();
 
-    if (!created->initialize(enableValidation == JNI_TRUE, lastError)) {
+    if (!created->initialize(enableValidation, surfaceExtensions, lastError)) {
         created->destroy();
         delete created;
         return 0;
     }
     return reinterpret_cast<jlong>(created);
 }
+
+} // namespace verktex::jni
+
+using namespace verktex::jni;
+
+#define VKNATIVE(name) Java_com_reco1l_verktex_vulkan_VKNative_##name
+
+extern "C" {
 
 JNIEXPORT void JNICALL VKNATIVE(destroyContext)(JNIEnv *, jclass, jlong handle) {
     Context *ctx = context(handle);
@@ -91,11 +59,6 @@ JNIEXPORT jint JNICALL VKNATIVE(ringSize)(JNIEnv *, jclass) {
 
 JNIEXPORT jint JNICALL VKNATIVE(uniformRange)(JNIEnv *, jclass) {
     return static_cast<jint>(verktex::UNIFORM_RANGE);
-}
-
-JNIEXPORT jint JNICALL VKNATIVE(setSurface)(JNIEnv *env, jclass, jlong handle, jobject surface) {
-    ANativeWindow *window = surface != nullptr ? ANativeWindow_fromSurface(env, surface) : nullptr;
-    return context(handle)->setSurface(window, lastError);
 }
 
 JNIEXPORT jint JNICALL VKNATIVE(acquireFrame)(JNIEnv *, jclass, jlong handle, jint width, jint height) {
@@ -168,23 +131,6 @@ JNIEXPORT void JNICALL VKNATIVE(uploadTexture)(JNIEnv *env, jclass, jlong handle
 
 JNIEXPORT void JNICALL VKNATIVE(destroyTexture)(JNIEnv *, jclass, jlong handle, jlong texture) {
     context(handle)->destroyTexture(reinterpret_cast<verktex::Texture *>(texture));
-}
-
-JNIEXPORT jboolean JNICALL VKNATIVE(supportsExternalTextures)(JNIEnv *, jclass, jlong handle) {
-    return context(handle)->supportsExternalTextures() && fromHardwareBuffer() != nullptr ? JNI_TRUE : JNI_FALSE;
-}
-
-JNIEXPORT jlong JNICALL VKNATIVE(importHardwareBuffer)(JNIEnv *env, jclass, jlong handle, jobject hardwareBuffer) {
-    auto from = fromHardwareBuffer();
-    if (from == nullptr) {
-        return 0;
-    }
-    // The import takes its own reference, the Java object can be closed afterwards.
-    return reinterpret_cast<jlong>(context(handle)->importHardwareBuffer(from(env, hardwareBuffer)));
-}
-
-JNIEXPORT jlong JNICALL VKNATIVE(textureYcbcrSampler)(JNIEnv *, jclass, jlong, jlong texture) {
-    return reinterpret_cast<jlong>(reinterpret_cast<verktex::Texture *>(texture)->ycbcr);
 }
 
 JNIEXPORT jlong JNICALL VKNATIVE(submissionCount)(JNIEnv *, jclass, jlong handle) {

@@ -1,24 +1,31 @@
-package com.reco1l.verktex.android.vulkan
+package com.reco1l.verktex.vulkan
 
-import android.view.Surface
 import java.nio.ByteBuffer
 
 /**
- * The JNI surface of the Vulkan backend, implemented in `src/main/cpp/vulkan`. Calls are coarse,
- * the per-draw work is encoded into one command stream per frame, see [VKCommandEncoder].
+ * Loads the native library of the Vulkan backend, `verktex_vulkan`, the way the platform packages it.
+ */
+internal expect fun loadVulkanLibrary()
+
+/**
+ * The JNI surface of the Vulkan backend, implemented in `natives/vulkan` and shared by every platform.
+ * Calls are coarse, the per-draw work is encoded into one command stream per frame, see
+ * [VKCommandEncoder]. What only a platform has (creating the context, its window, Android's video
+ * frames) is in that platform's own object, which loads the library through this one.
  *
- * Handles are opaque `Long`s, 0 being none. Every call but [createContext] takes the context handle.
+ * Handles are opaque `Long`s, 0 being none. Every call takes the context handle.
  */
 internal object VKNative {
 
     init {
-        System.loadLibrary("verktex_vulkan")
+        loadVulkanLibrary()
     }
 
     /**
-     * Creates the instance, device and per-frame resources, 0 on failure (see [lastError]).
+     * Makes sure the library is loaded, for the platform objects to call before their own functions.
      */
-    @JvmStatic external fun createContext(enableValidation: Boolean): Long
+    fun ensureLoaded() = Unit
+
     @JvmStatic external fun destroyContext(context: Long)
 
     /**
@@ -40,12 +47,6 @@ internal object VKNative {
      * The size in bytes of the uniform block descriptors, which every block must fit in.
      */
     @JvmStatic external fun uniformRange(): Int
-
-    /**
-     * Replaces the window rendered to, null to release it. Returns 1 when the render pass was recreated
-     * (pipelines must be recreated), 0 otherwise, or -1 on failure (see [lastError]).
-     */
-    @JvmStatic external fun setSurface(context: Long, surface: Surface?): Int
 
     /**
      * Waits for the next frame and acquires a swapchain image of the given size. Returns the frame's
@@ -76,7 +77,8 @@ internal object VKNative {
      * rate of each, the attribute count and the location, binding, VkFormat and offset of each.
      * [blend] holds the VkBlendFactors of source and destination RGB, then of source and destination
      * alpha. [depth] holds whether the test and writes are enabled, then the VkCompareOp. [ycbcrSampler]
-     * is the sampler of the video frames the pipeline samples (see [textureYcbcrSampler]), 0 otherwise.
+     * is the sampler of the video frames the pipeline samples (Android's `textureYcbcrSampler`), 0
+     * otherwise.
      */
     @JvmStatic external fun createPipeline(context: Long, vertexModule: Long, fragmentModule: Long, vertexInput: IntArray, blend: IntArray, depth: IntArray, ycbcrSampler: Long): Long
 
@@ -94,28 +96,12 @@ internal object VKNative {
      * Copies [size] bytes of [pixels] (a direct buffer) from [offset] into a rectangle of the texture,
      * before the next frame draws. [pixels] is only read during the call.
      */
-    @JvmStatic external fun uploadTexture(context: Long, texture: Long, x: Int, y: Int, width: Int, height: Int, pixels: java.nio.ByteBuffer, offset: Int, size: Int)
+    @JvmStatic external fun uploadTexture(context: Long, texture: Long, x: Int, y: Int, width: Int, height: Int, pixels: ByteBuffer, offset: Int, size: Int)
 
     /**
      * Destroys the texture once the frames using it are done. Any thread.
      */
     @JvmStatic external fun destroyTexture(context: Long, texture: Long)
-
-    /**
-     * Whether video frames can be imported with [importHardwareBuffer].
-     */
-    @JvmStatic external fun supportsExternalTextures(context: Long): Boolean
-
-    /**
-     * Imports a video frame as a texture, acquired from its producer before the next frame draws, 0
-     * when it can't be. It keeps its own reference to the buffer. Destroy it with [destroyTexture].
-     */
-    @JvmStatic external fun importHardwareBuffer(context: Long, hardwareBuffer: android.hardware.HardwareBuffer): Long
-
-    /**
-     * The YCbCr sampler an imported frame is sampled with, 0 for none. Pipelines sampling it are made for it.
-     */
-    @JvmStatic external fun textureYcbcrSampler(context: Long, texture: Long): Long
 
     /**
      * The frames submitted so far, and how many of them the GPU completed.

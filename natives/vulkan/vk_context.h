@@ -1,9 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_android.h>
-#include <android/hardware_buffer.h>
-#include <android/native_window.h>
+#include "vk_platform.h"
 
 #include <cstdint>
 #include <deque>
@@ -125,15 +122,23 @@ struct Frame {
 
 class Context {
 public:
-    // Creates the instance, device and per-frame resources. On failure, error says why and the
-    // context must be destroyed.
-    bool initialize(bool enableValidation, std::string &error);
+    // Creates the instance, device and per-frame resources, with the instance extensions the
+    // platform's surfaces need. On failure, error says why and the context must be destroyed.
+    bool initialize(bool enableValidation, const std::vector<const char *> &surfaceExtensions, std::string &error);
     void destroy();
 
-    // Replaces the window rendered to, null to release it. Takes ownership of the window reference.
-    // Returns 1 when the render passes were recreated (pipelines must be recreated), 0 otherwise, or
-    // -1 on failure.
-    int setSurface(ANativeWindow *window, std::string &error);
+    // Replaces the surface rendered to, VK_NULL_HANDLE to release it. Takes ownership of the surface,
+    // created from this context's instance. Returns 1 when the render passes were recreated (pipelines
+    // must be recreated), 0 otherwise, or -1 on failure.
+    int setSurface(VkSurfaceKHR surface, std::string &error);
+
+    VkInstance instanceHandle() const { return instance; }
+
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+    // Replaces the window rendered to, null to release it, see setSurface. Takes ownership of the
+    // window reference.
+    int setWindow(ANativeWindow *window, std::string &error);
+#endif
 
     // Waits for the next frame's resources and acquires a swapchain image of the given size,
     // (re)creating the swapchain if needed. Returns the frame index, or -1 to skip the frame.
@@ -174,9 +179,11 @@ public:
     // Whether video frames can be imported, see importHardwareBuffer.
     bool supportsExternalTextures() const { return externalSupported; }
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     // Imports a video frame as a texture, acquired from its producer before the next frame draws.
     // Destroy it with destroyTexture once it's replaced. Null when it can't be imported.
     Texture *importHardwareBuffer(AHardwareBuffer *buffer);
+#endif
 
     void *ringMemory(uint32_t frameIndex) const { return frames[frameIndex].ring.mapped; }
 
@@ -204,7 +211,9 @@ private:
     void collectGarbage(uint64_t completedSubmission);
     void deferDestroy(std::function<void()> destroy);
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     YcbcrSampler *ycbcrSamplerFor(const VkAndroidHardwareBufferFormatPropertiesANDROID &format);
+#endif
     void recordTextureOperations(VkCommandBuffer cmd);
     void beginRenderPass(VkCommandBuffer cmd, bool load, bool storeDepth);
     void recordCapture(VkCommandBuffer cmd, Texture *texture);
@@ -238,10 +247,12 @@ private:
     VkQueryPool timestamps = VK_NULL_HANDLE;
     float lastGpuTime = -1.0f;
 
-    // Video frames, see importHardwareBuffer.
+    // Video frames, see importHardwareBuffer. Only Android imports them.
     bool externalSupported = false;
     std::vector<YcbcrSampler *> ycbcrSamplers;
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     PFN_vkGetAndroidHardwareBufferPropertiesANDROID getHardwareBufferProperties = nullptr;
+#endif
     PFN_vkCreateSamplerYcbcrConversion createSamplerYcbcrConversion = nullptr;
     PFN_vkDestroySamplerYcbcrConversion destroySamplerYcbcrConversion = nullptr;
 
@@ -254,7 +265,9 @@ private:
     std::vector<TextureOperation> textureOperations;
     std::deque<std::pair<uint64_t, std::function<void()>>> garbage;
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     ANativeWindow *window = nullptr;
+#endif
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkFormat surfaceFormat = VK_FORMAT_UNDEFINED;
     VkFormat depthFormat = VK_FORMAT_UNDEFINED;

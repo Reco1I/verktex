@@ -1,14 +1,14 @@
-package com.reco1l.verktex.android.vulkan
+package com.reco1l.verktex.vulkan
 
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.PerformanceStats
-import com.reco1l.verktex.android.AndroidWindow
 import com.reco1l.verktex.graphics.DefaultUniforms
 import com.reco1l.verktex.graphics.DrawCommand
 import com.reco1l.verktex.graphics.GraphicsBackend
 import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.graphics.GraphicsResource
 import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.GraphicsWindow
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
 
 /**
@@ -17,13 +17,14 @@ import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
  * and submits the whole frame at once when it's presented.
  *
  * Captures have the top-left origin of the rest of the engine, so [framebufferOrigin] is the default.
- * External (video) textures are sampled through a YCbCr conversion, their pipelines are made for it.
- * Where they aren't supported their draws are skipped, see [skippedCommands].
+ * External (video) textures of a platform that imports their frames ([VKExternalFrames]) are sampled
+ * through a YCbCr conversion, their pipelines are made for it. Where they aren't supported their draws
+ * are skipped, see [skippedCommands].
  */
 class VKRenderer(
     override val context: VKContext,
     override val device: VKDevice,
-    override val window: AndroidWindow,
+    override val window: GraphicsWindow,
 ) : GraphicsRenderer() {
 
     override var version: String = context.version
@@ -90,7 +91,7 @@ class VKRenderer(
         // that samples gets a white one, e.g. UI boxes, which don't read it.
         var ycbcrSampler = 0L
         val textureHandle = when {
-            texture is VKExternalTexture -> {
+            texture is VKExternalFrames -> {
                 // A video frame, imported when a new one arrived. Nothing is drawn until the first.
                 texture.load()
                 texture.latch()

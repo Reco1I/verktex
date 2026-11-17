@@ -1,16 +1,11 @@
 #include "vk_context.h"
 
-#include <android/log.h>
-#include <vulkan/vulkan_android.h>
-
 #include <algorithm>
 #include <cstring>
-#include <dlfcn.h>
 
-#define LOG_TAG "VerktexVulkan"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+#include <dlfcn.h>
+#endif
 
 namespace verktex {
 
@@ -58,6 +53,7 @@ bool hasDeviceExtension(VkPhysicalDevice device, const char *name) {
     return std::any_of(extensions.begin(), extensions.end(), [&](auto &e) { return strcmp(e.extensionName, name) == 0; });
 }
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
 // AHardwareBuffer functions exist from API 26, the minimum SDK is 24: they're looked up at runtime.
 using DescribeHardwareBuffer = void (*)(const AHardwareBuffer *, AHardwareBuffer_Desc *);
 
@@ -66,6 +62,7 @@ DescribeHardwareBuffer describeHardwareBuffer() {
             dlsym(dlopen("libandroid.so", RTLD_NOW), "AHardwareBuffer_describe"));
     return function;
 }
+#endif
 
 bool isYcbcrFormat(VkFormat format) {
     return format >= VK_FORMAT_G8B8G8R8_422_UNORM && format <= VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM;
@@ -96,7 +93,7 @@ void imageBarrier(VkCommandBuffer cmd, VkImage image, VkImageAspectFlags aspect,
 
 //region Initialization
 
-bool Context::initialize(bool enableValidation, std::string &error) {
+bool Context::initialize(bool enableValidation, const std::vector<const char *> &surfaceExtensions, std::string &error) {
     std::lock_guard lock(mutex);
 
     // vkEnumerateInstanceVersion only exists from Vulkan 1.1 on.
@@ -108,7 +105,7 @@ bool Context::initialize(bool enableValidation, std::string &error) {
     }
 
     std::vector<const char *> layers;
-    std::vector<const char *> extensions = {VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME};
+    std::vector<const char *> extensions = surfaceExtensions;
 
     bool validation = enableValidation && hasLayer(VALIDATION_LAYER);
     if (enableValidation && !validation) {
@@ -220,8 +217,10 @@ bool Context::createDeviceObjects(std::string &error) {
     }
 
     // Video frames are imported from hardware buffers and sampled through a YCbCr conversion, which
-    // needs Vulkan 1.1 (on both sides) and the Android import extensions. Without them, videos aren't shown.
+    // needs Vulkan 1.1 (on both sides) and the Android import extensions. Without them, videos aren't
+    // shown. Other platforms upload decoded frames to ordinary textures.
     VkPhysicalDeviceSamplerYcbcrConversionFeatures ycbcrFeatures{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES};
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     if (instanceApiVersion >= VK_API_VERSION_1_1 && physicalProperties.apiVersion >= VK_API_VERSION_1_1 &&
         describeHardwareBuffer() != nullptr &&
         hasDeviceExtension(physical, VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME) &&
@@ -243,6 +242,7 @@ bool Context::createDeviceObjects(std::string &error) {
     } else {
         LOGW("Video frames can't be imported, videos aren't shown.");
     }
+#endif
 
     float priority = 1.0f;
     VkDeviceQueueCreateInfo queueInfo{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -267,6 +267,7 @@ bool Context::createDeviceObjects(std::string &error) {
     }
     vkGetDeviceQueue(device, queueFamily, 0, &queue);
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     if (externalSupported) {
         getHardwareBufferProperties = reinterpret_cast<PFN_vkGetAndroidHardwareBufferPropertiesANDROID>(
                 vkGetDeviceProcAddr(device, "vkGetAndroidHardwareBufferPropertiesANDROID"));
@@ -276,6 +277,7 @@ bool Context::createDeviceObjects(std::string &error) {
                 vkGetDeviceProcAddr(device, "vkDestroySamplerYcbcrConversion"));
         externalSupported = getHardwareBufferProperties && createSamplerYcbcrConversion && destroySamplerYcbcrConversion;
     }
+#endif
 
     LOGI("Using %s, Vulkan %u.%u.%u.", physicalProperties.deviceName,
          VK_VERSION_MAJOR(physicalProperties.apiVersion), VK_VERSION_MINOR(physicalProperties.apiVersion),
@@ -577,7 +579,35 @@ void Context::destroyRenderPasses() {
     }
 }
 
-int Context::setSurface(ANativeWindow *newWindow, std::string &error) {
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+int Context::setWindow(ANativeWindow *newWindow, std::string &error) {
+    std::lock_guard lock(mutex);
+
+    // The surface goes first, it was made from the window.
+    int released = setSurface(VK_NULL_HANDLE, error);
+    if (window != nullptr) {
+        ANativeWindow_release(window);
+        window = nullptr;
+    }
+
+    if (newWindow == nullptr) {
+        return released;
+    }
+    window = newWindow;
+
+    VkAndroidSurfaceCreateInfoKHR surfaceInfo{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
+    surfaceInfo.window = window;
+    VkSurfaceKHR newSurface = VK_NULL_HANDLE;
+    VkResult result = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &newSurface);
+    if (result != VK_SUCCESS) {
+        error = "vkCreateAndroidSurfaceKHR failed: " + resultName(result);
+        return -1;
+    }
+    return setSurface(newSurface, error);
+}
+#endif
+
+int Context::setSurface(VkSurfaceKHR newSurface, std::string &error) {
     std::lock_guard lock(mutex);
 
     vkDeviceWaitIdle(device);
@@ -588,23 +618,11 @@ int Context::setSurface(ANativeWindow *newWindow, std::string &error) {
         vkDestroySurfaceKHR(instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
     }
-    if (window != nullptr) {
-        ANativeWindow_release(window);
-        window = nullptr;
-    }
 
-    if (newWindow == nullptr) {
+    if (newSurface == VK_NULL_HANDLE) {
         return 0;
     }
-    window = newWindow;
-
-    VkAndroidSurfaceCreateInfoKHR surfaceInfo{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
-    surfaceInfo.window = window;
-    VkResult result = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
-    if (result != VK_SUCCESS) {
-        error = "vkCreateAndroidSurfaceKHR failed: " + resultName(result);
-        return -1;
-    }
+    surface = newSurface;
 
     VkBool32 supported = VK_FALSE;
     vkGetPhysicalDeviceSurfaceSupportKHR(physical, queueFamily, surface, &supported);
@@ -1556,6 +1574,7 @@ uint64_t Context::completedSubmissionCount() {
     return completedSubmissions;
 }
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
 YcbcrSampler *Context::ycbcrSamplerFor(const VkAndroidHardwareBufferFormatPropertiesANDROID &format) {
     // The suggested conversion depends only on the format, frames of a video share one.
     uint64_t externalFormat = format.format == VK_FORMAT_UNDEFINED ? format.externalFormat : 0;
@@ -1776,6 +1795,7 @@ Texture *Context::importHardwareBuffer(AHardwareBuffer *buffer) {
     textureOperations.push_back({texture, TextureOperationKind::AcquireExternal, VK_NULL_HANDLE, 0, 0, 0, 0, 0});
     return texture;
 }
+#endif
 
 //endregion
 
@@ -1836,10 +1856,12 @@ void Context::destroy() {
         vkDestroySurfaceKHR(instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
     }
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
     if (window != nullptr) {
         ANativeWindow_release(window);
         window = nullptr;
     }
+#endif
 
     if (instance != VK_NULL_HANDLE) {
         if (messenger != VK_NULL_HANDLE) {

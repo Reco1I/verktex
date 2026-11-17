@@ -29,7 +29,7 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
     components (`UIComponent`, `UIContainer`, `UIScene`, `UISprite`…), settings, localization and
     networking.
   - `jvmMain`: what Android and desktop share because both run on a JVM (`ThreadLoopWorker`, the
-    actual `PixelBuffer`, the HTTP engine).
+    actual `PixelBuffer`, the HTTP engine, the Vulkan backend's Kotlin side in `vulkan/`).
   - `androidMain`: the Android platform (`com/reco1l/verktex/android/`): the graphics backends
     (OpenGL ES 2 and 3, Vulkan), the BASS audio library (`com.un4seen.bass`, in Java, and its
     natives in `jniLibs/`) and ExoPlayer video.
@@ -41,7 +41,8 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   the engine's own UI tests (`VerktexUITestActivity`, `VerktexUITestsMain`). The layout follows
   https://kotlinlang.org/docs/multiplatform/multiplatform-project-recommended-structure.html.
 - `:android-natives`: what the Android platform needs from the NDK, which the Kotlin Multiplatform
-  Android plugin can't build: the native library of the Vulkan backend (`src/main/cpp`), the task
+  Android plugin can't build: the native library of the Vulkan backend (its sources are shared with
+  desktop in `natives/vulkan/`, see `docs/vulkan-backend.md`), the task
   that compiles the shaders to SPIR-V, and the Vulkan validation layer of debug builds.
 - `:shadertools` (`shadertools/`): the shader translator, used by the Vulkan backend and the build.
 

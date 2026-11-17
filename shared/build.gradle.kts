@@ -96,6 +96,10 @@ kotlin {
         getByName("jvmMain").dependencies {
             // The HTTP engine of Network.
             implementation(libs.ktor.client.okhttp)
+
+            // Shader translation and uniform layouts of the Vulkan backend, shared with the build
+            // that compiles the Vulkan shaders.
+            implementation(project(":shadertools"))
         }
 
         androidMain.dependencies {
@@ -105,10 +109,6 @@ kotlin {
             // Video playback, with FFmpeg for the codecs the device lacks (see maven/README.md).
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.decoder.ffmpeg)
-
-            // Shader translation and uniform layouts, shared with the build that compiles the
-            // Vulkan shaders.
-            implementation(project(":shadertools"))
 
             // The native library of the Vulkan backend and the SPIR-V of the built-in shaders.
             implementation(project(":android-natives"))

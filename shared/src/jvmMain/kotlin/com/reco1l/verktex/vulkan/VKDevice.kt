@@ -1,17 +1,21 @@
-package com.reco1l.verktex.android.vulkan
+package com.reco1l.verktex.vulkan
 
 import com.reco1l.verktex.graphics.GraphicsDevice
 import com.reco1l.verktex.graphics.GraphicsShader
 import com.reco1l.verktex.graphics.GraphicsTexture
 
 /**
- * The Vulkan implementation of [GraphicsDevice].
+ * The Vulkan implementation of [GraphicsDevice]. External (video) textures are a platform's: without
+ * them, as on desktop where decoders upload RGBA frames, they're ordinary textures.
  */
-class VKDevice internal constructor(private val context: VKContext) : GraphicsDevice {
+open class VKDevice(
+    protected val context: VKContext,
+    supportsExternalTextures: Boolean = false,
+) : GraphicsDevice {
 
     override val capabilities = GraphicsDevice.Capabilities(
         maxTextureSize = VKNative.maxImageDimension2D(context.handle).toFloat(),
-        supportsExternalTextures = VKExternalTexture.isSupported(context),
+        supportsExternalTextures = supportsExternalTextures,
     )
 
     override fun createBuffer() = VKBuffer()
@@ -20,5 +24,5 @@ class VKDevice internal constructor(private val context: VKContext) : GraphicsDe
 
     override fun createTexture(width: Float, height: Float): GraphicsTexture = VKTexture(width, height, context)
 
-    override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = VKExternalTexture(width, height, context)
+    override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = VKTexture(width, height, context)
 }

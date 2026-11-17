@@ -1,23 +1,27 @@
-package com.reco1l.verktex.android.vulkan
+package com.reco1l.verktex.vulkan
 
 import com.reco1l.verktex.Logger
-import com.reco1l.verktex.android.AndroidWindow
 import com.reco1l.verktex.graphics.GraphicsContext
+import com.reco1l.verktex.graphics.GraphicsWindow
 
 /**
  * The Vulkan instance, device and swapchain, see `vk_context.cpp`. The device lives as long as the
- * context, a new Android surface only recreates the swapchain, so resources survive it.
+ * context, a new window surface only recreates the swapchain, so resources survive it.
  *
- * @throws IllegalStateException if Vulkan can't be used, so the caller can fall back to OpenGL ES.
+ * Each platform creates the context (with the instance extensions its windows need) and gives it its
+ * window's surface in [updateSurface].
  */
-class VKContext(
-    private val window: AndroidWindow,
-    enableValidation: Boolean,
+abstract class VKContext protected constructor(
+    /**
+     * The native context, see [VKNative].
+     */
+    internal val handle: Long,
 ) : GraphicsContext {
 
-    internal val handle: Long = VKNative.createContext(enableValidation).also {
-        if (it == 0L) throw IllegalStateException("Couldn't initialize Vulkan: ${VKNative.lastError()}")
-    }
+    /**
+     * The window drawn to, whose size is the swapchain's.
+     */
+    abstract val window: GraphicsWindow
 
     override val version: String = VKNative.apiVersion(handle).let { version ->
         "Vulkan ${version ushr 22}.${(version ushr 12) and 0x3FF}.${version and 0xFFF} (${VKNative.deviceName(handle)})"
@@ -50,29 +54,32 @@ class VKContext(
         private set
 
     private val rings = arrayOfNulls<VKFrameRing>(2)
-    private var surfaceGeneration = -1
 
 
-    override fun acquireFrame(): Boolean {
-        if (!window.hasSurface) {
-            if (surfaceGeneration != -1) {
-                VKNative.setSurface(handle, null)
-                surfaceGeneration = -1
-            }
+    /**
+     * Gives the native context the window's current surface when it changed, on the draw thread before
+     * each frame. Returns false when there's nothing to draw to, the frame is then skipped.
+     */
+    protected abstract fun updateSurface(): Boolean
+
+    /**
+     * Handles the result of the native call that set a new surface: 1 when the render pass was
+     * recreated, 0 when it wasn't, -1 on failure. Returns whether the surface can be drawn to.
+     */
+    protected fun onSurfaceSet(result: Int): Boolean {
+        if (result < 0) {
+            Logger.e("VKContext", "Couldn't use the window: ${VKNative.lastError()}")
             return false
         }
+        if (result == 1) {
+            onRenderPassRecreated?.invoke()
+        }
+        return true
+    }
 
-        if (surfaceGeneration != window.surfaceGeneration) {
-            val result = VKNative.setSurface(handle, window.holder.surface)
-            if (result < 0) {
-                Logger.e("VKContext", "Couldn't use the window: ${VKNative.lastError()}")
-                return false
-            }
-            surfaceGeneration = window.surfaceGeneration
-
-            if (result == 1) {
-                onRenderPassRecreated?.invoke()
-            }
+    override fun acquireFrame(): Boolean {
+        if (!updateSurface()) {
+            return false
         }
 
         val frameIndex = VKNative.acquireFrame(handle, window.windowWidth, window.windowHeight)
@@ -99,5 +106,19 @@ class VKContext(
 
     override fun destroy() {
         VKNative.destroyContext(handle)
+    }
+
+
+    protected companion object {
+
+        /**
+         * Checks a handle returned by a platform's `createContext`.
+         *
+         * @throws IllegalStateException if it's 0, so the caller can fall back to OpenGL.
+         */
+        fun checkCreated(handle: Long): Long {
+            if (handle == 0L) throw IllegalStateException("Couldn't initialize Vulkan: ${VKNative.lastError()}")
+            return handle
+        }
     }
 }

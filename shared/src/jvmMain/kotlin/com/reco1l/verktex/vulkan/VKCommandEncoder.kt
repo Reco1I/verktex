@@ -1,4 +1,4 @@
-package com.reco1l.verktex.android.vulkan
+package com.reco1l.verktex.vulkan
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

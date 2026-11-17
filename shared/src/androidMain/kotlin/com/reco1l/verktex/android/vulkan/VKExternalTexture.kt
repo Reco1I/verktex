@@ -1,6 +1,5 @@
 package com.reco1l.verktex.android.vulkan
 
-import com.reco1l.verktex.graphics.PixelBuffer
 import android.graphics.ImageFormat
 import android.hardware.HardwareBuffer
 import android.media.Image
@@ -11,67 +10,12 @@ import android.os.Looper
 import android.view.Surface
 import com.reco1l.verktex.android.AndroidExternalTexture
 import com.reco1l.verktex.graphics.GraphicsTexture
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import com.reco1l.verktex.graphics.PixelBuffer
+import com.reco1l.verktex.vulkan.VKContext
+import com.reco1l.verktex.vulkan.VKExternalFrames
+import com.reco1l.verktex.vulkan.VKNative
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
-
-/**
- * An RGBA8 texture of the Vulkan backend. Uploads are staged and copied before the frame's render
- * pass, see [GraphicsTexture.flushUploads], which the renderer calls for each texture it draws.
- *
- * It may be created and released from any thread, the image is only destroyed once the GPU is done
- * with it.
- */
-class VKTexture internal constructor(
-    override val width: Float,
-    override val height: Float,
-    private val context: VKContext,
-) : GraphicsTexture() {
-
-    /**
-     * The native texture, 0 until loaded.
-     */
-    @Volatile
-    var handle = 0L
-        private set
-
-    // Uploads need a direct buffer, sources normally provide one.
-    private var directCopy: ByteBuffer? = null
-
-
-    override fun onCreateTexture() {
-        if (handle == 0L) {
-            handle = VKNative.createTexture(context.handle, width.toInt(), height.toInt())
-            check(handle != 0L) { "Couldn't create a ${width.toInt()}x${height.toInt()} texture." }
-        }
-    }
-
-    override fun onBindTexture() = Unit
-
-    override fun onWritePixels(x: Int, y: Int, width: Int, height: Int, pixels: PixelBuffer) {
-        val bytes = pixels
-        val size = bytes.remaining()
-
-        if (bytes.isDirect) {
-            VKNative.uploadTexture(context.handle, handle, x, y, width, height, bytes, bytes.position(), size)
-            return
-        }
-
-        val copy = directCopy?.takeIf { it.capacity() >= size }
-            ?: ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder()).also { directCopy = it }
-        copy.clear()
-        copy.put(bytes.duplicate())
-        VKNative.uploadTexture(context.handle, handle, x, y, width, height, copy, 0, size)
-    }
-
-    override fun onUnload() {
-        if (handle != 0L) {
-            VKNative.destroyTexture(context.handle, handle)
-            handle = 0L
-        }
-    }
-}
 
 /**
  * An external texture of the Vulkan backend, fed with video frames through an [ImageReader]'s
@@ -88,7 +32,7 @@ class VKExternalTexture internal constructor(
     override val width: Float,
     override val height: Float,
     private val context: VKContext,
-) : GraphicsTexture(), AndroidExternalTexture {
+) : GraphicsTexture(), AndroidExternalTexture, VKExternalFrames {
 
     override val isExternal get() = true
 
@@ -111,22 +55,13 @@ class VKExternalTexture internal constructor(
 
     override var onSurfaceRecreated: (() -> Unit)? = null
 
-    /**
-     * Whether frames can be fed, i.e. the device supports it and the texture is loaded.
-     */
-    val hasSurface: Boolean
+    override val hasSurface: Boolean
         get() = surface != null
 
-    /**
-     * The imported texture of the latest frame, 0 until there's one.
-     */
-    var handle = 0L
+    override var handle = 0L
         private set
 
-    /**
-     * The YCbCr sampler of the latest frame, see `VKNative.textureYcbcrSampler`.
-     */
-    var ycbcrSampler = 0L
+    override var ycbcrSampler = 0L
         private set
 
     private var reader: ImageReader? = null
@@ -166,11 +101,7 @@ class VKExternalTexture internal constructor(
         onSurfaceRecreated?.invoke()
     }
 
-    /**
-     * Imports the latest frame if a new one arrived, called by the renderer on the draw thread
-     * before it draws the texture.
-     */
-    fun latch() {
+    override fun latch() {
         closeRetiredImages()
 
         // The reader only exists from Android 10, the check is for lint.
@@ -189,7 +120,7 @@ class VKExternalTexture internal constructor(
         } ?: return
 
         val buffer = image.hardwareBuffer
-        val imported = if (buffer != null) VKNative.importHardwareBuffer(context.handle, buffer) else 0L
+        val imported = if (buffer != null) VKAndroidNative.importHardwareBuffer(context.handle, buffer) else 0L
         buffer?.close()
 
         if (imported == 0L) {
@@ -201,7 +132,7 @@ class VKExternalTexture internal constructor(
 
         currentImage = image
         handle = imported
-        ycbcrSampler = VKNative.textureYcbcrSampler(context.handle, imported)
+        ycbcrSampler = VKAndroidNative.textureYcbcrSampler(context.handle, imported)
 
         val crop = image.cropRect
         val imageWidth = image.width.toFloat()
@@ -279,6 +210,6 @@ class VKExternalTexture internal constructor(
          * Whether video frames can be shown: GPU sampled image readers need Android 10.
          */
         internal fun isSupported(context: VKContext) =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && VKNative.supportsExternalTextures(context.handle)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && VKAndroidNative.supportsExternalTextures(context.handle)
     }
 }

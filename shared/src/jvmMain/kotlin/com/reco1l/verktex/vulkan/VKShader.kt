@@ -1,4 +1,4 @@
-package com.reco1l.verktex.android.vulkan
+package com.reco1l.verktex.vulkan
 
 import com.reco1l.verktex.graphics.GraphicsShader
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator

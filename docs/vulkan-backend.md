@@ -225,6 +225,45 @@ The crash guard stays, it protects against driver bugs whatever the state of the
    nothing grows.
 
 
+## Desktop
+
+The backend is being brought to desktop with the same C++ core rather than a second implementation.
+Linux x64 comes first, then Windows and macOS (MoltenVK).
+
+1. **Shared core.** ✅ Done. The C++ is in `natives/vulkan/` at Verktex's root:
+   - `vk_context.{h,cpp}`, the core;
+   - `vk_platform.h`, which provides the Vulkan headers and logging for each platform;
+   - `vk_jni.h` and `vk_jni_common.cpp`, the JNI shared by every platform (`VKNative`);
+   - `vk_jni_android.cpp` (`VKAndroidNative`): the context with Android's surface extensions, the
+     `ANativeWindow` and the hardware buffer imports.
+
+   What only Android has is behind `VK_USE_PLATFORM_ANDROID_KHR`. The context takes its instance
+   extensions from the platform, and `setSurface` takes a `VkSurfaceKHR`, which Android's `setWindow`
+   creates. `:android-natives` builds these sources. The Kotlin side is in `jvmMain`
+   (`com.reco1l.verktex.vulkan`) apart from the platform parts:
+   - Android: `AndroidVKContext`, `AndroidVKDevice`, `VKExternalTexture` and `VKAndroidNative`,
+     in `android/vulkan/`;
+   - platform-neutral: `VKContext` is abstract over the window's surface (`updateSurface`), and
+     `VKRenderer` draws external textures through `VKExternalFrames`;
+   - the crash guard and the fallback are `startVulkanRenderer`.
+
+   The pure-JVM tests (`VulkanBackendTest`) run in `desktopTest`. On desktop, `loadVulkanLibrary`
+   throws until the library is built there.
+2. **Desktop natives.** A `:desktop-natives` module builds `natives/vulkan` with CMake (the SDK's or
+   the one on `PATH`) and volk (`VK_NO_PROTOTYPES`, so nothing links against a Vulkan library). It uses
+   the NDK's Vulkan headers and `jni.h`, and packages `libverktex_vulkan.so` and the SPIR-V of the
+   built-in shaders as resources. Without a toolchain it skips, and desktop stays on OpenGL.
+3. **Bring-up.** `DesktopVKContext`:
+   - its surface comes from `glfwCreateWindowSurface` (lwjgl-vulkan), with the instance extensions
+     from `glfwGetRequiredInstanceExtensions`;
+   - the window is created with `GLFW_NO_API`;
+   - `DesktopGameHost` picks the backend from `VerktexSettings.GraphicsBackend` and falls back to
+     OpenGL 3.3;
+   - the UI test browsers take `--backend`.
+4. **Parity.** Covers vsync present modes, resizing and minimizing, `--screenshot` read-back, picking a
+   discrete GPU, and a run under the validation layer.
+5. **Windows, then macOS** (portability enumeration and subset, MoltenVK through LWJGL).
+
 ## Risks
 - JNI/encoding overhead could erase Vulkan's CPU gains for a 2D engine — measure `PerformanceStats.submitTime` vs ES3 early in phase 4.
 - Android driver quality (especially pre-API 29, Mali/Adreno older parts); keep automatic fallback to ES3.
