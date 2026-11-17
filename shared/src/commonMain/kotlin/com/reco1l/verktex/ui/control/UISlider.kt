@@ -7,6 +7,7 @@ import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.math.FloatAnimation
@@ -105,6 +106,9 @@ open class UISlider(initialValue: Float = 0f) : UIControl<Float>(initialValue) {
 
     private val isPressed
         get() = pressPointerId != -1
+
+    override val interactionState
+        get() = if (isPressed) InteractionState.Pressed else super.interactionState
 
 
     init {

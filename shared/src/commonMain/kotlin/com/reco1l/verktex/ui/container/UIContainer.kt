@@ -2,6 +2,7 @@ package com.reco1l.verktex.ui.container
 
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
+import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.ScrollEvent
 import com.reco1l.verktex.worker.RunOnDrawWorker
 import com.reco1l.verktex.data.Vec2
@@ -173,7 +174,7 @@ open class UIContainer : UIComponent(), MutableIterable<UIComponent> {
         // Topmost children (drawn last) get the event first.
         for (child in children.asReversed()) {
 
-            // Only presses and wheel scrolls go to the children under the pointer. Every other
+            // Only presses, wheel scrolls and hovers go to the children under the pointer. Every other
             // event goes to all of them, so a pressed component keeps following its pointer after
             // it left its bounds.
             if (event is PointerEvent
@@ -186,11 +187,15 @@ open class UIContainer : UIComponent(), MutableIterable<UIComponent> {
                 continue
             }
 
+            if (event is HoverEvent && !child.containsScenePoint(event.x, event.y)) {
+                continue
+            }
+
             if (child.onInputEvent(event)) {
                 return true
             }
         }
-        return false
+        return claimHover(event)
     }
 
     //endregion

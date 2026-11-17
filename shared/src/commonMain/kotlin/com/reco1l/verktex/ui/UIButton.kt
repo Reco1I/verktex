@@ -8,6 +8,7 @@ import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Shadow
@@ -94,7 +95,16 @@ open class UIButton : UIClickableContainer() {
         }
     }
 
+    override val interactionState
+        get() = if (!isEnabled) InteractionState.Disabled else super.interactionState
+
     override fun onUpdate(clock: FrameClock) {
+
+        // Declared transitions replace the built-in feedback.
+        if (transitions != null) {
+            super.onUpdate(clock)
+            return
+        }
 
         val targetScale = if (isPressed) 0.95f else 1f
         val targetAlpha = if (isEnabled) 1f else 0.5f
@@ -109,7 +119,9 @@ open class UIButton : UIClickableContainer() {
 
     override fun onInputEvent(event: InputEvent): Boolean {
         if (!isEnabled) {
-            // Swallow presses but let up and cancel events reach other pressed components.
+            // Swallow presses but let up and cancel events reach other pressed components. It's
+            // still hovered, its state is disabled.
+            if (event is HoverEvent) return super.onInputEvent(event)
             return event is PointerEvent && event.action == PointerEvent.Action.Down
         }
         return super.onInputEvent(event)

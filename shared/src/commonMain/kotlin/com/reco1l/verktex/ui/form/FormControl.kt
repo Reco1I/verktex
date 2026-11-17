@@ -5,6 +5,8 @@ import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.ui.InteractionState
+import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.interpolateFloat
 import com.reco1l.verktex.time.FrameClock
@@ -101,6 +103,9 @@ abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinea
      */
     var isEnabled = true
 
+    override val interactionState
+        get() = if (!isEnabled) InteractionState.Disabled else super.interactionState
+
     /**
      * The formatter of the [valueText].
      */
@@ -172,6 +177,7 @@ abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinea
     override fun onInputEvent(event: InputEvent): Boolean {
         // Disabled form controls swallow presses, so nothing below reacts to them either.
         if (!isEnabled) {
+            if (event is HoverEvent) return super.onInputEvent(event)
             return event is PointerEvent && event.action == PointerEvent.Action.Down
         }
         return super.onInputEvent(event)

@@ -175,4 +175,19 @@ object Input {
         return consumed
     }
 
+    /**
+     * Sets where a pointer that isn't pressing (a mouse cursor) hovers, in window pixels. The
+     * hovered components are resolved on the next update, see [HoverEvent]. Touches never hover.
+     */
+    fun dispatchHover(x: Float, y: Float) {
+        Verktex.setHoverPosition(x, y)
+    }
+
+    /**
+     * Tells the engine the hovering pointer left the window, nothing is hovered anymore.
+     */
+    fun dispatchHoverExit() {
+        Verktex.clearHoverPosition()
+    }
+
 }

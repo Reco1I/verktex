@@ -15,6 +15,7 @@ import com.reco1l.verktex.graphics.GraphicsResource
 import com.reco1l.verktex.graphics.GraphicsShader
 import com.reco1l.verktex.graphics.GraphicsTexture
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.input.ScrollEvent
 import kotlin.math.pow
@@ -246,7 +247,7 @@ open class UICaptureContainer : UIIgnoreParentPaddingContainer() {
         }
 
         // Only presses, a pointer pressed before this was shown must still be released behind.
-        return isBlockingInput && (event is PointerEvent && event.action == PointerEvent.Action.Down || event is ScrollEvent)
+        return isBlockingInput && (event is PointerEvent && event.action == PointerEvent.Action.Down || event is ScrollEvent || event is HoverEvent)
     }
 
     private fun ensureTexture(): GraphicsTexture {

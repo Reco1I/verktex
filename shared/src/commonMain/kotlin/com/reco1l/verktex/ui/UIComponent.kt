@@ -3,6 +3,7 @@ package com.reco1l.verktex.ui
 import com.reco1l.verktex.localization.Localization
 import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.ui.container.UIContainer
+import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
@@ -963,6 +964,7 @@ abstract class UIComponent {
 
         engineClockTime = clock.time
         applyLocaleBindings()
+        updateInteractionState()
         transforms?.update(this, clock.elapsedFrameTime)
         choreography?.update(currentClockTime)
         onUpdate(clock)
@@ -1054,7 +1056,103 @@ abstract class UIComponent {
     //region Input
 
     open fun onInputEvent(event: InputEvent): Boolean {
+        return claimHover(event)
+    }
+
+    /**
+     * Claims a [HoverEvent] for this component if it's [isHoverable]. Components handling input
+     * themselves call it once their children didn't claim it.
+     */
+    protected fun claimHover(event: InputEvent): Boolean {
+        if (event is HoverEvent && isHoverable) {
+            event.target = this
+            return true
+        }
         return false
+    }
+
+    /**
+     * Whether a pointer over this component hovers it, see [HoverEvent]: the topmost hoverable
+     * component under the pointer and its ancestors are hovered. By default those reacting to it,
+     * with [onHoverEnter], [onHoverExit], [onStateChange] or [transitions].
+     */
+    open val isHoverable: Boolean
+        get() = onHoverEnter != null || onHoverExit != null || onStateChange != null || transitions != null
+
+    /**
+     * Whether a pointer that isn't pressing (a mouse cursor) is over this component, or over a
+     * hovered descendant. Touches never hover.
+     */
+    var isHovered = false
+        internal set(value) {
+            if (field == value) return
+            field = value
+            if (value) onHoverEnter?.invoke() else onHoverExit?.invoke()
+            onHoverChanged()
+        }
+
+    /**
+     * Called when the pointer starts hovering this component.
+     */
+    var onHoverEnter: (() -> Unit)? = null
+
+    /**
+     * Called when the pointer stops hovering this component.
+     */
+    var onHoverExit: (() -> Unit)? = null
+
+    /**
+     * Called when [isHovered] changes.
+     */
+    protected open fun onHoverChanged() {}
+
+    /**
+     * The state of this component as the user interacts with it, which [transitions] react to.
+     */
+    open val interactionState: InteractionState
+        get() = if (isHovered) InteractionState.Hovered else InteractionState.Idle
+
+    /**
+     * The transforms to run when [interactionState] changes, see [StateTransitions]. They replace
+     * the built-in feedback of the components that have one (e.g. [UIButton] scaling while pressed).
+     */
+    var transitions: StateTransitions? = null
+        set(value) {
+            field = value
+            lastInteractionState = null
+        }
+
+    /**
+     * Called when [interactionState] changes, after [transitions] ran.
+     */
+    var onStateChange: ((InteractionState) -> Unit)? = null
+        set(value) {
+            field = value
+            lastInteractionState = null
+        }
+
+    // Null until the first update with transitions, which runs the ones of the initial state.
+    private var lastInteractionState: InteractionState? = null
+
+    // The transforms the transition of the current state started.
+    private var transitionTransforms: List<Transform> = emptyList()
+
+    private fun updateInteractionState() {
+        if (transitions == null && onStateChange == null) {
+            return
+        }
+
+        val state = interactionState
+        if (state == lastInteractionState) {
+            return
+        }
+        lastInteractionState = state
+
+        val tracker = transformTracker()
+        tracker.cancel(transitionTransforms)
+        transitionTransforms = transitions?.blockFor(state)?.let { block -> tracker.recordAdded { block() } } ?: emptyList()
+
+        onStateChange?.invoke(state)
     }
 
     /**

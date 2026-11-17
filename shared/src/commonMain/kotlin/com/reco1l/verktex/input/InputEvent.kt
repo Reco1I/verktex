@@ -241,3 +241,30 @@ data class ScrollEvent(
      */
     var deltaY: Float = 0f,
 ) : InputEvent
+
+/**
+ * Finds the component hovered by a pointer that isn't pressing (a mouse cursor), dispatched by the
+ * engine once per frame at the last position the host gave, see [Input.dispatchHover].
+ *
+ * It goes to the components under the position as a press would, topmost first, and the first
+ * [com.reco1l.verktex.ui.UIComponent.isHoverable] one claims it by setting [target]. That component
+ * and its ancestors are hovered. A component consuming it without setting a target (e.g. a modal
+ * over the scene) blocks the hover of what is below.
+ */
+data class HoverEvent(
+
+    /**
+     * The x-coordinate of the pointer in the window or screen space.
+     */
+    var x: Float = 0f,
+
+    /**
+     * The y-coordinate of the pointer in the window or screen space.
+     */
+    var y: Float = 0f,
+
+    /**
+     * The component claiming the hover, set by it.
+     */
+    var target: com.reco1l.verktex.ui.UIComponent? = null,
+) : InputEvent

@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
 import android.text.TextWatcher
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -224,10 +225,21 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
         }
     }
 
-    // A mouse wheel's scroll is a generic motion event, it never reaches onTouchEvent.
+    // A mouse wheel's scroll and the hover of a mouse (or a stylus) are generic motion events,
+    // they never reach onTouchEvent.
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked != MotionEvent.ACTION_SCROLL) {
-            return super.onGenericMotionEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                inViewSpace(event) { dispatchHover(event); false }
+                return super.onGenericMotionEvent(event)
+            }
+            // Also sent when a button is pressed, the touch events of the mouse keep the hover then.
+            MotionEvent.ACTION_HOVER_EXIT -> {
+                Input.dispatchHoverExit()
+                return super.onGenericMotionEvent(event)
+            }
+            MotionEvent.ACTION_SCROLL -> Unit
+            else -> return super.onGenericMotionEvent(event)
         }
 
         val consumed = inViewSpace(event) {
@@ -245,8 +257,20 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
         return consumed || super.onGenericMotionEvent(event)
     }
 
+    // Where a mouse hovers, in the view's space (see inViewSpace).
+    private fun dispatchHover(event: MotionEvent) {
+        // The window can render at a lower resolution than the view, see Platform.resolutionScale.
+        val scale = Platform.resolutionScale
+        Input.dispatchHover(event.x * scale, event.y * scale)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val consumed = inViewSpace(event) {
+            // A mouse keeps hovering while a button is held, touches never hover.
+            if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+                dispatchHover(event)
+            }
+
             val button = when (event.buttonState) {
                 MotionEvent.BUTTON_PRIMARY -> PointerEvent.Button.Left
                 MotionEvent.BUTTON_SECONDARY -> PointerEvent.Button.Right

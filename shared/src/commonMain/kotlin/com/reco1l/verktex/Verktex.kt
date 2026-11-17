@@ -268,6 +268,9 @@ object Verktex {
 
             updateImeShift()
 
+            // Before updating, so the components see their hover (and their state transitions run) this frame.
+            updateHover()
+
             rootScene.update(clock)
             overlayContainer.update(clock)
             diagnosticsContainer.update(clock)
@@ -587,6 +590,40 @@ object Verktex {
      */
     @JvmStatic
     var overlayHost: UIContainer? = null
+
+    //endregion
+
+    //region Hover
+
+    private val hoverTracker = HoverTracker()
+    private val hoverRoots = ArrayList<UIComponent>(3)
+
+    // Where the hovering pointer is in window pixels, NaN while there's none.
+    private var hoverX = Float.NaN
+    private var hoverY = Float.NaN
+
+    internal fun setHoverPosition(x: Float, y: Float) = treeLock.withLock {
+        hoverX = x
+        hoverY = y
+    }
+
+    internal fun clearHoverPosition() = treeLock.withLock {
+        hoverX = Float.NaN
+        hoverY = Float.NaN
+    }
+
+    private fun updateHover() {
+        if (hoverX.isNaN()) {
+            hoverTracker.clear()
+        } else {
+            // In the order input events go to them.
+            hoverRoots.clear()
+            hoverRoots.add(diagnosticsContainer)
+            hoverRoots.add(overlayContainer)
+            hoverRoots.add(rootScene)
+            hoverTracker.resolve(hoverX, hoverY, hoverRoots)
+        }
+    }
 
     //endregion
 

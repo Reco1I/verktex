@@ -24,6 +24,9 @@ abstract class UIControl<T : Any>(initialValue: T) : UIContainer() {
             }
         }
 
+    override val isHoverable
+        get() = true
+
     /**
      * A callback that is invoked when the value of the control changes.
      */

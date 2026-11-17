@@ -4,6 +4,7 @@ import com.reco1l.verktex.*
 import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.math.Easing
@@ -33,6 +34,9 @@ class UICheckbox(initialValue: Boolean = false) : UIControl<Boolean>(initialValu
 
     private var isPressed = false
     private var pressPointerId = -1
+
+    override val interactionState
+        get() = if (isPressed) InteractionState.Pressed else super.interactionState
 
 
     init {

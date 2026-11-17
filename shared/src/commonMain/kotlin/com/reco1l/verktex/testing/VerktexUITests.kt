@@ -58,6 +58,10 @@ import com.reco1l.verktex.ui.text.spans
 import com.reco1l.verktex.ui.textButton
 import com.reco1l.verktex.ui.themed
 import com.reco1l.verktex.ui.transformSequence
+import com.reco1l.verktex.ui.colorTo
+import com.reco1l.verktex.ui.fadeTo
+import com.reco1l.verktex.ui.scaleTo
+import com.reco1l.verktex.ui.transitions
 import com.reco1l.verktex.ui.toast.Toasts
 import kotlin.math.roundToInt
 
@@ -680,6 +684,51 @@ object VerktexUITests : UITestSuite("Verktex") {
                             moveToX(-100f, 0.3f, Easing.OutQuad)
                             moveToX(100f, 0.6f, Easing.InOutQuad)
                             moveToX(0f, 0.3f, Easing.InQuad)
+                        }
+                    }
+                }
+            }
+        }
+
+        test("Hover and transitions") {
+            column {
+                section("Buttons") {
+                    textButton {
+                        text = "Grows on hover"
+                        transitions {
+                            idle { scaleTo(1f, 0.15f, Easing.OutQuad) }
+                            hovered { scaleTo(1.08f, 0.15f, Easing.OutQuad) }
+                            pressed { scaleTo(0.94f, 0.08f, Easing.OutQuad) }
+                        }
+                        onActionUp = { log("Clicked") }
+                    }
+                    textButton {
+                        text = "Built-in feedback"
+                        onHoverEnter = { log("Hover enter") }
+                        onHoverExit = { log("Hover exit") }
+                    }
+                    textButton {
+                        text = "Disabled"
+                        isEnabled = false
+                        transitions {
+                            idle { fadeTo(1f, 0.2f) }
+                            disabled { fadeTo(0.3f, 0.2f) }
+                        }
+                    }
+                }
+
+                section("Any component") {
+                    for (i in 0 until 3) {
+                        container {
+                            width = 96f.dip
+                            height = 96f.dip
+                            radius = CornerRadius(12f.dip)
+                            background = Background.Color(Color4.Pink400)
+                            transitions {
+                                idle { rotateTo(0f, 0.3f, Easing.OutBack); colorTo(Color4.White, 0.2f) }
+                                hovered { rotateTo(8f, 0.3f, Easing.OutBack); colorTo(Color4(0.7f, 0.7f, 1f), 0.2f) }
+                            }
+                            onStateChange = { log("Box $i: $it") }
                         }
                     }
                 }

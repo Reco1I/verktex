@@ -242,10 +242,20 @@ abstract class DesktopGameHost(
             }
         }
 
-        // The mouse only moves the pointer while a button is held, like a touch on Android.
+        // The mouse only moves the pointer while a button is held, like a touch on Android. It
+        // hovers all the time.
         glfwSetCursorPosCallback(handle) { _, _, _ ->
+            val (x, y) = cursorPosition()
+            Input.dispatchHover(x, y)
+
             if (pressedButtons > 0) {
                 dispatchPointer(PointerEvent.Action.Move, PointerEvent.Button.Unknown)
+            }
+        }
+
+        glfwSetCursorEnterCallback(handle) { _, entered ->
+            if (!entered) {
+                Input.dispatchHoverExit()
             }
         }
 

@@ -161,6 +161,25 @@ internal class TransformTracker {
         transforms.clear()
     }
 
+    /**
+     * Runs [block] and returns the transforms it added.
+     */
+    fun recordAdded(block: () -> Unit): List<Transform> {
+        val start = transforms.size
+        block()
+        // A block clearing the transforms leaves fewer than before.
+        return if (transforms.size > start) transforms.subList(start, transforms.size).toList() else emptyList()
+    }
+
+    /**
+     * Removes [cancelled] if they're still running, without calling their callbacks.
+     */
+    fun cancel(cancelled: List<Transform>) {
+        if (cancelled.isNotEmpty()) {
+            transforms.removeAll(cancelled.toSet())
+        }
+    }
+
     fun update(target: UIComponent, elapsedTime: Float) {
         if (transforms.isEmpty()) {
             accumulatedTime = 0f

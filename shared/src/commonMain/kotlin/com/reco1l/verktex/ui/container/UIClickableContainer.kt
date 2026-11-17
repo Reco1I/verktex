@@ -2,6 +2,7 @@ package com.reco1l.verktex.ui.container
 
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.time.FrameClock
 
@@ -15,6 +16,12 @@ open class UIClickableContainer : UIContainer() {
      */
     var isPressed = false
         private set
+
+    override val isHoverable
+        get() = true
+
+    override val interactionState
+        get() = if (isPressed) InteractionState.Pressed else super.interactionState
 
     //region Events
 

@@ -15,6 +15,7 @@ import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Axis
 import com.reco1l.verktex.data.ClipMode
 import com.reco1l.verktex.input.InputEvent
+import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.math.FloatAnimation
@@ -107,6 +108,12 @@ class UIDropdown(var trigger: UIComponent) : UIScrollableContainer() {
                     hide()
                 }
 
+                return true
+            }
+
+            // Nothing below is hovered either.
+            if (event is HoverEvent) {
+                super.onInputEvent(event)
                 return true
             }
 
