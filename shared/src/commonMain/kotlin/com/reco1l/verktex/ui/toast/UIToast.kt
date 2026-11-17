@@ -45,7 +45,7 @@ open class UIToast : UILinearContainer() {
     private val progressFill = UIBox().apply {
         height = fill()
         width = fill(0f)
-        background = Background.Color(themed { palette.accent })
+        color = themed { palette.accent }
         radius = CornerRadius(2f.dip)
     }
 

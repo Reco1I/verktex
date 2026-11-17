@@ -78,6 +78,6 @@ abstract class UIDialog<T : UIComponent>(val innerContent: T) : UIModal(card = U
     private fun divider() = UIBox().apply {
         width = fill()
         height = 2f.px
-        background = Background.Color(themed { palette.divider })
+        color = themed { palette.divider }
     }
 }

@@ -48,9 +48,10 @@ class UITabSelector : UIContainer() {
         radius = themed { CornerRadius(radius.lg) }
 
         selectionIndicator = box {
+            // Before the alpha, which a color replaces.
+            color = themed { palette.accent.shade(0.2f) }
             alpha = 0f
             height = Dimension.FillAvailable
-            background = Background.Color(themed { palette.accent.shade(0.2f) })
             radius = themed { CornerRadius(radius.lg) }
         }
 

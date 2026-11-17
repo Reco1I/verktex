@@ -6,10 +6,14 @@ import com.reco1l.verktex.ui.container.UIContainer
 
 inline fun UIContainer.box(builder: UIBox.() -> Unit) = UIBox().apply(builder).also { +it }
 
+/**
+ * A rectangle filled with the component's [color], with its [radius] and [border].
+ */
 open class UIBox : UICanvas() {
     override fun onDraw(renderer: GraphicsRenderer) {
         renderer.drawRect(
             0f, 0f, bounds.width, bounds.height,
+            color = contentColor,
             radiusTopLeft = radius.topLeft.toPixels(),
             radiusTopRight = radius.topRight.toPixels(),
             radiusBottomRight = radius.bottomRight.toPixels(),

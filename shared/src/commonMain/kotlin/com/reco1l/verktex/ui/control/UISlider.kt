@@ -130,11 +130,11 @@ open class UISlider(initialValue: Float = 0f) : UIControl<Float>(initialValue) {
         background = Background.Color(themed { palette.controlInactiveBackground })
 
         progressBar.radius = themed { CornerRadius(radius.lg) }
-        progressBar.background = Background.Color(themed { palette.controlActiveBackground })
+        progressBar.color = themed { palette.controlActiveBackground }
 
         thumb.width = 16f.dip
         thumb.radius = themed { CornerRadius(radius.lg) }
-        thumb.background = Background.Color(themed { palette.accent })
+        thumb.color = themed { palette.accent }
 
         +progressBar
         +thumb

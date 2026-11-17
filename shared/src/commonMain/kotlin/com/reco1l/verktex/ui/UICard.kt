@@ -136,7 +136,7 @@ open class UICard : UILinearContainer() {
             height = 2f.px
             anchor = Anchor.BottomCenter
             origin = Anchor.BottomCenter
-            background = Background.Color(themed { palette.divider })
+            color = themed { palette.divider }
         }
     }
 
