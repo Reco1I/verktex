@@ -177,7 +177,11 @@ abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinea
     override fun onInputEvent(event: InputEvent): Boolean {
         // Disabled form controls swallow presses, so nothing below reacts to them either.
         if (!isEnabled) {
-            if (event is HoverEvent) return super.onInputEvent(event)
+            // Hovered as a whole, so its control doesn't highlight.
+            if (event is HoverEvent) {
+                event.target = this
+                return true
+            }
             return event is PointerEvent && event.action == PointerEvent.Action.Down
         }
         return super.onInputEvent(event)

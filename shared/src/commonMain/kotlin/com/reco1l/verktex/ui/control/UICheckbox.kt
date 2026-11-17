@@ -1,5 +1,7 @@
 package com.reco1l.verktex.ui.control
 
+import com.reco1l.verktex.ui.StateHighlight
+import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.*
 import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
@@ -38,6 +40,15 @@ class UICheckbox(initialValue: Boolean = false) : UIControl<Boolean>(initialValu
     override val interactionState
         get() = if (isPressed) InteractionState.Pressed else super.interactionState
 
+    /**
+     * The layer highlighting the checkbox while hovered or pressed.
+     */
+    val highlight = StateHighlight(this)
+
+    override fun drawOverBackground(renderer: GraphicsRenderer) {
+        highlight.draw(renderer, resolvedTheme.palette.accent)
+    }
+
 
     init {
         width = themed { controlStyle.minimumHeight }
@@ -58,6 +69,7 @@ class UICheckbox(initialValue: Boolean = false) : UIControl<Boolean>(initialValu
         checkIcon.alpha = clock.interpolateFloat(0.2f, checkIcon.alpha, targetScaleAndAlpha)
         val currentBackgroundColor = (background as? Background.Color)?.color ?: targetBackgroundCOlor
         background = Background.Color(clock.interpolateColor(0.2f, currentBackgroundColor, targetBackgroundCOlor))
+        highlight.update(clock)
 
         super.onUpdate(clock)
     }

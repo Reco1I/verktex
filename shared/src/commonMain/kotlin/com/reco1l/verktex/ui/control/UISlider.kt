@@ -1,5 +1,7 @@
 package com.reco1l.verktex.ui.control
 
+import com.reco1l.verktex.ui.StateHighlight
+import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
@@ -110,6 +112,15 @@ open class UISlider(initialValue: Float = 0f) : UIControl<Float>(initialValue) {
     override val interactionState
         get() = if (isPressed) InteractionState.Pressed else super.interactionState
 
+    /**
+     * The layer highlighting the track while hovered or dragged.
+     */
+    val highlight = StateHighlight(this)
+
+    override fun drawOverBackground(renderer: GraphicsRenderer) {
+        highlight.draw(renderer, resolvedTheme.palette.accent)
+    }
+
 
     init {
         width = fill()
@@ -168,6 +179,7 @@ open class UISlider(initialValue: Float = 0f) : UIControl<Float>(initialValue) {
         progressBar.width = abs(thumbX - zeroX).px
 
         thumb.scale = thumbScale.update(clock)
+        highlight.update(clock)
 
         val stretch = stretch.update(clock)
         scaleX = 1f + stretch * 0.15f

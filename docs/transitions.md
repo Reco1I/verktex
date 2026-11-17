@@ -129,10 +129,26 @@ Only the transforms the block added to the component itself are tracked, through
 `transitions` set, it stops doing both**, so the declared transitions replace them rather than fight
 them. A button with `transitions` that should still fade when disabled needs a `disabled` block.
 
+### Highlight
+
+Controls highlight by default while hovered or pressed: `UIButton` (and so text buttons, icon
+buttons, the buttons of `UISelect`, `UITabSelector` and `UIDropdown`), `UICheckbox`, `UISlider`
+and `UITextInput`. The highlight is a `StateHighlight` (`ui/StateHighlight.kt`): a translucent layer
+in the component's shape, drawn over its background and under its content
+(`UIComponent.drawOverBackground`). Buttons draw it in their content color, which is dark on solid
+buttons and the accent on the others. The other controls draw it in the accent.
+
+- It follows `interactionState`: hidden when idle or disabled, `hoveredAlpha` when hovered, and
+  `pressedAlpha` when pressed. It eases between them in about `duration` seconds. These values come
+  from the theme's `highlightStyle` (`Theme.HighlightStyle`).
+- Touches show it while pressing, since a press doesn't need hover.
+- It isn't a transform, so `transitions` don't replace it. Turn it off on a component with
+  `highlight.isEnabled = false`.
+- A disabled `FormControl` takes the hover itself, so its control doesn't highlight.
+
 Things that set properties every frame override transitions on the same property. This applies to
 `onUpdate` easing like the button's, and to a [choreography](choreography.md), which applies after
-transforms. Don't
-combine them on the same property.
+transforms. Don't combine them on the same property.
 
 ## Hover
 

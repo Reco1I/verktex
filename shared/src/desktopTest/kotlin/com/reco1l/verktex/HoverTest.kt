@@ -218,4 +218,38 @@ class HoverTest {
         frames(root, 30)
         assertEquals(0.5f, button.scaleX, 1e-4f)
     }
+
+    @Test
+    fun controlsHighlightWhileHoveredAndPressed() {
+        val button = UIButton().apply { width = 100f.px; height = 100f.px; padding = Padding.Zero }
+        val root = UIContainer().apply { this += button }
+        frames(root)
+        val style = button.resolvedTheme.highlightStyle
+        assertEquals(0f, button.highlight.opacity, 0f)
+
+        hover(root, 50f, 50f)
+        frames(root, 60)
+        assertEquals(style.hoveredAlpha, button.highlight.opacity, 1e-3f)
+
+        button.onInputEvent(PointerEvent(Action.Down, Button.Left, 0, 50f, 50f))
+        frames(root, 60)
+        assertEquals(style.pressedAlpha, button.highlight.opacity, 1e-3f)
+
+        button.onInputEvent(PointerEvent(Action.Up, Button.Left, 0, 50f, 50f))
+        button.isEnabled = false
+        frames(root, 60)
+        assertEquals(0f, button.highlight.opacity, 1e-3f)
+    }
+
+    @Test
+    fun highlightCanBeTurnedOff() {
+        val button = UIButton().apply { width = 100f.px; height = 100f.px; padding = Padding.Zero }
+        button.highlight.isEnabled = false
+        val root = UIContainer().apply { this += button }
+        frames(root)
+
+        hover(root, 50f, 50f)
+        frames(root, 60)
+        assertEquals(0f, button.highlight.opacity, 0f)
+    }
 }

@@ -1,5 +1,6 @@
 package com.reco1l.verktex.ui
 
+import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.ui.container.UIClickableContainer
 import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
@@ -98,21 +99,28 @@ open class UIButton : UIClickableContainer() {
     override val interactionState
         get() = if (!isEnabled) InteractionState.Disabled else super.interactionState
 
-    override fun onUpdate(clock: FrameClock) {
+    /**
+     * The layer highlighting the button while hovered or pressed, in its content color.
+     */
+    val highlight = StateHighlight(this)
 
-        // Declared transitions replace the built-in feedback.
-        if (transitions != null) {
-            super.onUpdate(clock)
-            return
+    override fun onUpdate(clock: FrameClock) {
+        highlight.update(clock)
+
+        // Declared transitions replace the built-in scale and fade, the highlight stays.
+        if (transitions == null) {
+            val targetScale = if (isPressed) 0.95f else 1f
+            val targetAlpha = if (isEnabled) 1f else 0.5f
+
+            alpha = clock.interpolateFloat(0.2f, alpha, targetAlpha)
+            scale = clock.interpolateFloat(0.2f, scale, targetScale)
         }
 
-        val targetScale = if (isPressed) 0.95f else 1f
-        val targetAlpha = if (isEnabled) 1f else 0.5f
-
-        alpha = clock.interpolateFloat(0.2f, alpha, targetAlpha)
-        scale = clock.interpolateFloat(0.2f, scale, targetScale)
-
         super.onUpdate(clock)
+    }
+
+    override fun drawOverBackground(renderer: GraphicsRenderer) {
+        highlight.draw(renderer, color)
     }
 
     //region Touch

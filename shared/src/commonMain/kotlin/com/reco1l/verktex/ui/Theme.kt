@@ -127,6 +127,15 @@ open class Theme(
     ),
 
     /**
+     * How controls highlight while hovered or pressed, see [StateHighlight].
+     */
+    val highlightStyle: HighlightStyle = HighlightStyle(
+        hoveredAlpha = 0.1f,
+        pressedAlpha = 0.18f,
+        duration = 0.12f,
+    ),
+
+    /**
      * The style of cards, including the ones of modals and dialogs.
      */
     val cardStyle: CardStyle = CardStyle(
@@ -175,6 +184,27 @@ open class Theme(
          * The spacing between the content of a control and its icons, e.g. the ones of a text input.
          */
         val iconSpacing: Dimension.Fixed,
+    )
+
+    /**
+     * How controls highlight while hovered or pressed, see [StateHighlight].
+     */
+    open class HighlightStyle(
+
+        /**
+         * The opacity of the highlight while hovered.
+         */
+        val hoveredAlpha: Float,
+
+        /**
+         * The opacity of the highlight while pressed.
+         */
+        val pressedAlpha: Float,
+
+        /**
+         * About how long the highlight takes to change, in seconds.
+         */
+        val duration: Float,
     )
 
     /**

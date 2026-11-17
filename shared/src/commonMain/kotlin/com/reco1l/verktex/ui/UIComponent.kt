@@ -885,6 +885,8 @@ abstract class UIComponent {
             )
         }
 
+        drawOverBackground(renderer)
+
         if (clipping != ClipMode.Disabled) {
             val area = clippingArea()
 
@@ -908,6 +910,12 @@ abstract class UIComponent {
         renderer.popColor()
         renderer.popMatrix()
     }
+
+    /**
+     * Draws over the background and the border, under the content and outside the clipping, in
+     * local space, e.g. a [StateHighlight].
+     */
+    protected open fun drawOverBackground(renderer: GraphicsRenderer) {}
 
     /**
      * The rectangle the content is clipped to while [clipping] is enabled, in local space as its left, top,

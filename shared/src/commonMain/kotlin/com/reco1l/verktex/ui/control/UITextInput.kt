@@ -1,5 +1,8 @@
 package com.reco1l.verktex.ui.control
 
+import com.reco1l.verktex.ui.InteractionState
+import com.reco1l.verktex.ui.StateHighlight
+import com.reco1l.verktex.graphics.GraphicsRenderer
 import com.reco1l.verktex.ui.text.codePointCount
 import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.CornerRadius
@@ -143,6 +146,9 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
 
 
     private var isPressed = false
+
+    override val interactionState
+        get() = if (isPressed) InteractionState.Pressed else super.interactionState
     private var caretTime = 0f
     private var errorColor: Color4? = null
 
@@ -232,7 +238,17 @@ open class UITextInput(initialValue: String = "") : UIControl<String>(initialVal
     private fun borderTargetColor(theme: Theme) =
         if (isFocused) theme.palette.accent else theme.palette.accent.alpha(0f)
 
+    /**
+     * The layer highlighting the field while hovered or pressed.
+     */
+    val highlight = StateHighlight(this)
+
+    override fun drawOverBackground(renderer: GraphicsRenderer) {
+        highlight.draw(renderer, resolvedTheme.palette.accent)
+    }
+
     override fun onUpdate(clock: FrameClock) {
+        highlight.update(clock)
 
         // Errors flash the border red, then it goes back to its normal color.
         val targetBorderColor = errorColor ?: borderTargetColor(resolvedTheme)
