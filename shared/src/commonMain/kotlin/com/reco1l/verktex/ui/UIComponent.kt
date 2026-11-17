@@ -432,7 +432,7 @@ abstract class UIComponent {
     /**
      * When true, this component's RGB is multiplied into its descendants' colours (the alpha always is).
      * The component's own content, background and border are never tinted by its own RGB. Only
-     * containers have descendants, so it has no effect on other components. Default false.
+     * containers have descendants, so it has no effect on other components. Default true.
      */
     var tintChildren: Boolean = true
 

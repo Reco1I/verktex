@@ -18,7 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * A component can opt in to multiplying its RGB into its descendants, alpha is always inherited.
+ * A component multiplies its RGB into its descendants unless it opts out, alpha is always inherited.
  */
 class ColorInheritanceTest {
 
@@ -132,7 +132,10 @@ class ColorInheritanceTest {
     @Test
     fun untintedContainerLeavesChildUntinted() {
         val child = ProbeBox()
-        val container = UIContainer().apply { color = Color4(0.5f, 0.5f, 1f, 1f) }
+        val container = UIContainer().apply {
+            tintChildren = false
+            color = Color4(0.5f, 0.5f, 1f, 1f)
+        }
         container += child
 
         drawn(container)
