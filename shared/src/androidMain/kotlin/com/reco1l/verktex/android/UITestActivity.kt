@@ -20,7 +20,8 @@ import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
  *
  * The test to open first can be passed with the [EXTRA_TEST] extra, as `suite/test` or just the test
  * name. Without it, the last opened test is shown again. The [EXTRA_BACKEND] extra picks the
- * [com.reco1l.verktex.graphics.GraphicsBackend] by name, to compare backends on the same test.
+ * [com.reco1l.verktex.graphics.GraphicsBackend] by name, and [EXTRA_AUDIO_BACKEND] the
+ * [com.reco1l.verktex.audio.AudioBackend], to compare backends on the same test.
  */
 abstract class UITestActivity : AndroidGameHost() {
 
@@ -43,6 +44,9 @@ abstract class UITestActivity : AndroidGameHost() {
             if (backend == GraphicsBackend.Vulkan.name) {
                 resetVulkanCrashGuard()
             }
+        }
+        intent.getStringExtra(EXTRA_AUDIO_BACKEND)?.let { backend ->
+            Settings[VerktexSettings.AudioBackend] = backend
         }
         super.onCreate(savedInstanceState)
     }
@@ -74,6 +78,11 @@ abstract class UITestActivity : AndroidGameHost() {
          * The intent extra with the name of the graphics backend to use.
          */
         const val EXTRA_BACKEND = "backend"
+
+        /**
+         * The intent extra with the name of the audio backend to use.
+         */
+        const val EXTRA_AUDIO_BACKEND = "audio"
 
         private const val PREFERENCES_NAME = "verktex_ui_tests"
         private const val KEY_LAST_TEST = "last_test"
