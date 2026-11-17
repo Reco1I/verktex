@@ -2,7 +2,7 @@
 
 The Transitions API lets a component animate as the user interacts with it. A component declares
 transforms for each interaction state: idle, hovered, pressed and disabled. The engine runs the
-matching block when the state changes. It's built on [transforms](../shared/src/commonMain/kotlin/com/reco1l/verktex/ui/Transforms.kt)
+matching block when the state changes. It's built on [transforms](transforms.md)
 (`scaleTo`, `fadeTo`, `rotateTo`, `moveTo`, `colorTo`…) and on hover, which is described below.
 
 Sources:
@@ -130,7 +130,8 @@ Only the transforms the block added to the component itself are tracked, through
 them. A button with `transitions` that should still fade when disabled needs a `disabled` block.
 
 Things that set properties every frame override transitions on the same property. This applies to
-`onUpdate` easing like the button's, and to a `Choreography`, which applies after transforms. Don't
+`onUpdate` easing like the button's, and to a [choreography](choreography.md), which applies after
+transforms. Don't
 combine them on the same property.
 
 ## Hover
