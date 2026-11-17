@@ -1,7 +1,5 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.audio.AudioSample
-import com.reco1l.verktex.audio.AudioStream
 import com.reco1l.verktex.fonts.FontFamily
 import com.reco1l.verktex.graphics.GraphicsShader
 import com.reco1l.verktex.graphics.GraphicsTexture
@@ -77,25 +75,4 @@ interface Provider {
      * how the paths are resolved. As specified in the [exists] method.
      */
     fun createShaderSource(vertexShaderPath: String, fragmentShaderPath: String, isExternal: Boolean): GraphicsShader.Source?
-
-    /**
-     * Creates an AudioSource from the given path.
-     *
-     * @param path The path to the audio source.
-     * @param isExternal Whether the path is external or internal, in some platforms this may affect
-     */
-    fun createAudioSampleSource(path: String, isExternal: Boolean): AudioSample.Source?
-
-    /**
-     * Creates an AudioSource from the given path.
-     *
-     * @param path The path to the audio source.
-     * @param isExternal Whether the path is external or internal, in some platforms this may affect
-     */
-    fun createAudioStreamSource(path: String, isExternal: Boolean): AudioStream.Source?
-
-    /**
-     * Creates an AudioSource that streams from the given URL.
-     */
-    fun createAudioUrlStreamSource(url: String): AudioStream.Source?
 }

@@ -1,8 +1,7 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.audio.AudioDriver
+import com.reco1l.verktex.audio.AudioBackend
 import com.reco1l.verktex.desktop.DesktopProvider
-import com.reco1l.verktex.desktop.bass.BASSAudioDriver
 import com.reco1l.verktex.desktop.video.FFmpeg
 import com.reco1l.verktex.desktop.video.FFmpegVideoDecoder
 import com.reco1l.verktex.desktop.vulkan.DesktopVKContext
@@ -86,7 +85,8 @@ actual object Platform {
     actual val storage: PlatformStorage
         get() = attached.storage
 
-    actual val audioDriver: AudioDriver by lazy { BASSAudioDriver() }
+    // Oboe is Android's.
+    actual val availableAudioBackends: List<AudioBackend> = listOf(AudioBackend.BASS)
 
     @Volatile
     actual var resolutionScale = 1f

@@ -1,7 +1,6 @@
 package com.reco1l.verktex.audio
 
 import com.reco1l.verktex.Logger
-import com.reco1l.verktex.Platform
 import com.reco1l.verktex.Verktex
 
 /**
@@ -25,7 +24,7 @@ object Sounds {
      */
     fun loadStream(key: String, path: String, isExternal: Boolean = true): AudioStream {
 
-        val source = Platform.provider.createAudioStreamSource(path, isExternal)
+        val source = Verktex.audio.createStreamSource(path, isExternal)
             ?: throw IllegalArgumentException("Invalid path: $path")
 
         val resource = source.createStream()
@@ -54,7 +53,7 @@ object Sounds {
      */
     fun loadSample(key: String, path: String, isExternal: Boolean = true): AudioPlayback {
 
-        val source = Platform.provider.createAudioSampleSource(path, isExternal)
+        val source = Verktex.audio.createSampleSource(path, isExternal)
             ?: throw IllegalArgumentException("Invalid path: $path")
 
         val resource = source.createSample()

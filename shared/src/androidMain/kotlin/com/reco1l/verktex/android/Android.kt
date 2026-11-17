@@ -10,6 +10,7 @@ import com.reco1l.verktex.Platform
 import com.reco1l.verktex.input.KeyboardEvent
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.android.bass.BASSAudioDriver
+import com.reco1l.verktex.audio.AudioBackend
 import com.reco1l.verktex.audio.AudioDriver
 import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.android.gles.ESContext
@@ -27,9 +28,13 @@ import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
 import com.reco1l.verktex.vulkan.startVulkanRenderer
 
+/**
+ * Initializes the engine on the [host]'s activity, with the graphics and audio backends of the
+ * settings, or with [audioDriver] where it's given.
+ */
 fun Verktex.initializeAndroid(
     host: AndroidGameHost,
-    audioDriver: AudioDriver = BASSAudioDriver()
+    audioDriver: AudioDriver? = null
 ): AndroidWindow {
 
     Platform.attach(host)
@@ -50,10 +55,21 @@ fun Verktex.initializeAndroid(
     initialize(
         host = host,
         renderer = renderer,
-        audio = audioDriver
+        audio = audioDriver ?: createAudioDriver(host)
     )
 
     return window
+}
+
+/**
+ * The driver of the audio backend of the settings, see [VerktexSettings.AudioBackend].
+ */
+internal fun createAudioDriver(context: Context): AudioDriver {
+    return when (AudioBackend.fromName(Settings[VerktexSettings.AudioBackend])) {
+        AudioBackend.BASS -> BASSAudioDriver(context)
+        // Not implemented yet, see docs/audio-backends.md.
+        AudioBackend.Oboe -> BASSAudioDriver(context)
+    }
 }
 
 /**

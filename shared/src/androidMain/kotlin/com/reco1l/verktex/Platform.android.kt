@@ -19,10 +19,9 @@ import com.reco1l.verktex.android.AndroidGameHost
 import com.reco1l.verktex.android.AndroidHaptics
 import com.reco1l.verktex.android.AndroidProvider
 import com.reco1l.verktex.android.WebPageActivity
-import com.reco1l.verktex.android.bass.BASSAudioDriver
 import com.reco1l.verktex.android.isVulkanAvailable
 import com.reco1l.verktex.android.video.ExoPlayerVideoDecoder
-import com.reco1l.verktex.audio.AudioDriver
+import com.reco1l.verktex.audio.AudioBackend
 import com.reco1l.verktex.graphics.GraphicsBackend
 import com.reco1l.verktex.io.systemFileSystem
 import com.reco1l.verktex.video.VideoDecoder
@@ -96,7 +95,8 @@ actual object Platform {
             )
         }
 
-    actual val audioDriver: AudioDriver by lazy { BASSAudioDriver() }
+    // Oboe, over the engine's native audio core, is opted into: see createAudioDriver.
+    actual val availableAudioBackends: List<AudioBackend> = listOf(AudioBackend.BASS, AudioBackend.Oboe)
 
     @Volatile
     actual var resolutionScale = 1f

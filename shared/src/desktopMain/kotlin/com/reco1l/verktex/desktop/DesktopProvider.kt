@@ -2,11 +2,6 @@ package com.reco1l.verktex.desktop
 
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Provider
-import com.reco1l.verktex.audio.AudioSample
-import com.reco1l.verktex.audio.AudioStream
-import com.reco1l.verktex.desktop.bass.BASSAudioSampleSource
-import com.reco1l.verktex.desktop.bass.BASSAudioStreamSource
-import com.reco1l.verktex.desktop.bass.BASSAudioStreamUrlSource
 import com.reco1l.verktex.fonts.FontFamily
 import com.reco1l.verktex.graphics.GraphicsShader
 import com.reco1l.verktex.graphics.GraphicsTexture
@@ -123,15 +118,4 @@ class DesktopProvider : Provider {
         return if (exists(path, isExternal)) read(path, isExternal) else null
     }
 
-    override fun createAudioSampleSource(path: String, isExternal: Boolean): AudioSample.Source {
-        return BASSAudioSampleSource(this, path, isExternal)
-    }
-
-    override fun createAudioStreamSource(path: String, isExternal: Boolean): AudioStream.Source {
-        return BASSAudioStreamSource(this, path, isExternal)
-    }
-
-    override fun createAudioUrlStreamSource(url: String): AudioStream.Source {
-        return BASSAudioStreamUrlSource(url)
-    }
 }

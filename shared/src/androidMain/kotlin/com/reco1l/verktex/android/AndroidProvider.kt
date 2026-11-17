@@ -3,11 +3,6 @@ package com.reco1l.verktex.android
 import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import com.reco1l.verktex.Provider
-import com.reco1l.verktex.android.bass.BASSAudioSampleFileSource
-import com.reco1l.verktex.android.bass.BASSAudioStreamFileSource
-import com.reco1l.verktex.android.bass.BASSAudioStreamUrlSource
-import com.reco1l.verktex.audio.AudioSample
-import com.reco1l.verktex.audio.AudioStream
 import com.reco1l.verktex.fonts.FontFamily
 import com.reco1l.verktex.graphics.GraphicsShader
 import com.reco1l.verktex.graphics.GraphicsTexture
@@ -148,18 +143,6 @@ class AndroidProvider(private val context: android.content.Context) : Provider {
         val path = "$shaderPath.spv"
         if (!exists(path, isExternal)) return null
         return openFile(path, isExternal)?.use { it.readBytes() }
-    }
-
-    override fun createAudioSampleSource(path: String, isExternal: Boolean): AudioSample.Source {
-        return BASSAudioSampleFileSource(context, path, isExternal)
-    }
-
-    override fun createAudioStreamSource(path: String, isExternal: Boolean): AudioStream.Source {
-        return BASSAudioStreamFileSource(context, path, isExternal)
-    }
-
-    override fun createAudioUrlStreamSource(url: String): AudioStream.Source {
-        return BASSAudioStreamUrlSource(url)
     }
 
     //endregion

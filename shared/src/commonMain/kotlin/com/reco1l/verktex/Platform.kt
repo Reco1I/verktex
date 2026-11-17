@@ -1,6 +1,6 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.audio.AudioDriver
+import com.reco1l.verktex.audio.AudioBackend
 import com.reco1l.verktex.graphics.GraphicsBackend
 import com.reco1l.verktex.video.VideoDecoder
 import com.reco1l.verktex.worker.LoopWorker
@@ -51,9 +51,11 @@ expect object Platform {
     val storage: PlatformStorage
 
     /**
-     * The driver used to access the audio devices of the platform.
+     * The audio backends the user can choose from (see
+     * [com.reco1l.verktex.settings.VerktexSettings.AudioBackend]), a single one where there's no
+     * choice. The driver in use is [Verktex.audio].
      */
-    val audioDriver: AudioDriver
+    val availableAudioBackends: List<AudioBackend>
 
     /**
      * How many pixels of the rendered window there are per pixel of the display, below 1 when

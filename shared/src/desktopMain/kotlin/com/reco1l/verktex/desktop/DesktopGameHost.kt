@@ -5,6 +5,7 @@ import com.reco1l.verktex.GameHost
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.PlatformApplication
 import com.reco1l.verktex.Platform
+import com.reco1l.verktex.desktop.bass.BASSAudioDriver
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.desktop.gl.GLContext
 import com.reco1l.verktex.desktop.gl.GLDevice
@@ -111,7 +112,7 @@ abstract class DesktopGameHost(
             Verktex.initialize(
                 host = this,
                 renderer = renderer,
-                audio = Platform.audioDriver
+                audio = BASSAudioDriver(Platform.provider as DesktopProvider)
             )
 
             loadBuiltInFonts()

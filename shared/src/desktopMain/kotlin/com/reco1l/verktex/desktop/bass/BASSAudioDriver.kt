@@ -1,14 +1,22 @@
 package com.reco1l.verktex.desktop.bass
 
 import com.reco1l.verktex.Logger
+import com.reco1l.verktex.audio.AudioBackend
 import com.reco1l.verktex.audio.AudioDevice
 import com.reco1l.verktex.audio.AudioDriver
+import com.reco1l.verktex.audio.AudioSample
+import com.reco1l.verktex.audio.AudioStream
+import com.reco1l.verktex.desktop.DesktopProvider
 import com.reco1l.verktex.desktop.bass.BassNative as BASS
 
 /**
- * The BASS audio driver of the desktop platform, adapted from the Android one.
+ * The BASS audio driver of the desktop platform, adapted from the Android one. Internal paths are
+ * read through the [provider].
  */
-class BASSAudioDriver : AudioDriver() {
+class BASSAudioDriver(private val provider: DesktopProvider) : AudioDriver() {
+
+    override val backend
+        get() = AudioBackend.BASS
 
     init {
         // Strings (device names) in UTF-8 on Windows too.
@@ -21,6 +29,19 @@ class BASSAudioDriver : AudioDriver() {
         BASS.BASS_SetConfig(BASS.BASS_CONFIG_DEV_BUFFER, 10)
         BASS.BASS_SetConfig(BASS.BASS_CONFIG_DEV_NONSTOP, 1)
         BASS.BASS_SetConfig(BASS.BASS_CONFIG_DEV_TIMEOUT, 0)
+    }
+
+
+    override fun createSampleSource(path: String, isExternal: Boolean): AudioSample.Source {
+        return BASSAudioSampleSource(provider, path, isExternal)
+    }
+
+    override fun createStreamSource(path: String, isExternal: Boolean): AudioStream.Source {
+        return BASSAudioStreamSource(provider, path, isExternal)
+    }
+
+    override fun createUrlStreamSource(url: String): AudioStream.Source {
+        return BASSAudioStreamUrlSource(url)
     }
 
 

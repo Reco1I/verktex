@@ -34,6 +34,13 @@ object VerktexSettings {
     val GraphicsBackend = setting("graphics_backend", "Auto")
 
     /**
+     * The name of the [com.reco1l.verktex.audio.AudioBackend] to play audio with. It's read once when
+     * the engine is initialized, so a change applies on the next start.
+     */
+    @JvmField
+    val AudioBackend = setting("audio_backend", "BASS")
+
+    /**
      * Set while the Vulkan backend starts and cleared once it presented a frame. Found set when
      * starting, Vulkan crashed the last time, and OpenGL ES is used until Vulkan is picked again.
      */
