@@ -10,6 +10,7 @@ import com.reco1l.verktex.Platform
 import com.reco1l.verktex.input.KeyboardEvent
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.android.bass.BASSAudioDriver
+import com.reco1l.verktex.android.oboe.OboeAudioDriver
 import com.reco1l.verktex.audio.AudioBackend
 import com.reco1l.verktex.audio.AudioDriver
 import com.reco1l.verktex.fonts.Font
@@ -62,13 +63,16 @@ fun Verktex.initializeAndroid(
 }
 
 /**
- * The driver of the audio backend of the settings, see [VerktexSettings.AudioBackend].
+ * The driver of the audio backend of the settings, see [VerktexSettings.AudioBackend]. Oboe falls back
+ * to BASS where it can't be started.
  */
 internal fun createAudioDriver(context: Context): AudioDriver {
     return when (AudioBackend.fromName(Settings[VerktexSettings.AudioBackend])) {
         AudioBackend.BASS -> BASSAudioDriver(context)
-        // Not implemented yet, see docs/audio-backends.md.
-        AudioBackend.Oboe -> BASSAudioDriver(context)
+        AudioBackend.Oboe -> OboeAudioDriver.create(context) ?: run {
+            Logger.w("Verktex", "Oboe couldn't be started, falling back to BASS")
+            BASSAudioDriver(context)
+        }
     }
 }
 

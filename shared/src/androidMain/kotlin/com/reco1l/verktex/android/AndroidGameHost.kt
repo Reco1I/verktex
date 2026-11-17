@@ -33,6 +33,7 @@ import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Fonts
 import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.Logger
+import com.reco1l.verktex.android.oboe.OboeAudioDriver
 import com.reco1l.verktex.input.Input
 import com.reco1l.verktex.ui.ITextInput
 
@@ -373,6 +374,16 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
      */
     var isInForeground = false
         private set
+
+    override fun onStart() {
+        super.onStart()
+        if (Verktex.isInitialized) (Verktex.audio as? OboeAudioDriver)?.onHostStarted()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (Verktex.isInitialized) (Verktex.audio as? OboeAudioDriver)?.onHostStopped()
+    }
 
     override fun onResume() {
         super.onResume()
