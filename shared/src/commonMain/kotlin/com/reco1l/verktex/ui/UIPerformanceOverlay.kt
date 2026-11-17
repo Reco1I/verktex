@@ -64,12 +64,14 @@ class UIPerformanceOverlay : UIClickableContainer() {
     private val recordTimeText = statValue()
     private val submitTimeText = statValue()
     private val backendText = statValue()
+    private val audioText = statValue()
     private val allocationText = statValue()
     private val collectionText = statValue()
     private val drawAllocationText = statValue()
 
     // Fixed once the engine is initialized.
     private val backendName by lazy { Verktex.graphics.backend?.displayName ?: "Unknown" }
+    private val audioBackendName by lazy { Verktex.audio.backend.displayName }
 
     private val panel = UILinearContainer()
 
@@ -170,6 +172,7 @@ class UIPerformanceOverlay : UIClickableContainer() {
 
                 +stat("DRAW CALLS", drawCallsText)
                 +stat("BACKEND", backendText)
+                +stat("AUDIO", audioText)
             }
 
             // What the process allocates, and the collections it causes.
@@ -240,6 +243,10 @@ class UIPerformanceOverlay : UIClickableContainer() {
             recordTimeText.text = "${PerformanceStats.recordTime.toFixed(2)} ms"
             submitTimeText.text = "${PerformanceStats.submitTime.toFixed(2)} ms"
             backendText.text = backendName
+            // The latency of the output, where the driver knows it.
+            audioText.text = Verktex.audio.outputLatency.let {
+                if (it > 0.0) "$audioBackendName ${(it * 1000).toFixed(0)} ms" else audioBackendName
+            }
             allocationText.text = PerformanceStats.allocationRate.let { if (it >= 0f) "${it.toFixed(1)} MB/s" else "n/a" }
             collectionText.text = PerformanceStats.collectionRate.let { if (it >= 0f) "${it.toFixed(0)} /min" else "n/a" }
             drawAllocationText.text = PerformanceStats.drawAllocation.let { if (it >= 0f) "${it.toFixed(1)} KB/f" else "n/a" }

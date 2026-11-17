@@ -735,6 +735,10 @@ object VerktexUITests : UITestSuite("Verktex") {
             }
         }
 
+        test("Audio") {
+            audioTest()
+        }
+
         test("Embedded scenes") {
             allowsNavigation = true
             var depth = 0
