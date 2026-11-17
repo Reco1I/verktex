@@ -13,6 +13,9 @@ import kotlin.math.min
  */
 object Textures {
 
+    // The gutter around each region of an atlas, see docs/texture-blending.md.
+    private const val ATLAS_REGION_PADDING = 1
+
     private val atlases = mutableListOf<GraphicsTexture>()
     private val standaloneTextures = mutableListOf<GraphicsTexture>()
     private val textureRegions = mutableMapOf<String, GraphicsTexture.Region>()
@@ -128,7 +131,9 @@ object Textures {
             revision++
         }
 
-        val region = if (destinationAtlas == null && (standalone || source.width > atlasSize() || source.height > atlasSize())) {
+        // A source fits an atlas with the gutter around it, so one exactly as large as an atlas (e.g. a
+        // 2048 pixels wide background) doesn't.
+        val region = if (destinationAtlas == null && (standalone || !fitsEmptyAtlas(source))) {
             storeStandalone(source) ?: run {
                 Logger.w("TextureManager", "Texture '$key' (${source.width}x${source.height}) exceeds the maximum texture size.")
                 return null
@@ -228,6 +233,11 @@ object Textures {
 
     private fun atlasSize(): Float = min(2048f, Verktex.graphics.device.capabilities.maxTextureSize)
 
+    private fun fitsEmptyAtlas(source: GraphicsTexture.Source): Boolean {
+        val largest = atlasSize() - 2 * ATLAS_REGION_PADDING
+        return source.width <= largest && source.height <= largest
+    }
+
     /**
      * Stores a [GraphicsTexture.Source] larger than an atlas on a texture of exactly its own size.
      * Returns null when the source exceeds the device's maximum texture size.
@@ -261,6 +271,7 @@ object Textures {
             width = preferedSize,
             height = preferedSize
         )
+        newAtlas.regionPadding = ATLAS_REGION_PADDING
 
         atlases += newAtlas
         return newAtlas
