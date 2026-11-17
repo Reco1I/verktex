@@ -1,7 +1,8 @@
 import java.util.Properties
 
 // What the Android platform needs from the NDK, which the Kotlin Multiplatform Android plugin of
-// :shared can't build: the native library of the Vulkan backend (see docs/vulkan-backend.md), the
+// :shared can't build: the native library of the Vulkan backend (see docs/vulkan-backend.md), the one
+// of the Oboe audio backend (see docs/audio-backends.md), the
 // SPIR-V of the built-in shaders, compiled with the NDK's glslc, and the Vulkan validation layer of
 // debug builds. It has no code of its own, the androidMain of :shared depends on it.
 plugins {
@@ -22,6 +23,8 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += "-DANDROID_STL=c++_static"
+                // Oboe is fetched at this tag and built from source, with the same static STL.
+                arguments += "-DOBOE_VERSION=${libs.versions.oboe.get()}"
             }
         }
     }

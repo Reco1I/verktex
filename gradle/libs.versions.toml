@@ -7,6 +7,8 @@ atomicfu = "0.33.0"
 serialization = "1.8.0"
 media3 = "1.4.1"
 lwjgl = "3.4.3"
+# Built from source by :android-natives (a git tag of https://github.com/google/oboe), see docs/audio-backends.md.
+oboe = "1.9.3"
 
 [libraries]
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
