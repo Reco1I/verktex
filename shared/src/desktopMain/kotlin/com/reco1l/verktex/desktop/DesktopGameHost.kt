@@ -251,7 +251,8 @@ abstract class DesktopGameHost(
 
         glfwSetScrollCallback(handle) { _, deltaX, deltaY ->
             // Positive is up and left, as Android's scroll axes.
-            Input.dispatchScrollEvent(pointerId = 0, deltaX = deltaX.toFloat(), deltaY = deltaY.toFloat())
+            val (x, y) = cursorPosition()
+            Input.dispatchScrollEvent(pointerId = 0, x = x, y = y, deltaX = deltaX.toFloat(), deltaY = deltaY.toFloat())
         }
 
         glfwSetCharCallback(handle) { _, codePoint ->
@@ -295,7 +296,8 @@ abstract class DesktopGameHost(
         return true
     }
 
-    private fun dispatchPointer(action: PointerEvent.Action, button: PointerEvent.Button) {
+    // The cursor's position in framebuffer pixels.
+    private fun cursorPosition(): Pair<Float, Float> {
         val x = DoubleArray(1)
         val y = DoubleArray(1)
         glfwGetCursorPos(handle, x, y)
@@ -304,13 +306,18 @@ abstract class DesktopGameHost(
         val window = context.window
         val scaleX = window.windowWidth.toFloat() / windowSizeWidth
         val scaleY = window.windowHeight.toFloat() / windowSizeHeight
+        return x[0].toFloat() * scaleX to y[0].toFloat() * scaleY
+    }
+
+    private fun dispatchPointer(action: PointerEvent.Action, button: PointerEvent.Button) {
+        val (x, y) = cursorPosition()
 
         Input.dispatchPointerEvent(
             action = action,
             button = button,
             pointerId = 0,
-            x = x[0].toFloat() * scaleX,
-            y = y[0].toFloat() * scaleY,
+            x = x,
+            y = y,
             time = (glfwGetTime() * 1000).toLong()
         )
     }

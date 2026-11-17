@@ -124,6 +124,13 @@ object Verktex {
     var isInitialized = false
         private set
 
+    /**
+     * The options of the engine, the ones of the host ([GameHost.options]) once [initialize] was
+     * called, the defaults before.
+     */
+    var options = VerktexOptions()
+        internal set
+
 
     /**
      * Initializes the engine with the specified modules.
@@ -132,6 +139,7 @@ object Verktex {
         if (isInitialized)
             throw IllegalStateException("Engine already initialized!")
 
+        this.options = host.options
         this.currentGraphics = renderer
         this.audio = audio
         this.currentHost = host

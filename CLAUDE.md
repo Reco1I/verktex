@@ -61,6 +61,9 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - The desktop target compiles against the API of Java 11 (`-Xjdk-release=11`): `PixelBuffer` is
   expected abstract, as `java.nio.ByteBuffer` is on Android and up to Java 16.
 - API only the platform sources should use is public under `@VerktexPlatformApi`.
+- Engine-wide behavior an application chooses (e.g. a right click as a long press, the distance of a
+  wheel notch) is a `VerktexOptions` field: the host gives them (`GameHost.options`) and
+  `Verktex.initialize` keeps them in `Verktex.options`. User preferences are `VerktexSettings` instead.
 - Dependency and plugin versions go in `gradle/libs.versions.toml`.
 - UI is a tree of `UIComponent`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.

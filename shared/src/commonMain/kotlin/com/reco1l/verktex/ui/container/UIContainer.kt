@@ -2,6 +2,7 @@ package com.reco1l.verktex.ui.container
 
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
+import com.reco1l.verktex.input.ScrollEvent
 import com.reco1l.verktex.worker.RunOnDrawWorker
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.graphics.GraphicsRenderer
@@ -172,11 +173,16 @@ open class UIContainer : UIComponent(), MutableIterable<UIComponent> {
         // Topmost children (drawn last) get the event first.
         for (child in children.asReversed()) {
 
-            // Only presses go to the children under the pointer. Every other event goes to all of
-            // them, so a pressed component keeps following its pointer after it left its bounds.
+            // Only presses and wheel scrolls go to the children under the pointer. Every other
+            // event goes to all of them, so a pressed component keeps following its pointer after
+            // it left its bounds.
             if (event is PointerEvent
                 && event.action == PointerEvent.Action.Down
                 && !child.containsScenePoint(event.x, event.y)) {
+                continue
+            }
+
+            if (event is ScrollEvent && !child.containsScenePoint(event.x, event.y)) {
                 continue
             }
 

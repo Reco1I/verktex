@@ -1,5 +1,6 @@
 package com.reco1l.verktex.ui.container
 
+import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.time.FrameClock
@@ -33,7 +34,8 @@ open class UIClickableContainer : UIContainer() {
     var onActionCancel: (() -> Unit)? = null
 
     /**
-     * The action to perform when the button is long pressed.
+     * The action to perform when the button is long pressed, or right clicked while
+     * [com.reco1l.verktex.VerktexOptions.rightClickAsLongPress] is on.
      */
     var onActionLongPress: (() -> Unit)? = null
 
@@ -44,6 +46,10 @@ open class UIClickableContainer : UIContainer() {
 
     // The finger pressing this container, others must not release or cancel it.
     private var pressPointerId = -1
+
+    // Whether the current press is a right click standing for a long press, see
+    // VerktexOptions.rightClickAsLongPress. It fires on release instead of after a delay.
+    private var isRightClickPress = false
 
 
     override fun onInputEvent(event: InputEvent): Boolean {
@@ -66,6 +72,12 @@ open class UIClickableContainer : UIContainer() {
                 // Already held by another finger.
                 if (isPressed) return true
 
+                val isRightClick = event.button == PointerEvent.Button.Right && Verktex.options.rightClickAsLongPress
+
+                // A right click isn't a click, only the components with a long press take it.
+                if (isRightClick && onActionLongPress == null) return false
+
+                isRightClickPress = isRightClick
                 isPressed = true
                 pressPointerId = event.pointerId
                 onActionDown?.invoke()
@@ -74,10 +86,12 @@ open class UIClickableContainer : UIContainer() {
             }
 
             PointerEvent.Action.Up -> {
-                if (containsScenePoint(event.x, event.y)) {
-                    onActionUp?.invoke()
-                } else {
+                if (!containsScenePoint(event.x, event.y)) {
                     onActionCancel?.invoke()
+                } else if (isRightClickPress) {
+                    onActionLongPress?.invoke()
+                } else {
+                    onActionUp?.invoke()
                 }
                 isPressed = false
                 true
@@ -98,7 +112,7 @@ open class UIClickableContainer : UIContainer() {
         if (isPressed) {
             pressedTime += clock.elapsedFrameTime
 
-            if (onActionLongPress != null && pressedTime >= LONG_PRESS_DURATION) {
+            if (!isRightClickPress && onActionLongPress != null && pressedTime >= LONG_PRESS_DURATION) {
                 isPressed = false
                 onActionLongPress?.invoke()
             }

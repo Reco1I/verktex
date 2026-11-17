@@ -9,6 +9,12 @@ import com.reco1l.verktex.ui.ITextInput
 interface GameHost {
 
     /**
+     * The options of the engine, read once when it's initialized, see [Verktex.options].
+     */
+    val options: VerktexOptions
+        get() = VerktexOptions()
+
+    /**
      * Called when the game engine has been initialized but not yet started. See [Verktex.start] for more details.
      */
     fun onEngineInitialized()

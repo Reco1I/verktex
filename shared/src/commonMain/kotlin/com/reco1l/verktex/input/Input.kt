@@ -150,17 +150,23 @@ object Input {
      * Dispatches a scroll event to the engine component stack.
      *
      * @param pointerId The ID of the pointer.
-     * @param deltaX The horizontal scroll amount.
-     * @param deltaY The vertical scroll amount.
+     * @param x The x-coordinate of the pointer, the scroll goes to the components under it.
+     * @param y The y-coordinate of the pointer.
+     * @param deltaX The horizontal scroll amount, in wheel notches, positive is left.
+     * @param deltaY The vertical scroll amount, in wheel notches, positive is up.
      * @return True if the event was consumed by any component, false otherwise.
      */
     fun dispatchScrollEvent(
         pointerId: Int,
+        x: Float,
+        y: Float,
         deltaX: Float,
         deltaY: Float
     ): Boolean {
         val event = scrollEventPool.removeLastOrElse { ScrollEvent() }
         event.pointerId = pointerId
+        event.x = x
+        event.y = y
         event.deltaX = deltaX
         event.deltaY = deltaY
 

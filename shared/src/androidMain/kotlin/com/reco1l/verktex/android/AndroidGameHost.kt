@@ -210,23 +210,43 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
         editTextView.clearFocus()
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        // The activity gets the event in window coordinates, but the game view can be placed past
-        // the window's origin (e.g. after a display cutout), so it's moved into the view's space.
+    // The activity gets events in window coordinates, but the game view can be placed past the
+    // window's origin (e.g. after a display cutout), so they're moved into the view's space.
+    private inline fun inViewSpace(event: MotionEvent, block: () -> Boolean): Boolean {
         windowView.getLocationInWindow(windowViewLocation)
         val offsetX = -windowViewLocation[0].toFloat()
         val offsetY = -windowViewLocation[1].toFloat()
         event.offsetLocation(offsetX, offsetY)
+        try {
+            return block()
+        } finally {
+            event.offsetLocation(-offsetX, -offsetY)
+        }
+    }
 
-        val consumed: Boolean
+    // A mouse wheel's scroll is a generic motion event, it never reaches onTouchEvent.
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked != MotionEvent.ACTION_SCROLL) {
+            return super.onGenericMotionEvent(event)
+        }
 
-        if (event.action == MotionEvent.ACTION_SCROLL) {
-            consumed = Input.dispatchScrollEvent(
+        val consumed = inViewSpace(event) {
+            // The window can render at a lower resolution than the view, see Platform.resolutionScale.
+            val scale = Platform.resolutionScale
+
+            Input.dispatchScrollEvent(
                 pointerId = event.getPointerId(event.actionIndex),
+                x = event.getX(event.actionIndex) * scale,
+                y = event.getY(event.actionIndex) * scale,
                 deltaX = event.getAxisValue(MotionEvent.AXIS_HSCROLL),
                 deltaY = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
             )
-        } else {
+        }
+        return consumed || super.onGenericMotionEvent(event)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val consumed = inViewSpace(event) {
             val button = when (event.buttonState) {
                 MotionEvent.BUTTON_PRIMARY -> PointerEvent.Button.Left
                 MotionEvent.BUTTON_SECONDARY -> PointerEvent.Button.Right
@@ -267,7 +287,7 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
                 return consumed
             }
 
-            consumed = when (event.actionMasked) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> dispatch(PointerEvent.Action.Down, event.actionIndex)
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> dispatch(PointerEvent.Action.Up, event.actionIndex)
                 MotionEvent.ACTION_MOVE -> {
@@ -279,7 +299,6 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
             }
         }
 
-        event.offsetLocation(-offsetX, -offsetY)
         return consumed || super.onTouchEvent(event)
     }
 

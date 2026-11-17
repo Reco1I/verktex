@@ -219,12 +219,25 @@ data class ScrollEvent(
     var pointerId: Int = -1,
 
     /**
-     * The change in the x-coordinate of the scroll event, representing horizontal scrolling.
+     * The x-coordinate of the pointer in the window or screen space, the scroll goes to the
+     * components under it.
+     */
+    var x: Float = 0f,
+
+    /**
+     * The y-coordinate of the pointer in the window or screen space.
+     */
+    var y: Float = 0f,
+
+    /**
+     * The change in the x-coordinate of the scroll event, representing horizontal scrolling, in
+     * notches of a mouse wheel (fractions of one on touchpads). Positive is left.
      */
     var deltaX: Float = 0f,
 
     /**
-     * The change in the y-coordinate of the scroll event, representing vertical scrolling.
+     * The change in the y-coordinate of the scroll event, representing vertical scrolling, in
+     * notches of a mouse wheel. Positive is up.
      */
     var deltaY: Float = 0f,
 ) : InputEvent

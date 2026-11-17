@@ -108,8 +108,10 @@ open class UIScrollableContainer : UIContainer() {
      */
     var velocityX = 0f
         private set(value) {
-            val max = maxVelocity.x * 1f.dip.toPixels()
-            val velocity = if (value.almostZero()) 0f else value.coerceIn(-max, max)
+            val velocity = if (value.almostZero()) 0f else {
+                val max = maxVelocity.x * 1f.dip.toPixels()
+                value.coerceIn(-max, max)
+            }
 
             if (field != velocity) {
                 field = velocity
@@ -122,8 +124,10 @@ open class UIScrollableContainer : UIContainer() {
      */
     var velocityY = 0f
         private set(value) {
-            val max = maxVelocity.y * 1f.dip.toPixels()
-            val velocity = if (value.almostZero()) 0f else value.coerceIn(-max, max)
+            val velocity = if (value.almostZero()) 0f else {
+                val max = maxVelocity.y * 1f.dip.toPixels()
+                value.coerceIn(-max, max)
+            }
 
             if (field != velocity) {
                 field = velocity
@@ -257,7 +261,9 @@ open class UIScrollableContainer : UIContainer() {
     private var indicatorYAlpha = 0f
     private var indicatorXAlpha = 0f
 
-    private var lastWheelTimeSec = 0f
+    // Where the mouse wheel is taking the content to, NaN when it isn't, see scrollByWheel.
+    private var wheelTargetX = Float.NaN
+    private var wheelTargetY = Float.NaN
 
     private val velocityTracker = VelocityTracker()
 
@@ -277,6 +283,8 @@ open class UIScrollableContainer : UIContainer() {
     fun stopScroll() {
         velocityX = 0f
         velocityY = 0f
+        wheelTargetX = Float.NaN
+        wheelTargetY = Float.NaN
     }
 
 
@@ -315,6 +323,37 @@ open class UIScrollableContainer : UIContainer() {
         val minimumVelocity = MINIMUM_FLING_VELOCITY.toPixels()
         if (abs(velocityX) < minimumVelocity) velocityX = 0f
         if (abs(velocityY) < minimumVelocity) velocityY = 0f
+    }
+
+    // Eases the content to where the wheel takes it, the same way at any frame rate.
+    private fun approachWheelTarget(deltaTimeSec: Float) {
+        val progress = 1f - WHEEL_EASING.pow(deltaTimeSec)
+
+        if (!wheelTargetX.isNaN()) {
+            val distance = wheelTargetX - scrollX
+            if (abs(distance) <= 1f) {
+                scrollX = wheelTargetX
+                wheelTargetX = Float.NaN
+            } else {
+                scrollX += easedStep(distance, progress)
+            }
+        }
+
+        if (!wheelTargetY.isNaN()) {
+            val distance = wheelTargetY - scrollY
+            if (abs(distance) <= 1f) {
+                scrollY = wheelTargetY
+                wheelTargetY = Float.NaN
+            } else {
+                scrollY += easedStep(distance, progress)
+            }
+        }
+    }
+
+    // The scroll positions are whole pixels, each step moves at least one so the easing ends.
+    private fun easedStep(distance: Float, progress: Float): Float {
+        val step = distance * progress
+        return if (abs(step) < 1f) sign(distance) else step
     }
 
     private fun handleOverflow() {
@@ -356,7 +395,9 @@ open class UIScrollableContainer : UIContainer() {
         super.onUpdate(clock)
 
         if (!isUserScrolling) {
-            if (isScrolling) {
+            if (!wheelTargetX.isNaN() || !wheelTargetY.isNaN()) {
+                approachWheelTarget(clock.elapsedFrameTime)
+            } else if (isScrolling) {
                 decelerateProgressively(clock.elapsedFrameTime)
             }
             handleOverflow()
@@ -467,6 +508,12 @@ open class UIScrollableContainer : UIContainer() {
                 return super.onInputEvent(event)
             }
 
+            // A right click stands for a long press, it doesn't drag the content.
+            if (event.action == PointerEvent.Action.Down && event.button == PointerEvent.Button.Right
+                && Verktex.options.rightClickAsLongPress) {
+                return super.onInputEvent(event)
+            }
+
             when (event.action) {
                 PointerEvent.Action.Down -> {
                     dragPointerId = event.pointerId
@@ -527,22 +574,8 @@ open class UIScrollableContainer : UIContainer() {
                 }
             }
         } else {
-            event as ScrollEvent
-
-            val isScrollingHorizontal = scrollAxes.isHorizontal && abs(event.deltaX) > minimumTravel.x
-            val isScrollingVertical = scrollAxes.isVertical && abs(event.deltaY) > minimumTravel.y
-
-            if (isScrolling || isScrollingHorizontal || isScrollingVertical) {
-                // A wheel has no samples to track, its velocity is the one of the last step.
-                val stepTime = Verktex.clock.time - lastWheelTimeSec
-                val velocityX = if (stepTime > 0.3f || stepTime <= 0f) 0f else event.deltaX / stepTime
-                val velocityY = if (stepTime > 0.3f || stepTime <= 0f) 0f else event.deltaY / stepTime
-                handleUserScroll(event.deltaX, event.deltaY, velocityX, velocityY)
-                isUserScrolling = true
-                lastWheelTimeSec = Verktex.clock.time
-            } else {
-                isUserScrolling = false
-            }
+            // Nested containers under the pointer get the wheel first.
+            return super.onInputEvent(event) || scrollByWheel(event as ScrollEvent)
         }
 
         if (!wasUserScrolling && !isUserScrolling) {
@@ -554,6 +587,41 @@ open class UIScrollableContainer : UIContainer() {
 
     // The time of the event, or the one of the frame when the platform didn't give one.
     private fun PointerEvent.timeMillis() = if (time != 0L) time else (Verktex.clock.time * 1000f).toLong()
+
+    /**
+     * Scrolls by the notches of a mouse wheel ([com.reco1l.verktex.VerktexOptions.wheelScrollStep]
+     * each), easing the content there. A vertical wheel scrolls containers that only scroll
+     * horizontally. Returns false when the content can't move that way, so the parents scroll.
+     */
+    private fun scrollByWheel(event: ScrollEvent): Boolean {
+        val step = Verktex.options.wheelScrollStep.toPixels()
+
+        var deltaX = event.deltaX
+        var deltaY = event.deltaY
+        if (scrollAxes == Axis.X && deltaX == 0f) {
+            deltaX = deltaY
+            deltaY = 0f
+        }
+
+        // Positive deltas are up and left, they move towards the start.
+        val fromX = if (wheelTargetX.isNaN()) scrollX else wheelTargetX
+        val fromY = if (wheelTargetY.isNaN()) scrollY else wheelTargetY
+        val toX = if (scrollAxes.isHorizontal) (fromX - deltaX * step).coerceIn(0f, maxScrollX) else fromX
+        val toY = if (scrollAxes.isVertical) (fromY - deltaY * step).coerceIn(0f, maxScrollY) else fromY
+
+        val movesX = !toX.almostEquals(fromX)
+        val movesY = !toY.almostEquals(fromY)
+        if (!movesX && !movesY) {
+            return false
+        }
+
+        // A fling in progress is replaced by the wheel.
+        velocityX = 0f
+        velocityY = 0f
+        if (movesX) wheelTargetX = toX
+        if (movesY) wheelTargetY = toY
+        return true
+    }
 
     private fun hasScrollingDescendant() = propagateConsumable {
         it !== this && it is UIScrollableContainer && it.isUserScrolling
@@ -567,6 +635,9 @@ open class UIScrollableContainer : UIContainer() {
         const val DEFAULT_DECELERATION = 0.15f
         const val DEFAULT_MINIMUM_TRAVEL = 20f
         const val DEFAULT_MAX_VELOCITY = 8000f
+
+        // The fraction of the distance to the wheel's target left after one second.
+        private const val WHEEL_EASING = 0.00001f
 
         private val INDICATOR_THICKNESS = 3f.dip
         private val MINIMUM_FLING_VELOCITY = 10f.dip
