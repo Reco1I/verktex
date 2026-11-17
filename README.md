@@ -35,13 +35,4 @@ Requires Java 17, and for the Android target the Android SDK (platform `android-
 
 Applications check this repository out, usually as a git submodule, include its build and depend
 on `com.reco1l.verktex:shared`, whose Android or
-desktop variant Gradle picks for each of their modules, see [docs/extraction.md](docs/extraction.md).
-
-## Documentation
-
-- [docs/extraction.md](docs/extraction.md): the layout of the project and its rules.
-- [docs/desktop-platform.md](docs/desktop-platform.md): the desktop platform.
-- [docs/vulkan-backend.md](docs/vulkan-backend.md): the Vulkan backend.
-- [docs/frame-rate.md](docs/frame-rate.md): how the frame rate is capped on each platform.
-- [docs/texture-blending.md](docs/texture-blending.md): premultiplied textures and the atlas.
-- [docs/engine-consolidation.md](docs/engine-consolidation.md): features moved from osu!droid.
+desktop variant Gradle picks for each of their modules.
