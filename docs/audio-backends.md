@@ -7,8 +7,8 @@ start. Where Oboe fails to start, the engine falls back to BASS.
 
 ## Why Oboe
 
-BASS is closed source, has its own buffering on top of Android's, and its positions don't account
-for the latency of the output. Oboe (https://github.com/google/oboe) is Google's C++ library over
+BASS is closed source, has its own buffering on top of Android's, and doesn't know the latency
+of the output. Oboe (https://github.com/google/oboe) is Google's C++ library over
 AAudio (Android 8.1 and up) and OpenSL ES (before), made for low latency: exclusive low latency
 streams, a callback on a real time thread, and timestamps of the frames actually presented, which
 let the position of a stream be the one that is being heard.
@@ -61,11 +61,12 @@ builds and is tested on Linux with a null output (`natives/audio/tests/`).
   change of frequency is heard right away. A seek decodes from the exact frame synchronously and
   starts a new generation of chunks, the callback drops the older ones. A change of tempo restarts
   from the position heard, with a short glitch. `onEnd` is called by the service thread.
-- **Position of a stream**: the source frame of the audio being heard: the one the callback renders
-  minus the latency of the output (from Oboe's timestamps) at the current rate, extrapolated with
-  the time between callbacks, and never going back but for a loop. After a seek it stays at the
-  target until the audio after it is heard. Unlike BASS's, it includes the output latency, so the
-  offset calibrated with BASS is off by about that latency.
+- **Position of a stream**: the source frame the callback renders, extrapolated with the time
+  between callbacks, and never going back but for a loop, as BASS's: the output's latency (from
+  Oboe's timestamps, `AudioDriver.outputLatency`) isn't subtracted. It was at first, but sounds
+  played on a hit take that latency to be heard as well, so with the clock behind by it hitsounds
+  were late against the music (about 300 ms over Bluetooth). The offset setting accounts for the
+  latency, as it does with BASS.
 - **Speed without changing the pitch**: Signalsmith Stretch (MIT, header-only,
   https://github.com/Signalsmith-Audio/signalsmith-stretch), with its cheaper preset. It's meant for
   0.75x to 1.5x, the speeds of HT and DT, and works beyond. BASS_FX uses a SoundTouch-like WSOLA:
@@ -92,7 +93,7 @@ links with the static STL the Vulkan library already uses: its Prefab AAR is bui
 
 osu!droid offers the choice in its audio settings (an "Output" category) when
 `Platform.availableAudioBackends` has more than one entry, applied on the next start, with a toast
-that recommends calibrating the offset again for Oboe.
+that recommends checking the offset for Oboe.
 
 ## Status
 

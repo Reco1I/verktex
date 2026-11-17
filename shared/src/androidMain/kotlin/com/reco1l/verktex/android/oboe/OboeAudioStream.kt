@@ -34,7 +34,7 @@ class OboeAudioStream internal constructor(private val driver: OboeAudioDriver, 
         get() = handle.let { if (it == 0L) 0.0 else OboeNative.length(it) }
 
 
-    // The position being heard: unlike BASS's, it accounts for the latency of the output.
+    // The position rendered, as BASS's: the latency of the output isn't subtracted, see docs/audio-backends.md.
     override var position: Double
         get() = handle.let { if (it == 0L) 0.0 else OboeNative.position(it) }
         set(value) {

@@ -39,7 +39,7 @@ abstract class AudioDriver {
 
     /**
      * The time in seconds between a frame being played and it being heard, as far as the driver knows
-     * it, 0 where it doesn't. Positions of streams of drivers that know it already account for it.
+     * it, 0 where it doesn't. Positions of streams don't account for it, on any driver.
      */
     open val outputLatency: Double
         get() = 0.0

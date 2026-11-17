@@ -300,7 +300,7 @@ void streamsSeek() {
     engine.release(stream);
 }
 
-void streamsAccountForTheOutputLatency() {
+void streamsIgnoreTheOutputLatency() {
     Engine engine;
     engine.setOutputRate(kRate);
     engine.setOutputLatency(0.05);
@@ -309,9 +309,9 @@ void streamsAccountForTheOutputLatency() {
     stream->setPosition(0.2);
     stream->play(false);
 
-    // The first 50 ms aren't heard yet: the position waits at the seek's target, and moves forward only.
+    // As BASS's, the position is the one rendered, whatever the latency, and moves forward only.
     renderPaced(engine, 1024, stream);
-    CHECK_NEAR(stream->position(), 0.2, 1e-9);
+    CHECK_NEAR(stream->position(), 0.2 + (1024.0 - 256) / kRate, 0.006);
 
     double previous = 0;
     bool monotonic = true;
@@ -322,8 +322,8 @@ void streamsAccountForTheOutputLatency() {
         previous = position;
     }
     CHECK(monotonic);
-    // 1024 + 40 * 256 frames rendered, 50 ms of them not heard yet.
-    CHECK_NEAR(previous, 0.2 + (1024.0 + 39 * 256) / kRate - 0.05, 0.01);
+    // 1024 + 40 * 256 frames rendered, the latest callback's being the position.
+    CHECK_NEAR(previous, 0.2 + (1024.0 + 39 * 256) / kRate, 0.01);
     engine.release(stream);
 }
 
@@ -467,7 +467,7 @@ int main() {
     run("samplesRampTheirVolume", samplesRampTheirVolume);
     run("streamsPlayTheirAudio", streamsPlayTheirAudio);
     run("streamsSeek", streamsSeek);
-    run("streamsAccountForTheOutputLatency", streamsAccountForTheOutputLatency);
+    run("streamsIgnoreTheOutputLatency", streamsIgnoreTheOutputLatency);
     run("streamsChangeTempoKeepingPitch", streamsChangeTempoKeepingPitch);
     run("streamsChangePitchWithFrequency", streamsChangePitchWithFrequency);
     run("streamsEndOnceAndLoop", streamsEndOnceAndLoop);

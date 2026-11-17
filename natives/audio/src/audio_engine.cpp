@@ -555,11 +555,13 @@ void StreamPlayback::render(float *output, int count, int outputRate) {
         statusValue.compare_exchange_strong(expected, int(Status::Stalled));
     }
 
-    // What's heard now was rendered the output's latency ago. Positions only move forward, but for
-    // a loop: the heard one stays at a seek's target until the audio after it is heard.
+    // The position is the one being rendered, as BASS's: the output's latency isn't subtracted. Sounds
+    // played on a hit take that latency to be heard too, so a clock behind by it (about 300 ms over
+    // Bluetooth) put them late against the music; the offset setting accounts for the latency instead.
+    // Positions only move forward, but for a loop.
     double speed = 0;
     if (renderStart >= 0) {
-        double heard = renderStart - engine.getOutputLatency() * outputRate * sourcePerOutputFrame;
+        double heard = renderStart;
         if (heard < lastHeard && heard > lastHeard - sourceRate) {
             heard = lastHeard;
         } else if (written == count) {
