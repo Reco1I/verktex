@@ -261,7 +261,7 @@ Linux x64 comes first, then Windows and macOS (MoltenVK).
      `DesktopProvider` reads.
    - **Skipping:** off Linux x64, or without CMake, a compiler, the NDK or the loader, it warns and
      builds nothing, and desktop stays on OpenGL.
-3. **Bring-up.** ✅ Done, verified headlessly; the windowed path is still to be run (see 4).
+3. **Bring-up.** ✅ Done, and the Verktex UI test browser runs on Vulkan in a window on Linux (Intel UHD 770, Mesa).
    - **Context:** `DesktopVKContext.create` opens a `GLFW_NO_API` window. It creates the context with
      `glfwGetRequiredInstanceExtensions` and gives it the surface of `glfwCreateWindowSurface` (the raw
      `nglfw` call, no LWJGL `VkInstance` needed).
