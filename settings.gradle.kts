@@ -29,6 +29,7 @@ include(":desktopApp")
 
 // The native code and the compiled shaders of the Android platform.
 include(":android-natives")
+include(":desktop-natives")
 
 // The shader translator, used by the Vulkan backend and by the build.
 include(":shadertools")

@@ -1,5 +1,6 @@
 package com.reco1l.verktex.desktop.gl
 
+import com.reco1l.verktex.desktop.DesktopWindow
 import com.reco1l.verktex.graphics.DrawCommand
 import com.reco1l.verktex.graphics.FramebufferOrigin
 import com.reco1l.verktex.graphics.GraphicsBackend
@@ -17,7 +18,7 @@ class GLRenderer(
     override val device: GLDevice,
 ) : GraphicsRenderer() {
 
-    override val window: GLWindow
+    override val window: DesktopWindow
         get() = context.window
 
     override val backend: GraphicsBackend

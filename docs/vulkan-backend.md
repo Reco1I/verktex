@@ -249,20 +249,57 @@ Linux x64 comes first, then Windows and macOS (MoltenVK).
 
    The pure-JVM tests (`VulkanBackendTest`) run in `desktopTest`. On desktop, `loadVulkanLibrary`
    throws until the library is built there.
-2. **Desktop natives.** A `:desktop-natives` module builds `natives/vulkan` with CMake (the SDK's or
-   the one on `PATH`) and volk (`VK_NO_PROTOTYPES`, so nothing links against a Vulkan library). It uses
-   the NDK's Vulkan headers and `jni.h`, and packages `libverktex_vulkan.so` and the SPIR-V of the
-   built-in shaders as resources. Without a toolchain it skips, and desktop stays on OpenGL.
-3. **Bring-up.** `DesktopVKContext`:
-   - its surface comes from `glfwCreateWindowSurface` (lwjgl-vulkan), with the instance extensions
-     from `glfwGetRequiredInstanceExtensions`;
-   - the window is created with `GLFW_NO_API`;
-   - `DesktopGameHost` picks the backend from `VerktexSettings.GraphicsBackend` and falls back to
-     OpenGL 3.3;
-   - the UI test browsers take `--backend`.
-4. **Parity.** Covers vsync present modes, resizing and minimizing, `--screenshot` read-back, picking a
-   discrete GPU, and a run under the validation layer.
-5. **Windows, then macOS** (portability enumeration and subset, MoltenVK through LWJGL).
+2. **Desktop natives.** ✅ Done. `:desktop-natives` builds `natives/vulkan` with `vk_jni_desktop.cpp`
+   (`VKDesktopNative`) using CMake: the SDK's, which comes with Ninja, or the one on `PATH`.
+   - **Headers:** it compiles against the NDK's Vulkan headers and its `jni.h` (copied alone, as the
+     NDK's sysroot would replace glibc's headers), so no Vulkan SDK or JDK headers are needed.
+   - **Linking:** it links `libvulkan.so.1` by its runtime name, the loader GLFW uses too, with
+     libstdc++ static and hidden. volk was planned, but isn't needed on Linux; it comes with macOS,
+     which loads MoltenVK through LWJGL.
+   - **Packaging:** `libverktex_vulkan.so` and the SPIR-V of the built-in shaders (glslc from the NDK
+     or `PATH`) are resources, which `loadVulkanLibrary` copies to a temporary folder and loads, and
+     `DesktopProvider` reads.
+   - **Skipping:** off Linux x64, or without CMake, a compiler, the NDK or the loader, it warns and
+     builds nothing, and desktop stays on OpenGL.
+3. **Bring-up.** ✅ Done, verified headlessly; the windowed path is still to be run (see 4).
+   - **Context:** `DesktopVKContext.create` opens a `GLFW_NO_API` window. It creates the context with
+     `glfwGetRequiredInstanceExtensions` and gives it the surface of `glfwCreateWindowSurface` (the raw
+     `nglfw` call, no LWJGL `VkInstance` needed).
+   - **Window:** `GLWindow` became `DesktopWindow`, and both contexts implement
+     `DesktopGraphicsContext` (vsync, `onBeforePresent`, `readPixels`), so screenshots work on
+     either.
+   - **Startup:** `DesktopGameHost` attaches the platform before the window (density from the primary
+     monitor's content scale), then reads `VerktexSettings.GraphicsBackend`. It starts Vulkan through
+     `startVulkanRenderer` and falls back to OpenGL 3.3.
+   - **Settings:** `Platform.availableGraphicsBackends` lists Auto, OpenGL and Vulkan where
+     `DesktopVKContext.isAvailable()`, and the game's settings show them
+     (`opt_graphics_backend_names_desktop`).
+   - **UI tests:** the test browsers take `--backend <name>`.
+
+   The core prefers a discrete GPU, then an integrated one. `DesktopVulkanContextTest` creates a
+   context without a window and makes textures, uploads and shader modules (Intel UHD 770, Vulkan
+   1.4, Mesa).
+4. **Parity.** Implemented, to be checked in a window:
+   - present modes: FIFO with vsync, MAILBOX, then IMMEDIATE, without it (`setVsync` recreates the
+     swapchain);
+   - resizing (a new size recreates the swapchain) and minimizing (0×0 skips frames);
+   - `--screenshot`, which `readPixels` serves: it copies the submitted swapchain image (swizzling
+     BGRA) before it's presented;
+   - videos, which FFmpeg's decoder uploads into ordinary textures (no external textures on desktop).
+
+   To check:
+   ```
+   ./gradlew :desktopApp:runUITests --args="--backend Vulkan --test 'osu!/Hit circles' --screenshot build/vk.png"
+   ```
+   Compare it with the OpenGL screenshot for Text, Skin sprites, Shapes, Sliders, Main menu, Mod menu
+   (capture + blur) and Video. Then repeat with `vulkan-validationlayers` installed in a debug build,
+   which enables validation (messages go to stderr as `VerktexVulkan W/E: Validation`).
+5. **Windows, then macOS.**
+   - **Windows:** `vk_jni_desktop` with MSVC or MinGW, `natives/windows-x64/`, linking `vulkan-1`.
+   - **macOS:** volk with `volkInitializeCustom` over LWJGL's MoltenVK `vkGetInstanceProcAddr`,
+     `VK_KHR_portability_enumeration` and its instance flag, `VK_KHR_portability_subset` on the device,
+     arm64 and x64.
+   - **Both:** a CI runner each.
 
 ## Risks
 - JNI/encoding overhead could erase Vulkan's CPU gains for a 2D engine — measure `PerformanceStats.submitTime` vs ES3 early in phase 4.

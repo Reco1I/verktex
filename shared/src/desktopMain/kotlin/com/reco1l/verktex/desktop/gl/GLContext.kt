@@ -1,10 +1,13 @@
 package com.reco1l.verktex.desktop.gl
 
-import com.reco1l.verktex.graphics.GraphicsContext
+import com.reco1l.verktex.desktop.DesktopGraphicsContext
+import com.reco1l.verktex.desktop.DesktopWindow
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL33.*
 import org.lwjgl.system.MemoryUtil.NULL
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * The OpenGL 3.3 core context of a GLFW window.
@@ -13,7 +16,7 @@ import org.lwjgl.system.MemoryUtil.NULL
  * the draw thread by its first [acquireFrame]. LWJGL keeps the functions of a context per thread, so
  * no GL call can be made before that, nor from any other thread.
  */
-class GLContext private constructor(val window: GLWindow) : GraphicsContext {
+class GLContext private constructor(override val window: DesktopWindow) : DesktopGraphicsContext {
 
     @Volatile
     private var isCurrent = false
@@ -23,22 +26,14 @@ class GLContext private constructor(val window: GLWindow) : GraphicsContext {
      */
     var onCurrent: (() -> Unit)? = null
 
-    /**
-     * Called on the draw thread after a frame was drawn, right before it's presented. Used to read
-     * the frame back, e.g. for screenshots.
-     */
     @Volatile
-    var onBeforePresent: (() -> Unit)? = null
+    override var onBeforePresent: (() -> Unit)? = null
 
     override var version = "OpenGL"
         private set
 
-    /**
-     * Whether presenting waits for the display's refresh, which caps the frame rate to it. Off, the
-     * engine draws as fast as it can. Can be changed at any time, it applies from the next frame.
-     */
     @Volatile
-    var vsync = false
+    override var vsync = false
 
     // The swap interval set on the context, -1 until it's current.
     private var swapInterval = -1
@@ -74,6 +69,26 @@ class GLContext private constructor(val window: GLWindow) : GraphicsContext {
         glfwSwapBuffers(window.handle)
     }
 
+    override fun readPixels(): ByteBuffer {
+        val width = window.windowWidth
+        val height = window.windowHeight
+
+        val pixels = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
+        glPixelStorei(GL_PACK_ALIGNMENT, 1)
+        glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
+
+        // GL reads from the bottom row, images start at the top.
+        val flipped = ByteBuffer.allocateDirect(pixels.capacity())
+        val row = ByteArray(width * 4)
+        for (y in height - 1 downTo 0) {
+            pixels.position(y * width * 4)
+            pixels.get(row)
+            flipped.put(row)
+        }
+        flipped.flip()
+        return flipped
+    }
+
     override fun destroy() {
         // Called once the draw worker stopped: the context is released and the window goes with it.
         // The GL objects die with the context.
@@ -106,7 +121,7 @@ class GLContext private constructor(val window: GLWindow) : GraphicsContext {
             // Not current on the main thread, the draw thread makes it current.
             glfwMakeContextCurrent(NULL)
 
-            return GLContext(GLWindow(handle))
+            return GLContext(DesktopWindow(handle))
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.reco1l.verktex.desktop.gl
+package com.reco1l.verktex.desktop
 
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
@@ -6,10 +6,11 @@ import com.reco1l.verktex.graphics.GraphicsWindow
 import org.lwjgl.glfw.GLFW.*
 
 /**
- * A GLFW window, the size being its framebuffer's in pixels. Its handle is made by [GLContext], on
- * the main thread, which also keeps the size up to date from GLFW's callbacks.
+ * A GLFW window, the size being its framebuffer's in pixels. Its handle is made by the graphics
+ * context (an OpenGL or a Vulkan one, see [DesktopGraphicsContext]) on the main thread, and the host
+ * keeps the size up to date from GLFW's callbacks.
  */
-class GLWindow(val handle: Long) : GraphicsWindow {
+class DesktopWindow(val handle: Long) : GraphicsWindow {
 
     @Volatile
     override var windowWidth = 0

@@ -5,6 +5,7 @@ import com.reco1l.verktex.desktop.DesktopProvider
 import com.reco1l.verktex.desktop.bass.BASSAudioDriver
 import com.reco1l.verktex.desktop.video.FFmpeg
 import com.reco1l.verktex.desktop.video.FFmpegVideoDecoder
+import com.reco1l.verktex.desktop.vulkan.DesktopVKContext
 import com.reco1l.verktex.graphics.GraphicsBackend
 import com.reco1l.verktex.io.systemFileSystem
 import com.reco1l.verktex.video.VideoDecoder
@@ -115,11 +116,13 @@ actual object Platform {
             return false
         }
 
-    // OpenGL is the only backend, there's nothing to choose.
+    // OpenGL, and the experimental Vulkan backend where it may work. With OpenGL alone there's nothing
+    // to choose.
     actual val availableGraphicsBackends: List<GraphicsBackend>
         get() {
             attached
-            return emptyList()
+            if (!DesktopVKContext.isAvailable()) return emptyList()
+            return listOf(GraphicsBackend.Auto, GraphicsBackend.OpenGL, GraphicsBackend.Vulkan)
         }
 
     actual val haptics: Haptics?

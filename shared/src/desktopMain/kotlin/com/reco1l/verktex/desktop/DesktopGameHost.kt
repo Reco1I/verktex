@@ -9,6 +9,13 @@ import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.desktop.gl.GLContext
 import com.reco1l.verktex.desktop.gl.GLDevice
 import com.reco1l.verktex.desktop.gl.GLRenderer
+import com.reco1l.verktex.desktop.vulkan.DesktopVKContext
+import com.reco1l.verktex.graphics.GraphicsBackend
+import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.settings.Settings
+import com.reco1l.verktex.settings.VerktexSettings
+import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
+import com.reco1l.verktex.vulkan.startVulkanRenderer
 import com.reco1l.verktex.fonts.Fonts
 import com.reco1l.verktex.input.Input
 import com.reco1l.verktex.input.KeyboardEvent
@@ -16,15 +23,8 @@ import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.ui.ITextInput
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
-import org.lwjgl.opengl.GL33.GL_PACK_ALIGNMENT
-import org.lwjgl.opengl.GL33.GL_RGBA
-import org.lwjgl.opengl.GL33.GL_UNSIGNED_BYTE
-import org.lwjgl.opengl.GL33.glPixelStorei
-import org.lwjgl.opengl.GL33.glReadPixels
 import org.lwjgl.stb.STBImageWrite
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * The base of desktop game hosts, the counterpart of the Android platform's AndroidGameHost: it
@@ -33,8 +33,11 @@ import java.nio.ByteOrder
  * [run] must be called from the main thread (the first one on macOS, see `-XstartOnFirstThread`)
  * and returns once the window is closed.
  *
- * @param vsync Whether frames wait for the display's refresh, see [GLContext.vsync]. Off by
- * default, so the frame rate isn't capped to the display's.
+ * The graphics backend is the `GraphicsBackend` setting ([VerktexSettings.GraphicsBackend]): Vulkan
+ * when it's picked and works, OpenGL 3.3 otherwise, see `docs/vulkan-backend.md`.
+ *
+ * @param vsync Whether frames wait for the display's refresh, see [DesktopGraphicsContext.vsync].
+ * Off by default, so the frame rate isn't capped to the display's.
  */
 abstract class DesktopGameHost(
     private val title: String = "Verktex",
@@ -44,9 +47,9 @@ abstract class DesktopGameHost(
 ) : GameHost {
 
     /**
-     * The OpenGL context and window, once [run] created them.
+     * The graphics context (OpenGL or Vulkan) and its window, once [run] created them.
      */
-    lateinit var context: GLContext
+    lateinit var context: DesktopGraphicsContext
         private set
 
     private val handle: Long
@@ -84,14 +87,14 @@ abstract class DesktopGameHost(
         }
 
         try {
-            context = GLContext.create(title, initialWidth, initialHeight)
-            context.vsync = vsync
-
+            // Attached before the window is created, the settings (which pick the backend) are in its
+            // storage. The window opens on the primary monitor and scales to it.
+            val monitor = glfwGetPrimaryMonitor()
             val scaleX = FloatArray(1)
             val scaleY = FloatArray(1)
-            glfwGetWindowContentScale(handle, scaleX, scaleY)
+            if (monitor != 0L) glfwGetMonitorContentScale(monitor, scaleX, scaleY)
 
-            val mode = glfwGetVideoMode(glfwGetPrimaryMonitor())
+            val mode = if (monitor != 0L) glfwGetVideoMode(monitor) else null
             Platform.attach(
                 density = scaleX[0].takeIf { it > 0f } ?: 1f,
                 width = mode?.width() ?: initialWidth,
@@ -100,10 +103,14 @@ abstract class DesktopGameHost(
                 application = platformApplication,
                 onExit = ::close,
             )
+            onPlatformAttached()
+
+            val renderer = createRenderer()
+            context.vsync = vsync
 
             Verktex.initialize(
                 host = this,
-                renderer = GLRenderer(context, GLDevice()),
+                renderer = renderer,
                 audio = Platform.audioDriver
             )
 
@@ -133,6 +140,35 @@ abstract class DesktopGameHost(
      */
     open val platformApplication: PlatformApplication
         get() = PlatformApplication()
+
+    /**
+     * Called once the platform is attached, before the graphics backend is picked from the settings
+     * and the window is created, e.g. to change the backend.
+     */
+    open fun onPlatformAttached() {}
+
+    // Vulkan when it's picked, it falls back to OpenGL where it can't start.
+    private fun createRenderer(): GraphicsRenderer {
+        // Picking Vulkan again retries it, even if it crashed while starting the last time.
+        Settings.observe(VerktexSettings.GraphicsBackend) { name ->
+            if (name == GraphicsBackend.Vulkan.name) resetVulkanCrashGuard()
+        }
+
+        if (GraphicsBackend.fromName(Settings[VerktexSettings.GraphicsBackend]) == GraphicsBackend.Vulkan) {
+            val vulkan = startVulkanRenderer(createContext = {
+                DesktopVKContext.create(title, initialWidth, initialHeight, enableValidation = platformApplication.isDebug)
+            })
+            if (vulkan != null) {
+                context = vulkan.context as DesktopVKContext
+                return vulkan
+            }
+        }
+
+        val gl = GLContext.create(title, initialWidth, initialHeight)
+        Logger.i("Verktex", "Using the OpenGL backend.")
+        context = gl
+        return GLRenderer(gl, GLDevice())
+    }
 
     /**
      * Asks the window to close, from any thread. [run] returns once the engine stopped.
@@ -295,22 +331,15 @@ abstract class DesktopGameHost(
             val width = window.windowWidth
             val height = window.windowHeight
 
-            val pixels = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
-            glPixelStorei(GL_PACK_ALIGNMENT, 1)
-            glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
-
-            // GL reads from the bottom row, images start at the top.
-            val flipped = ByteBuffer.allocateDirect(pixels.capacity())
-            val row = ByteArray(width * 4)
-            for (y in height - 1 downTo 0) {
-                pixels.position(y * width * 4)
-                pixels.get(row)
-                flipped.put(row)
+            val pixels = context.readPixels()
+            if (pixels == null) {
+                Logger.e("DesktopGameHost", "Couldn't read the frame back for the screenshot.")
+                close()
+                return@callback
             }
-            flipped.flip()
 
             file.absoluteFile.parentFile?.mkdirs()
-            if (STBImageWrite.stbi_write_png(file.absolutePath, width, height, 4, flipped, width * 4)) {
+            if (STBImageWrite.stbi_write_png(file.absolutePath, width, height, 4, pixels, width * 4)) {
                 Logger.i("DesktopGameHost", "Saved a screenshot to ${file.absolutePath}")
             } else {
                 Logger.e("DesktopGameHost", "Couldn't write the screenshot to ${file.absolutePath}")

@@ -33,8 +33,8 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   - `androidMain`: the Android platform (`com/reco1l/verktex/android/`): the graphics backends
     (OpenGL ES 2 and 3, Vulkan), the BASS audio library (`com.un4seen.bass`, in Java, and its
     natives in `jniLibs/`) and ExoPlayer video.
-  - `desktopMain`: the desktop platform: OpenGL 3.3 through LWJGL, BASS through JNA and FFmpeg
-    video, see `docs/desktop-platform.md`.
+  - `desktopMain`: the desktop platform: OpenGL 3.3 through LWJGL (or the experimental Vulkan
+    backend, `desktop/vulkan/`), BASS through JNA and FFmpeg video, see `docs/desktop-platform.md`.
   - `desktopTest` (the common and desktop tests) and `androidHostTest` (Robolectric).
   - `assets/`: the built-in shaders and fonts, a plain folder each platform packages.
 - `:androidApp` and `:desktopApp`: the applications, with only their entry points: the browsers of
@@ -44,6 +44,9 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   Android plugin can't build: the native library of the Vulkan backend (its sources are shared with
   desktop in `natives/vulkan/`, see `docs/vulkan-backend.md`), the task
   that compiles the shaders to SPIR-V, and the Vulkan validation layer of debug builds.
+- `:desktop-natives`: its desktop counterpart, a plain JVM module whose resources are the Vulkan
+  backend's library, built from `natives/vulkan/` with CMake (Linux x64 so far, skipped without the
+  tools), and the SPIR-V of the built-in shaders.
 - `:shadertools` (`shadertools/`): the shader translator, used by the Vulkan backend and the build.
 
 ## Conventions

@@ -28,8 +28,9 @@ enum class GraphicsBackend(
     OpenGLES2("OpenGL ES 2"),
 
     /**
-     * Vulkan 1.1 (or 1.0 with VK_KHR_maintenance1), falling back to [OpenGLES3] where it can't be
-     * initialized or crashed while starting the last time. Experimental: users opt in, [Auto] doesn't
+     * Vulkan 1.1 (or 1.0 with VK_KHR_maintenance1), on Android and desktop (Linux x64 so far),
+     * falling back to [OpenGLES3] ([OpenGL] on desktop) where it can't be initialized or crashed while
+     * starting the last time. Experimental: users opt in, [Auto] doesn't
      * pick it, see `verktex/docs/vulkan-backend.md`.
      */
     Vulkan("Vulkan"),

@@ -151,6 +151,15 @@ public:
     // eglSwapBuffers, which isn't part of the time spent submitting.
     void present();
 
+    // Whether presenting waits for the display (FIFO), as it always does on Android. Off, the
+    // swapchain presents as soon as it can (MAILBOX, then IMMEDIATE). Applies from the next frame.
+    void setVsync(bool enabled);
+
+    // Copies the submitted frame, before it's presented, into pixels as RGBA rows from the top, which
+    // must hold width * height * 4 bytes. Waits for the GPU, it's meant for screenshots. False when
+    // the frame has another size, there's none, or the window's images can't be copied.
+    bool readPixels(uint8_t *pixels, uint32_t width, uint32_t height);
+
     // Milliseconds the GPU took for the last measured frame, -1 when unknown.
     float gpuTime() const { return lastGpuTime; }
 
@@ -282,6 +291,7 @@ private:
     uint32_t requestedWidth = 0;
     uint32_t requestedHeight = 0;
     bool swapchainOutdated = false;
+    bool vsync = true;
     std::vector<VkImage> images;
     std::vector<VkImageView> imageViews;
     std::vector<VkFramebuffer> framebuffers;

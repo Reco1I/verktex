@@ -2,10 +2,12 @@ package com.reco1l.verktex.desktop.testing
 
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.desktop.DesktopGameHost
+import com.reco1l.verktex.graphics.GraphicsBackend
 import com.reco1l.verktex.settings.Settings
 import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.testing.UITestScene
 import com.reco1l.verktex.testing.UITestSuite
+import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
 import java.io.File
 import java.util.prefs.Preferences
 
@@ -22,12 +24,15 @@ import java.util.prefs.Preferences
  * to this PNG and the window closes, e.g. for smoke checks.
  * @param screenshotDelay How long after starting the screenshot is taken.
  * @param vsync Whether frames wait for the display's refresh, see [DesktopGameHost].
+ * @param backend The graphics backend to open with (a [GraphicsBackend] name, e.g. `Vulkan`), the
+ * setting's otherwise.
  */
 abstract class UITestApplication(
     private val initialTest: String? = null,
     private val screenshot: File? = null,
     vsync: Boolean = false,
     private val screenshotDelay: Double = SCREENSHOT_DELAY_SECONDS,
+    private val backend: String? = null,
 ) : DesktopGameHost(title = "Verktex UI tests", vsync = vsync) {
 
     private val preferences = Preferences.userRoot().node("com/reco1l/verktex/uitests")
@@ -44,6 +49,16 @@ abstract class UITestApplication(
      */
     abstract fun createSuites(): List<UITestSuite>
 
+
+    override fun onPlatformAttached() {
+        val backend = backend ?: return
+        Settings[VerktexSettings.GraphicsBackend] = backend
+
+        // Asked for explicitly, it's tried even if it crashed while starting the last time.
+        if (backend == GraphicsBackend.Vulkan.name) {
+            resetVulkanCrashGuard()
+        }
+    }
 
     override fun onEngineInitialized() {}
 

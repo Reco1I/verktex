@@ -179,8 +179,25 @@ bool Context::createDeviceObjects(std::string &error) {
 
     uint32_t timestampBits = 0;
 
-    // Android devices have a single GPU, the first one with a graphics queue is taken.
+    // The device with a graphics queue that's most likely the fastest: discrete GPUs first, then
+    // integrated ones (a laptop's), then anything else (e.g. software rasterizers). Android devices
+    // have a single GPU.
+    auto rank = [](VkPhysicalDeviceType type) {
+        switch (type) {
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: return 3;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: return 2;
+            case VK_PHYSICAL_DEVICE_TYPE_CPU: return 0;
+            default: return 1;
+        }
+    };
+    int bestRank = -1;
+
     for (auto candidate : devices) {
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(candidate, &properties);
+        int candidateRank = rank(properties.deviceType);
+        if (candidateRank <= bestRank) continue;
+
         uint32_t familyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(candidate, &familyCount, nullptr);
         std::vector<VkQueueFamilyProperties> families(familyCount);
@@ -191,10 +208,10 @@ bool Context::createDeviceObjects(std::string &error) {
                 physical = candidate;
                 queueFamily = i;
                 timestampBits = families[i].timestampValidBits;
+                bestRank = candidateRank;
                 break;
             }
         }
-        if (physical != VK_NULL_HANDLE) break;
     }
 
     if (physical == VK_NULL_HANDLE) {
@@ -764,8 +781,23 @@ bool Context::createSwapchain(uint32_t width, uint32_t height) {
     info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     info.preTransform = transform;
     info.compositeAlpha = compositeAlpha;
-    // FIFO is vsync, as OpenGL ES' swap interval of 1, and the only mode every device has.
-    info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    // FIFO is vsync, as OpenGL ES' swap interval of 1, and the only mode every device has. Without
+    // vsync, MAILBOX replaces queued frames without tearing, IMMEDIATE tears.
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    if (!vsync) {
+        uint32_t modeCount = 0;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface, &modeCount, nullptr);
+        std::vector<VkPresentModeKHR> modes(modeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface, &modeCount, modes.data());
+
+        for (auto candidate : {VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR}) {
+            if (std::find(modes.begin(), modes.end(), candidate) != modes.end()) {
+                presentMode = candidate;
+                break;
+            }
+        }
+    }
+    info.presentMode = presentMode;
     info.clipped = VK_TRUE;
     info.oldSwapchain = oldSwapchain;
 
@@ -825,7 +857,7 @@ bool Context::createSwapchain(uint32_t width, uint32_t height) {
     }
 
     swapchainOutdated = false;
-    LOGI("Swapchain created: %ux%u, %u images.", extent.width, extent.height, count);
+    LOGI("Swapchain created: %ux%u, %u images, present mode %d.", extent.width, extent.height, count, presentMode);
     return true;
 }
 
@@ -1262,6 +1294,103 @@ void Context::present() {
 
     frameIndex = (frameIndex + 1) % FRAMES_IN_FLIGHT;
     slotOpen = false;
+}
+
+void Context::setVsync(bool enabled) {
+    std::lock_guard lock(mutex);
+    if (vsync != enabled) {
+        vsync = enabled;
+        swapchainOutdated = true;
+    }
+}
+
+bool Context::readPixels(uint8_t *pixels, uint32_t width, uint32_t height) {
+    std::lock_guard lock(mutex);
+
+    if (!frameSubmitted || !canCapture || width != extent.width || height != extent.height) {
+        return false;
+    }
+
+    Buffer readback;
+    if (!createBuffer(static_cast<VkDeviceSize>(width) * height * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT, readback)) {
+        return false;
+    }
+
+    // The frame is rendered once the queue is idle, its image waits in the present layout.
+    vkQueueWaitIdle(queue);
+
+    VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    poolInfo.queueFamilyIndex = queueFamily;
+    VkCommandPool pool = VK_NULL_HANDLE;
+    vkCreateCommandPool(device, &poolInfo, nullptr, &pool);
+
+    VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    allocateInfo.commandPool = pool;
+    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocateInfo.commandBufferCount = 1;
+    VkCommandBuffer cmd = VK_NULL_HANDLE;
+    vkAllocateCommandBuffers(device, &allocateInfo, &cmd);
+
+    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(cmd, &beginInfo);
+
+    VkImage image = images[imageIndex];
+    imageBarrier(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT,
+                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
+                 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+
+    VkBufferImageCopy region{};
+    region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+    region.imageExtent = {width, height, 1};
+    vkCmdCopyImageToBuffer(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.buffer, 1, &region);
+
+    imageBarrier(cmd, image, VK_IMAGE_ASPECT_COLOR_BIT,
+                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                 VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
+
+    VkBufferMemoryBarrier hostBarrier{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    hostBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    hostBarrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+    hostBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    hostBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    hostBarrier.buffer = readback.buffer;
+    hostBarrier.size = VK_WHOLE_SIZE;
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+                         0, nullptr, 1, &hostBarrier, 0, nullptr);
+    vkEndCommandBuffer(cmd);
+
+    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &cmd;
+    VkResult result = vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+
+    if (result == VK_SUCCESS) {
+        auto *source = static_cast<const uint8_t *>(readback.mapped);
+        size_t size = static_cast<size_t>(width) * height * 4;
+
+        // Windows are RGBA or BGRA (see setSurface).
+        if (surfaceFormat == VK_FORMAT_B8G8R8A8_UNORM) {
+            for (size_t i = 0; i < size; i += 4) {
+                pixels[i] = source[i + 2];
+                pixels[i + 1] = source[i + 1];
+                pixels[i + 2] = source[i];
+                pixels[i + 3] = source[i + 3];
+            }
+        } else {
+            std::memcpy(pixels, source, size);
+        }
+    } else {
+        LOGE("Reading the frame back failed: %d", result);
+    }
+
+    vkDestroyCommandPool(device, pool, nullptr);
+    destroyBuffer(readback);
+    return result == VK_SUCCESS;
 }
 
 //endregion

@@ -109,8 +109,18 @@ class DesktopProvider : Provider {
         val vertex = read(vertexShaderPath, isExternal)?.decodeToString() ?: return null
         val fragment = read(fragmentShaderPath, isExternal)?.decodeToString() ?: return null
 
-        // No SPIR-V, desktop has no Vulkan backend.
-        return GraphicsShader.Source(vertex, fragment)
+        // The SPIR-V of the Vulkan backend, compiled by :desktop-natives next to the built-in shaders.
+        return GraphicsShader.Source(
+            vertex,
+            fragment,
+            spirvVertex = readSpirv(vertexShaderPath, isExternal),
+            spirvFragment = readSpirv(fragmentShaderPath, isExternal)
+        )
+    }
+
+    private fun readSpirv(shaderPath: String, isExternal: Boolean): ByteArray? {
+        val path = "$shaderPath.spv"
+        return if (exists(path, isExternal)) read(path, isExternal) else null
     }
 
     override fun createAudioSampleSource(path: String, isExternal: Boolean): AudioSample.Source {

@@ -125,6 +125,14 @@ kotlin {
 
             dependencies {
                 implementation(project.dependencies.platform(libs.lwjgl.bom))
+                // lwjgl-vulkan for GLFW's Vulkan surfaces; it has natives only for macOS (MoltenVK).
+                implementation("org.lwjgl:lwjgl-vulkan")
+                runtimeOnly("org.lwjgl:lwjgl-vulkan::natives-macos")
+                runtimeOnly("org.lwjgl:lwjgl-vulkan::natives-macos-arm64")
+
+                // The native library of the Vulkan backend and the SPIR-V of the built-in shaders.
+                implementation(project(":desktop-natives"))
+
                 for (module in listOf("lwjgl", "lwjgl-glfw", "lwjgl-opengl", "lwjgl-stb")) {
                     implementation("org.lwjgl:$module")
                     for (natives in lwjglNatives) {
