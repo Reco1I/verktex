@@ -61,9 +61,9 @@ abstract class UITestActivity : AndroidGameHost() {
         Settings[VerktexSettings.ShowPerformanceOverlay] = true
 
         Verktex.withTreeLock {
-            Verktex.pushScene(UITestScene(createSuites(), initialTest) { id ->
+            Verktex.pushScene(UITestScene(createSuites(), initialTest, onTestSelected = { id ->
                 preferences.edit().putString(KEY_LAST_TEST, id).apply()
-            })
+            }))
         }
     }
 
