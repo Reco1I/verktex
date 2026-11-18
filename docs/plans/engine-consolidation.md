@@ -24,7 +24,7 @@ them. Also the goal is to shrink game platform-specific code.
 ## Keeping this document
 
 The **Progress** section at the end is updated at the end of every phase: what's done, what's left and
-the decisions taken. `CLAUDE.md` is updated whenever a phase changes a rule or a module it describes.
+the decisions taken. `../../../CLAUDE.md` is updated whenever a phase changes a rule or a module it describes.
 
 ## Phases, easiest first
 
@@ -517,7 +517,7 @@ Found along the way, not fixed yet:
 - In the game:
   - `:game:generateStringResources` also writes every language of the pack (and English's
     `strings_temporary_for_locals.xml`) as `strings/<locale>.json` into
-    `game/build/generated/resources/assets`, which the app's assets and the desktop's resources
+    `../../../game/build/generated/resources/assets`, which the app's assets and the desktop's resources
     include. `Res` keeps its shape with `@JvmField` `LocalizedString`/`LocalizedStringArray`, so Java
     uses `Res.string.x` too.
   - `StringTable`, `AndroidStringTable`, `DesktopStringTable`, `StringResource`, the `setText`

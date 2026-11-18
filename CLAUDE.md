@@ -35,7 +35,7 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
     actual `PixelBuffer`, the HTTP engine, the Vulkan backend's Kotlin side in `vulkan/`).
   - `androidMain`: the Android platform (`com/reco1l/verktex/android/`): the graphics backends
     (OpenGL ES 2 and 3, Vulkan), the audio backends: BASS (`com.un4seen.bass`, in Java, and its
-    natives in `jniLibs/`) and Oboe (`android/oboe/`, see `docs/audio-backends.md`), and ExoPlayer
+    natives in `jniLibs/`) and Oboe (`android/oboe/`, see `docs/plans/audio-backends.md`), and ExoPlayer
     video.
   - `desktopMain`: the desktop platform: OpenGL 3.3 through LWJGL (or the experimental Vulkan
     backend, `desktop/vulkan/`), BASS through JNA and FFmpeg video, see `docs/desktop-platform.md`.
@@ -46,7 +46,7 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   https://kotlinlang.org/docs/multiplatform/multiplatform-project-recommended-structure.html.
 - `:android-natives`: what the Android platform needs from the NDK, which the Kotlin Multiplatform
   Android plugin can't build: the native library of the Vulkan backend (its sources are shared with
-  desktop in `natives/vulkan/`, see `docs/vulkan-backend.md`), the one of the Oboe audio backend
+  desktop in `natives/vulkan/`, see `docs/plans/vulkan-backend.md`), the one of the Oboe audio backend
   (the native audio core of `natives/audio/` and Oboe, built from source), the task
   that compiles the shaders to SPIR-V, and the Vulkan validation layer of debug builds.
 - `:desktop-natives`: its desktop counterpart, a plain JVM module whose resources are the Vulkan
@@ -79,11 +79,11 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - Dependency and plugin versions go in `gradle/libs.versions.toml`.
 - UI is a tree of `Component`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.
-- Textures and shader outputs are premultiplied, see `docs/texture-blending.md`.
+- Textures and shader outputs are premultiplied, see `docs/plans/texture-blending.md`.
 - Shaders are GLSL ES 3.00 in `shared/assets/shaders/`, sharing code from `lib/*.glsl` with
   `#import "lib/x.glsl"`, expanded before any translation (`ShaderImports`). Built-in fragment
   shaders multiply their output by `clipCoverage()` (`lib/clip.glsl`), which clips to rounded and
-  transformed components (`Renderer.pushClip`). See `docs/shaders.md`.
+  transformed components (`Renderer.pushClip`). See `docs/plans/shaders.md`.
 - UI tests are `UITestSuite`s (`commonMain/.../testing/`), browsed by `UITestActivity` on Android
   and `UITestApplication` on desktop; `VerktexUITests` covers the engine's components. On desktop
   the browser gives the window a phone's safe area (`SimulatedSafeArea`, `--safe-area <name>`).

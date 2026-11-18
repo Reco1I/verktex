@@ -61,7 +61,7 @@ Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source se
 - Debuggable builds enable `VK_LAYER_KHRONOS_validation` when it's packaged. The NDK r22 layer
   (1.2.158) crashes in `vkCreateInstance` on Android 15, so it isn't used: a current
   `android-binaries-*.zip` from Vulkan-ValidationLayers' releases is packaged in debug builds when
-  `-Pverktex.validationLayers=<extracted dir>` (or the same key in `../local.properties`) is set.
+  `-Pverktex.validationLayers=<extracted dir>` (or the same key in `../../local.properties`) is set.
 
 ### Binding libraries considered
 - **`technoir-lab/vulkan-kotlin`** (`io.technoirlab.vulkan:vulkan-kotlin`, Apache-2.0) is
@@ -90,7 +90,7 @@ Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source se
 
 ### Shaders (implemented in phase 3)
 - GLSL ES 3.00 stays the single source of truth. `GLSL450VulkanTranslator` lives in the plain JVM
-  module `:verktex:shadertools` (`../shadertools`), so the build and the engine at runtime use
+  module `:verktex:shadertools` (`../../shadertools`), so the build and the engine at runtime use
   the same code. Each stage translates on its own: `#version 450`, varyings and fragment outputs
   located in declaration order, the non-sampler uniforms of a stage → one std140 block
   (`VertexUniforms` at set 0 binding 0, `FragmentUniforms` at binding 1), samplers (fragment only) →
