@@ -46,7 +46,18 @@ open class Scene : Container() {
      * [embeddedSafeArea] while embedded.
      */
     val safeArea
-        get() = if (isEmbedded) embeddedSafeArea else Verktex.graphics.window.insets.safeArea
+        get() = when {
+            isEmbedded -> embeddedSafeArea
+            keepsWindowSafeArea -> Verktex.graphics.window.insets.safeArea
+            else -> Vec4.Zero
+        }
+
+    /**
+     * Whether the content of a root scene keeps the window's safe area. The UI test browser doesn't
+     * while it simulates one for its stage, see [com.reco1l.verktex.testing.SimulatedSafeArea].
+     */
+    protected open val keepsWindowSafeArea: Boolean
+        get() = true
 
 
     override fun onDraw(renderer: Renderer) {
@@ -70,7 +81,7 @@ open class Scene : Container() {
         // Padding will be applied to the scene's content, but not to the background since it is not
         // present on the children list.
         // The safe area is shifted up while the on-screen keyboard would cover the focused input.
-        val safeArea = Verktex.graphics.window.insets.safeArea
+        val safeArea = safeArea
         val imeShift = Verktex.imeShift
         padding = Padding(
             left = safeArea.x.px,

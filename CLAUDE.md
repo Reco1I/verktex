@@ -85,7 +85,8 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   shaders multiply their output by `clipCoverage()` (`lib/clip.glsl`), which clips to rounded and
   transformed components (`Renderer.pushClip`). See `docs/shaders.md`.
 - UI tests are `UITestSuite`s (`commonMain/.../testing/`), browsed by `UITestActivity` on Android
-  and `UITestApplication` on desktop; `VerktexUITests` covers the engine's components.
+  and `UITestApplication` on desktop; `VerktexUITests` covers the engine's components. On desktop
+  the browser gives the window a phone's safe area (`SimulatedSafeArea`, `--safe-area <name>`).
 
 ## Docs
 

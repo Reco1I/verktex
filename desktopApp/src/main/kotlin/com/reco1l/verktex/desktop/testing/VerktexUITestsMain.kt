@@ -1,5 +1,6 @@
 package com.reco1l.verktex.desktop.testing
 
+import com.reco1l.verktex.testing.SimulatedSafeArea
 import com.reco1l.verktex.testing.VerktexUITests
 import java.io.File
 import kotlin.system.exitProcess
@@ -13,13 +14,15 @@ import kotlin.system.exitProcess
  *
  * `--test` opens a test first (`suite/test` or the test name), `--screenshot` saves a frame after a
  * moment and exits, `--vsync` caps the frame rate to the display's refresh rate, `--backend` opens with
- * a graphics backend (e.g. `Vulkan`).
+ * a graphics backend (e.g. `Vulkan`), `--safe-area` simulates a phone's safe area (a
+ * `SimulatedSafeArea`, e.g. `Notch`).
  */
 fun main(args: Array<String>) {
     var test: String? = null
     var screenshot: File? = null
     var vsync = false
     var backend: String? = null
+    var safeArea: SimulatedSafeArea? = null
 
     var i = 0
     while (i < args.size) {
@@ -28,15 +31,16 @@ fun main(args: Array<String>) {
             "--screenshot" -> screenshot = args.getOrNull(++i)?.let(::File)
             "--vsync" -> vsync = true
             "--backend" -> backend = args.getOrNull(++i)
+            "--safe-area" -> safeArea = UITestApplication.parseSafeArea(args.getOrNull(++i))
             else -> {
-                System.err.println("Unknown argument: ${args[i]}. Usage: [--test <suite/test>] [--screenshot <file.png>] [--vsync] [--backend <name>]")
+                System.err.println("Unknown argument: ${args[i]}. Usage: [--test <suite/test>] [--screenshot <file.png>] [--vsync] [--backend <name>] [--safe-area <name>]")
                 exitProcess(2)
             }
         }
         i++
     }
 
-    object : UITestApplication(test, screenshot, vsync, backend = backend) {
+    object : UITestApplication(test, screenshot, vsync, backend = backend, safeArea = safeArea) {
         override fun createSuites() = listOf(VerktexUITests)
     }.run()
 }

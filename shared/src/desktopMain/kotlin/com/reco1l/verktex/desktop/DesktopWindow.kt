@@ -18,7 +18,9 @@ class DesktopWindow(val handle: Long) : Window {
     @Volatile
     override var windowHeight = 0
 
-    // No system bars, cutouts or on-screen keyboard on desktop.
+    // No system bars, cutouts or on-screen keyboard on desktop. The UI test browser simulates a
+    // phone's safe area from the update thread (SimulatedSafeArea), read while drawing.
+    @Volatile
     override var insets = Window.Insets(Vec4.Zero, Vec2.Zero)
 
     @Volatile

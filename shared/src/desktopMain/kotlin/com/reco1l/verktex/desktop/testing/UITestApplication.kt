@@ -5,6 +5,7 @@ import com.reco1l.verktex.desktop.DesktopGameHost
 import com.reco1l.verktex.graphics.GPUBackend
 import com.reco1l.verktex.settings.Settings
 import com.reco1l.verktex.settings.VerktexSettings
+import com.reco1l.verktex.testing.SimulatedSafeArea
 import com.reco1l.verktex.testing.UITestScene
 import com.reco1l.verktex.testing.UITestSuite
 import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
@@ -26,6 +27,8 @@ import java.util.prefs.Preferences
  * @param vsync Whether frames wait for the display's refresh, see [DesktopGameHost].
  * @param backend The graphics backend to open with (a [GPUBackend] name, e.g. `Vulkan`), the
  * setting's otherwise.
+ * @param safeArea The safe area to simulate, as a phone's (see [SimulatedSafeArea]). Without it,
+ * the last one chosen is simulated again.
  */
 abstract class UITestApplication(
     private val initialTest: String? = null,
@@ -33,6 +36,7 @@ abstract class UITestApplication(
     vsync: Boolean = false,
     private val screenshotDelay: Double = SCREENSHOT_DELAY_SECONDS,
     private val backend: String? = null,
+    private val safeArea: SimulatedSafeArea? = null,
 ) : DesktopGameHost(title = "Verktex UI tests", vsync = vsync) {
 
     private val preferences = Preferences.userRoot().node("com/reco1l/verktex/uitests")
@@ -67,11 +71,18 @@ abstract class UITestApplication(
         Settings[VerktexSettings.ShowPerformanceOverlay] = true
 
         val test = initialTest ?: preferences.get(KEY_LAST_TEST, null)
+        val safeArea = safeArea
+            ?: preferences.get(KEY_SAFE_AREA, null)?.let(SimulatedSafeArea::find)
+            ?: SimulatedSafeArea.None
 
         Verktex.withTreeLock {
-            Verktex.pushScene(UITestScene(createSuites(), test) { id ->
-                preferences.put(KEY_LAST_TEST, id)
-            })
+            Verktex.pushScene(UITestScene(
+                suites = createSuites(),
+                initialTest = test,
+                onTestSelected = { id -> preferences.put(KEY_LAST_TEST, id) },
+                initialSafeArea = safeArea,
+                onSafeAreaSelected = { preferences.put(KEY_SAFE_AREA, it.name) },
+            ))
         }
 
         if (screenshot != null) {
@@ -87,5 +98,17 @@ abstract class UITestApplication(
         const val SCREENSHOT_DELAY_SECONDS = 1.5
 
         private const val KEY_LAST_TEST = "last_test"
+        private const val KEY_SAFE_AREA = "safe_area"
+
+        /**
+         * Reads the value of `--safe-area`, a [SimulatedSafeArea]'s name or label, exiting with
+         * the ones there are otherwise.
+         */
+        fun parseSafeArea(value: String?): SimulatedSafeArea {
+            return value?.let(SimulatedSafeArea::find) ?: run {
+                System.err.println("Unknown safe area: $value. One of: ${SimulatedSafeArea.entries.joinToString { it.name }}")
+                kotlin.system.exitProcess(2)
+            }
+        }
     }
 }

@@ -14,8 +14,10 @@ import com.reco1l.verktex.data.ClipMode
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Padding
+import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.data.dip
+import com.reco1l.verktex.data.px
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.ui.FAIcon
 import com.reco1l.verktex.ui.Button
@@ -44,11 +46,15 @@ import kotlin.random.Random
  *
  * @param initialTest The id (`suite/test`) or the name of the test to open first.
  * @param onTestSelected Called with the id of a test when it's opened.
+ * @param initialSafeArea The safe area simulated first, where the window has none (on desktop).
+ * @param onSafeAreaSelected Called with the simulated safe area when another one is chosen.
  */
 class UITestScene(
     private val suites: List<UITestSuite>,
     initialTest: String? = null,
-    private val onTestSelected: (id: String) -> Unit = {}
+    private val onTestSelected: (id: String) -> Unit = {},
+    initialSafeArea: SimulatedSafeArea = SimulatedSafeArea.None,
+    private val onSafeAreaSelected: (SimulatedSafeArea) -> Unit = {},
 ) : Scene() {
 
     private val testButtons = mutableMapOf<UITest, TextButton>()
@@ -102,6 +108,34 @@ class UITestScene(
      * Whether the scenes of the stage keep the safe area of the window, as they do in the game.
      */
     private var hasSafeArea = true
+
+    /**
+     * Whether the browser can give the window a [SimulatedSafeArea]: on desktop, which has none.
+     * Android's window has the device's, which it would replace with its own on the next change.
+     */
+    private val canSimulateSafeArea = Platform.target == PlatformTarget.Desktop
+
+    /**
+     * The safe area given to the window while the browser is shown. Everything reads it from the
+     * window, as on a phone, but the browser itself, which isn't on the phone.
+     */
+    private var simulatedSafeArea = if (canSimulateSafeArea) initialSafeArea else SimulatedSafeArea.None
+
+    // Tints what the simulated safe area leaves out, above the test. It doesn't take input.
+    private val safeAreaGuide = Container().apply {
+        width = fill()
+        height = fill()
+        isVisible = false
+    }
+    private val guideLeft = safeAreaGuide.guideSide(Anchor.TopLeft, isVertical = true)
+    private val guideRight = safeAreaGuide.guideSide(Anchor.TopRight, isVertical = true)
+    private val guideMiddle = safeAreaGuide.container {
+        width = fill()
+        height = fill()
+    }
+    private val guideTop = guideMiddle.guideSide(Anchor.TopLeft, isVertical = false)
+    private val guideBottom = guideMiddle.guideSide(Anchor.BottomLeft, isVertical = false)
+    private var guideArea = Vec4.Zero
 
     /**
      * Whether the components of the test are outlined with their bounds.
@@ -248,6 +282,20 @@ class UITestScene(
                         }
                     }
 
+                    if (canSimulateSafeArea) {
+                        textButton {
+                            text = simulatedSafeArea.label
+                            variant = Button.Variant.Surface
+                            onActionUp = {
+                                val presets = SimulatedSafeArea.entries
+                                simulatedSafeArea = presets[(simulatedSafeArea.ordinal + 1) % presets.size]
+                                text = simulatedSafeArea.label
+                                onSafeAreaSelected(simulatedSafeArea)
+                                log("Simulated safe area: ${simulatedSafeArea.label}")
+                            }
+                        }
+                    }
+
                     iconButton {
                         icon = FAIcon.ObjectGroup
                         variant = Button.Variant.Surface
@@ -340,8 +388,14 @@ class UITestScene(
     }
 
 
+    override val keepsWindowSafeArea: Boolean
+        get() = simulatedSafeArea == SimulatedSafeArea.None
+
+
     override fun onEnter() {
         super.onEnter()
+        // Before the test is built, so it's laid out with it from the first frame.
+        applySimulatedSafeArea()
 
         val pending = pendingTest
         if (pending != null) {
@@ -359,6 +413,12 @@ class UITestScene(
         // the engine's own.
         if (Verktex.sceneHost === currentStage) {
             Verktex.sceneHost = null
+        }
+
+        // Nor do they keep the simulated safe area, it's given back once the browser is shown.
+        if (canSimulateSafeArea) {
+            val window = Verktex.graphics.window
+            window.insets = window.insets.copy(safeArea = Vec4.Zero)
         }
     }
 
@@ -408,6 +468,8 @@ class UITestScene(
         // Likewise for scenes, they are shown inside the stage.
         Verktex.sceneHost = stage
 
+        viewport += safeAreaGuide
+
         try {
             test.build(stage)
         } catch (e: Throwable) {
@@ -449,7 +511,34 @@ class UITestScene(
         }
     }
 
+    /**
+     * Gives the window the [simulatedSafeArea], in pixels at the current density, and shows what
+     * it leaves out.
+     */
+    private fun applySimulatedSafeArea() {
+        if (!canSimulateSafeArea) return
+
+        val area = simulatedSafeArea.toPixels()
+        val window = Verktex.graphics.window
+        if (window.insets.safeArea != area) {
+            window.insets = window.insets.copy(safeArea = area)
+        }
+
+        if (area == guideArea) return
+        guideArea = area
+
+        safeAreaGuide.isVisible = area != Vec4.Zero
+        guideLeft.width = area.x.px
+        guideRight.width = area.z.px
+        // Between the sides, so the corners aren't tinted twice.
+        guideMiddle.padding = Padding(left = area.x.px, right = area.z.px)
+        guideTop.height = area.y.px
+        guideBottom.height = area.w.px
+    }
+
     private fun updateViewport(hostWidth: Float, hostHeight: Float) {
+        applySimulatedSafeArea()
+
         val safeArea = if (hasSafeArea) Verktex.graphics.window.insets.safeArea else Vec4.Zero
         currentStage?.safeArea = safeArea
         currentOverlayLayer?.embeddedSafeArea = safeArea
@@ -524,6 +613,16 @@ class UITestScene(
         private fun formatRate(rate: Float) = "${rate.toString().removeSuffix(".0")}x"
 
         fun idOf(suite: UITestSuite, test: UITest) = "${suite.name}/${test.name}"
+
+        private val GUIDE_COLOR = Color4.Red400.alpha(0.25f)
+
+        // A tinted side of the safe area guide, filling the container on the axis it doesn't inset.
+        private fun Container.guideSide(side: Vec2, isVertical: Boolean) = container {
+            anchor = side
+            origin = side
+            background = Background.Color(GUIDE_COLOR)
+            if (isVertical) height = fill() else width = fill()
+        }
 
         private fun Theme.Typography.withFamily(family: String): Theme.Typography {
             fun Theme.FontSettings.withFamily() = Theme.FontSettings(size, family, weight, style)
