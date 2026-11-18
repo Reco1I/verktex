@@ -34,7 +34,7 @@ open class Theme(
      * The gap units of the theme.
      */
     val gap: FixedSizeBreakpoints = FixedSizeBreakpoints(
-        xs = 8f.dip,
+        xs = 4f.dip,
         sm = 12f.dip,
         md = 16f.dip,
         lg = 24f.dip,
