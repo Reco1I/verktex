@@ -1,6 +1,6 @@
 package com.reco1l.verktex.ui
 
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.time.FramedClock
 import com.reco1l.verktex.time.ManualClock
 import org.junit.Assert.assertEquals
@@ -9,11 +9,11 @@ import org.junit.Test
 
 class ChoreographyTest {
 
-    private class TestComponent : UIComponent() {
-        override fun onDraw(renderer: GraphicsRenderer) = Unit
+    private class TestComponent : Component() {
+        override fun onDraw(renderer: Renderer) = Unit
     }
 
-    private lateinit var component: UIComponent
+    private lateinit var component: Component
     private lateinit var time: ManualClock
     private lateinit var frames: FramedClock
 

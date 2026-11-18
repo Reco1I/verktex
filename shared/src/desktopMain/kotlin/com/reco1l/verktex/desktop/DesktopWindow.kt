@@ -2,15 +2,15 @@ package com.reco1l.verktex.desktop
 
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
-import com.reco1l.verktex.graphics.GraphicsWindow
+import com.reco1l.verktex.graphics.Window
 import org.lwjgl.glfw.GLFW.*
 
 /**
  * A GLFW window, the size being its framebuffer's in pixels. Its handle is made by the graphics
- * context (an OpenGL or a Vulkan one, see [DesktopGraphicsContext]) on the main thread, and the host
+ * context (an OpenGL or a Vulkan one, see [DesktopGPUContext]) on the main thread, and the host
  * keeps the size up to date from GLFW's callbacks.
  */
-class DesktopWindow(val handle: Long) : GraphicsWindow {
+class DesktopWindow(val handle: Long) : Window {
 
     @Volatile
     override var windowWidth = 0
@@ -19,7 +19,7 @@ class DesktopWindow(val handle: Long) : GraphicsWindow {
     override var windowHeight = 0
 
     // No system bars, cutouts or on-screen keyboard on desktop.
-    override var insets = GraphicsWindow.Insets(Vec4.Zero, Vec2.Zero)
+    override var insets = Window.Insets(Vec4.Zero, Vec2.Zero)
 
     @Volatile
     private var cachedRefreshRate = 60f

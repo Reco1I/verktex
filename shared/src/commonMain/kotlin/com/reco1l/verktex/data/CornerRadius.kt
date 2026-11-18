@@ -6,7 +6,7 @@ import com.reco1l.verktex.ui.ThemeDependent
 import com.reco1l.verktex.ui.themed
 
 /**
- * The radius of each corner of a component, see [com.reco1l.verktex.ui.UIComponent.radius]. A
+ * The radius of each corner of a component, see [com.reco1l.verktex.ui.Component.radius]. A
  * radius larger than half the smaller side of the component is reduced to it.
  *
  * A corner can be a [themed] dimension, and the whole value can be taken from the theme with

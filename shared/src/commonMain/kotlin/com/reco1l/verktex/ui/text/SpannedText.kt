@@ -9,7 +9,7 @@ import com.reco1l.verktex.fonts.Fonts
 import com.reco1l.verktex.ui.Theme
 
 /**
- * How a [Span] looks. Every null property is taken from the [UIText] showing it, so styles can be
+ * How a [Span] looks. Every null property is taken from the [Text] showing it, so styles can be
  * nested, see [plus].
  */
 data class SpanStyle(
@@ -106,8 +106,8 @@ data class Span(
 )
 
 /**
- * A text made of [Span]s with different styles, shown with [UIText.spannedText]. It is usually built
- * with [buildSpannedText] or [UIText.spans].
+ * A text made of [Span]s with different styles, shown with [Text.spannedText]. It is usually built
+ * with [buildSpannedText] or [Text.spans].
  */
 data class SpannedText(val spans: List<Span>) {
 
@@ -117,7 +117,7 @@ data class SpannedText(val spans: List<Span>) {
     val text: String by lazy { spans.joinToString("") { it.text } }
 
     /**
-     * Whether it is a text without styles nor spaces, as set through [UIText.text].
+     * Whether it is a text without styles nor spaces, as set through [Text.text].
      */
     val isPlain: Boolean by lazy { spans.all { it.style == SpanStyle.Default && it.spaceWidth == null } }
 
@@ -195,7 +195,7 @@ class SpannedTextBuilder {
     /**
      * Adds an icon, centered in the line and as big as the current font size.
      */
-    fun icon(icon: UIText.IconLookup) {
+    fun icon(icon: Text.IconLookup) {
         style(SpanStyle(fontFamily = icon.family, verticalAlign = SpanStyle.VerticalAlign.Center)) {
             append(codePointToString(icon.code))
         }
@@ -205,7 +205,7 @@ class SpannedTextBuilder {
      * Adds an icon of the given [family], Font Awesome solid icons by default (see
      * [com.reco1l.verktex.ui.FAIcon]).
      */
-    fun icon(code: Int, family: FontFamily = BuiltIn.Fonts.FontAwesomeIconSolid) = icon(UIText.IconLookup(code, family))
+    fun icon(code: Int, family: FontFamily = BuiltIn.Fonts.FontAwesomeIconSolid) = icon(Text.IconLookup(code, family))
 
     /**
      * Adds an empty space of the given width, e.g. between an icon and the text.
@@ -273,6 +273,6 @@ inline fun buildSpannedText(block: SpannedTextBuilder.() -> Unit) = SpannedTextB
 /**
  * Sets the content of this text to the one built by [block], see [SpannedTextBuilder].
  */
-inline fun UIText.spans(block: SpannedTextBuilder.() -> Unit) {
+inline fun Text.spans(block: SpannedTextBuilder.() -> Unit) {
     spannedText = buildSpannedText(block)
 }

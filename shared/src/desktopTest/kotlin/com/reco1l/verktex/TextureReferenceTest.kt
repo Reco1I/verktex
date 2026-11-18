@@ -1,11 +1,11 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.graphics.PixelBuffer
 import com.reco1l.verktex.texture.FramesReference
 import com.reco1l.verktex.texture.Textures
 import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.UIAnimatedSprite
+import com.reco1l.verktex.ui.AnimatedSprite
 import com.reco1l.verktex.texture.reference
 import com.reco1l.verktex.texture.storedTexture
 import org.junit.After
@@ -20,7 +20,7 @@ import org.junit.Test
  */
 class TextureReferenceTest {
 
-    private class Atlas : GraphicsTexture() {
+    private class Atlas : Texture() {
         override val width = 64f
         override val height = 64f
 
@@ -30,11 +30,11 @@ class TextureReferenceTest {
         override fun onWritePixels(x: Int, y: Int, width: Int, height: Int, pixels: PixelBuffer) = Unit
     }
 
-    private class SolidSource(size: Int) : GraphicsTexture.Source {
+    private class SolidSource(size: Int) : Texture.Source {
         override val width = size.toFloat()
         override val height = size.toFloat()
 
-        override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) = Unit
+        override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) = Unit
     }
 
     private class FixedClock : FrameClock() {
@@ -109,7 +109,7 @@ class TextureReferenceTest {
     fun animatedSpriteFollowsItsFrames() {
         val atlas = Atlas()
         val clock = FixedClock()
-        val sprite = UIAnimatedSprite(StoredFrames(), 0f)
+        val sprite = AnimatedSprite(StoredFrames(), 0f)
 
         assertNull(sprite.textureRegion)
 

@@ -5,8 +5,8 @@ import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.shape.UIBox
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.shape.Box
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -26,7 +26,7 @@ class StaticLayoutTest {
         override val lastFrameTime = 0f
     }
 
-    private class CountingContainer : UIContainer() {
+    private class CountingContainer : Container() {
         var layoutPasses = 0
 
         override fun onLayout(bounds: Vec4) {
@@ -39,18 +39,18 @@ class StaticLayoutTest {
     private val windowBounds = Vec4(0f, 0f, 800f, 600f)
     private val windowConstraints = LayoutConstraints(0f, 800f, 0f, 600f)
 
-    private fun frame(root: UIContainer) {
+    private fun frame(root: Container) {
         root.update(clock)
         root.measure(windowConstraints)
         root.layout(windowBounds)
     }
 
-    private fun box(size: Float) = UIBox().apply {
+    private fun box(size: Float) = Box().apply {
         width = size.px
         height = size.px
     }
 
-    private fun staticContainer(vararg children: UIBox) = CountingContainer().apply {
+    private fun staticContainer(vararg children: Box) = CountingContainer().apply {
         staticLayout = true
         children.forEach { this += it }
     }

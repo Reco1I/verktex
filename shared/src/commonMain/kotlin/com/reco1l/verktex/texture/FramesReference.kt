@@ -1,6 +1,6 @@
 package com.reco1l.verktex.texture
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
  * Refers to the frames an animated component plays: frames given directly, or ones an application
@@ -13,13 +13,13 @@ abstract class FramesReference {
     /**
      * The frames this reference points to now, empty if there are none.
      */
-    abstract fun resolve(): List<GraphicsTexture.Region>
+    abstract fun resolve(): List<Texture.Region>
 
 
     /**
      * Frames given directly, they never change.
      */
-    data class Frames(val frames: List<GraphicsTexture.Region>) : FramesReference() {
+    data class Frames(val frames: List<Texture.Region>) : FramesReference() {
         override fun resolve() = frames
     }
 
@@ -30,7 +30,7 @@ abstract class FramesReference {
     abstract class Lookup : FramesReference() {
 
         private var resolvedRevision = -1
-        private var frames: List<GraphicsTexture.Region> = emptyList()
+        private var frames: List<Texture.Region> = emptyList()
 
         /**
          * Changes whenever the frames [lookup] returns may have changed. By default it's
@@ -42,9 +42,9 @@ abstract class FramesReference {
         /**
          * Looks the frames up.
          */
-        protected abstract fun lookup(): List<GraphicsTexture.Region>
+        protected abstract fun lookup(): List<Texture.Region>
 
-        final override fun resolve(): List<GraphicsTexture.Region> {
+        final override fun resolve(): List<Texture.Region> {
             if (resolvedRevision != revision) {
                 val frames = lookup()
 
@@ -63,5 +63,5 @@ abstract class FramesReference {
 /**
  * Refers to these frames directly.
  */
-val List<GraphicsTexture.Region>.reference: FramesReference.Frames
+val List<Texture.Region>.reference: FramesReference.Frames
     get() = FramesReference.Frames(this)

@@ -7,11 +7,11 @@ import com.reco1l.verktex.audio.Sounds
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.math.toFixed
-import com.reco1l.verktex.ui.container.UILinearContainer.Orientation
+import com.reco1l.verktex.ui.container.LinearContainer.Orientation
 import com.reco1l.verktex.ui.container.linearContainer
-import com.reco1l.verktex.ui.control.UICheckbox
-import com.reco1l.verktex.ui.control.slider
-import com.reco1l.verktex.ui.shape.UIBox
+import com.reco1l.verktex.ui.control.Checkbox
+import com.reco1l.verktex.ui.control.seekBar
+import com.reco1l.verktex.ui.shape.Box
 import com.reco1l.verktex.ui.shape.box
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.ui.textButton
@@ -72,7 +72,7 @@ internal fun UITestStage.audioTest() {
                 onActionUp = { rapidHitsLeft = 10; rapidHitTimer = 0f }
             }
             text { text = "Pitch" }
-            slider {
+            seekBar {
                 width = 200f.dip
                 min = 0.5f
                 max = 2f
@@ -86,14 +86,14 @@ internal fun UITestStage.audioTest() {
             textButton { text = "Pause"; onActionUp = { stream.pause() } }
             textButton { text = "Stop"; onActionUp = { stream.stop() } }
             textButton { text = "Seek to 4 s"; onActionUp = { stream.position = 4.0 } }
-            +UICheckbox().apply { onValueChange = { stream.looping = it; log("Looping: $it") } }
+            +Checkbox().apply { onValueChange = { stream.looping = it; log("Looping: $it") } }
             text { text = "Loop" }
         }
 
         section("Speed and pitch") {
             orientation = Orientation.Vertical
             val speedText = text { text = "Speed 1.00x" }
-            slider {
+            seekBar {
                 width = 300f.dip
                 min = 0.5f
                 max = 2f
@@ -105,11 +105,11 @@ internal fun UITestStage.audioTest() {
             }
             linearContainer {
                 spacing = 8f.dip
-                +UICheckbox().apply { onValueChange = { stream.adjustPitch = it } }
+                +Checkbox().apply { onValueChange = { stream.adjustPitch = it } }
                 text { text = "Speed changes the pitch" }
             }
             val pitchText = text { text = "Pitch 1.00x" }
-            slider {
+            seekBar {
                 width = 300f.dip
                 min = 0.5f
                 max = 2f
@@ -124,7 +124,7 @@ internal fun UITestStage.audioTest() {
         section("Position and spectrum") {
             orientation = Orientation.Vertical
             val positionText = text { }
-            val bars = mutableListOf<UIBox>()
+            val bars = mutableListOf<Box>()
             linearContainer {
                 spacing = 2f.dip
                 height = 100f.dip

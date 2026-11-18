@@ -6,7 +6,7 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.view.Surface
 import com.reco1l.verktex.android.AndroidExternalTexture
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -14,13 +14,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  * `MediaPlayer` drawing into [surface]. It has no storage or sources of its own, only [region]
  * covering it whole, and is sampled with `BuiltIn.Shaders.Video` through [transform].
  *
- * Create it with `GraphicsRenderer.createExternalTexture` so it is registered with the renderer;
+ * Create it with `Renderer.createExternalTexture` so it is registered with the renderer;
  * constructing it directly skips registration, so it is never told about a context loss.
  */
 open class ESExternalTexture(
     override val width: Float,
     override val height: Float,
-) : GraphicsTexture(), AndroidExternalTexture {
+) : Texture(), AndroidExternalTexture {
 
     override val isExternal get() = true
 

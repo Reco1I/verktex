@@ -8,7 +8,7 @@ matching block when the state changes. It's built on [transforms](transforms.md)
 Sources:
 
 - `ui/InteractionState.kt` defines `InteractionState`, `StateTransitions` and the `transitions { }` builder.
-- `ui/UIComponent.kt`, in its Input region, has hover and the interaction state.
+- `ui/Component.kt`, in its Input region, has hover and the interaction state.
 - `ui/HoverTracker.kt` and `input/InputEvent.kt` (`HoverEvent`) resolve which components are hovered.
 - `HoverTest` (`shared/src/desktopTest/`) covers the behavior described here. The "Verktex/Hover and
   transitions" UI test shows it on screen.
@@ -44,13 +44,13 @@ Durations are in seconds, as with any transform.
 
 ## Interaction states
 
-`UIComponent.interactionState` gives the current state. When a component reports several states at
+`Component.interactionState` gives the current state. When a component reports several states at
 once, the higher one in this table wins:
 
 | State      | When                                                                                   |
 |------------|----------------------------------------------------------------------------------------|
-| `Disabled` | `UIButton.isEnabled` or `FormControl.isEnabled` is false.                              |
-| `Pressed`  | A `UIClickableContainer` is pressed (`isPressed`), or a `UICheckbox` or `UISlider` is. |
+| `Disabled` | `Button.isEnabled` or `FormControl.isEnabled` is false.                              |
+| `Pressed`  | A `ClickableContainer` is pressed (`isPressed`), or a `Checkbox` or `Slider` is. |
 | `Hovered`  | `isHovered`: a mouse is over the component, see [Hover](#hover).                      |
 | `Idle`     | None of the above.                                                                     |
 
@@ -91,7 +91,7 @@ sound or logging. It works with or without `transitions`.
 
 ## How they run
 
-The state is checked in `UIComponent.update`, before the transforms advance. It's polled, so every
+The state is checked in `Component.update`, before the transforms advance. It's polled, so every
 source of state works without notifying anything: presses, `isEnabled`, hover, and overrides of
 `interactionState`. The check is skipped on components with neither `transitions` nor
 `onStateChange`.
@@ -125,17 +125,17 @@ Only the transforms the block added to the component itself are tracked, through
 
 ### Built-in feedback
 
-`UIButton` eases its own scale while pressed and fades to half alpha while disabled. **With
+`Button` eases its own scale while pressed and fades to half alpha while disabled. **With
 `transitions` set, it stops doing both**, so the declared transitions replace them rather than fight
 them. A button with `transitions` that should still fade when disabled needs a `disabled` block.
 
 ### Highlight
 
-Controls highlight by default while hovered or pressed: `UIButton` (and so text buttons, icon
-buttons, the buttons of `UISelect`, `UITabSelector` and `UIDropdown`), `UICheckbox`, `UISlider`
-and `UITextInput`. The highlight is a `StateHighlight` (`ui/StateHighlight.kt`): a translucent layer
+Controls highlight by default while hovered or pressed: `Button` (and so text buttons, icon
+buttons, the buttons of `Select`, `TabSelector` and `Dropdown`), `Checkbox`, `Slider`
+and `TextInput`. The highlight is a `StateHighlight` (`ui/StateHighlight.kt`): a translucent layer
 in the component's shape, drawn over its background and under its content
-(`UIComponent.drawOverBackground`). Buttons draw it in their content color, which is dark on solid
+(`Component.drawOverBackground`). Buttons draw it in their content color, which is dark on solid
 buttons and the accent on the others. The other controls draw it in the accent.
 
 - It follows `interactionState`: hidden when idle or disabled, `hoveredAlpha` when hovered, and
@@ -166,13 +166,13 @@ hovered, and so is every ancestor that contains it. Siblings underneath aren't h
 3. The first hoverable component claims it, after its children had their chance (`claimHover`).
 4. A component that consumes it without claiming it blocks the hover below and hovers nothing. Such
    components:
-   - a shown `UIModal`, within its bounds;
-   - the menu of an expanded `UIDropdown`;
-   - a `UICaptureContainer` that `isBlockingInput`.
+   - a shown `Modal`, within its bounds;
+   - the menu of an expanded `Dropdown`;
+   - a `CaptureContainer` that `isBlockingInput`.
 
 `isHoverable` is true for:
 
-- clickables (`UIClickableContainer` and so `UIButton`) and controls (`UIControl`);
+- clickables (`ClickableContainer` and so `Button`) and controls (`Control`);
 - any component with `onHoverEnter`, `onHoverExit`, `onStateChange` or `transitions`.
 
 Other components, such as a decorative box drawn over a button, don't take the hover. The button
@@ -187,7 +187,7 @@ next frame. Hit testing uses the layout of the previous frame, so a change shows
 
 ### Hover API
 
-On every `UIComponent`:
+On every `Component`:
 
 - `isHovered`: whether it's hovered. Set by the engine only.
 - `onHoverEnter` and `onHoverExit`: callbacks, called once per enter and per exit.
@@ -199,7 +199,7 @@ the outermost.
 
 A component that overrides `onInputEvent` and doesn't call `super` for events it doesn't handle
 should call `claimHover(event)` once its children didn't consume the event. Otherwise it can't be
-hovered. `UIContainer` and the `UIComponent` base already do this.
+hovered. `Container` and the `Component` base already do this.
 
 ### Hosts
 
@@ -220,5 +220,5 @@ A single pointer hovers: the engine keeps one position.
 `HoverTracker` is internal and can be used without a started engine. `tracker.resolve(x, y, listOf(root))`
 hovers what is under the point in `root`, and `tracker.clear()` hovers nothing. Update, measure and lay
 out the tree with a fixed clock between steps, as `HoverTest` and `MouseInputTest` do. Components
-with sizes in density independent pixels (such as `UIButton`'s themed padding) need the platform,
+with sizes in density independent pixels (such as `Button`'s themed padding) need the platform,
 which unit tests don't attach. Give them pixel sizes, e.g. `padding = Padding.Zero`.

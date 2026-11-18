@@ -18,7 +18,7 @@ import kotlin.reflect.KProperty
  * A value that can depend on a [Theme], such as a [themed] dimension or color, or a value made of
  * them like a padding.
  *
- * Themeable properties of a component (see [UIComponent.themeable]) resolve these values with the
+ * Themeable properties of a component (see [Component.themeable]) resolve these values with the
  * component's theme, and again whenever it changes.
  */
 interface ThemeDependent<out T> {
@@ -235,10 +235,10 @@ class ThemedFontSettings private constructor(
  * Assigning a value that doesn't depend on the theme replaces the binding.
  */
 class ThemeableProperty<T> internal constructor(
-    private val owner: UIComponent,
+    private val owner: Component,
     initial: T,
     private val onChanged: (T) -> Unit,
-) : ReadWriteProperty<UIComponent, T>, ThemeBinding {
+) : ReadWriteProperty<Component, T>, ThemeBinding {
 
     /**
      * The value as assigned, which might depend on the theme.
@@ -271,9 +271,9 @@ class ThemeableProperty<T> internal constructor(
     }
 
 
-    override fun getValue(thisRef: UIComponent, property: KProperty<*>) = value
+    override fun getValue(thisRef: Component, property: KProperty<*>) = value
 
-    override fun setValue(thisRef: UIComponent, property: KProperty<*>, value: T) {
+    override fun setValue(thisRef: Component, property: KProperty<*>, value: T) {
         raw = value
         if (value.isThemed) {
             owner.setThemeBinding(this, this)

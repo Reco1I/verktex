@@ -4,7 +4,7 @@ import com.reco1l.verktex.time.monotonicNanos
 import kotlin.concurrent.Volatile
 
 /**
- * Timings of the engine workers for the last frames, shown by [com.reco1l.verktex.ui.UIPerformanceOverlay].
+ * Timings of the engine workers for the last frames, shown by [com.reco1l.verktex.ui.PerformanceOverlay].
  *
  * Frame values are written and read on the draw worker, the update time comes from the update worker.
  */

@@ -10,15 +10,15 @@ import com.reco1l.verktex.math.Easing
  * Called when a transform or a step of a choreography has finished.
  */
 fun interface OnTransformFinished {
-    operator fun invoke(component: UIComponent)
+    operator fun invoke(component: Component)
 }
 
 /**
- * A single timed change of a property of a [UIComponent]. Created by the transform functions such as
- * [scaleTo] and advanced by [UIComponent.update].
+ * A single timed change of a property of a [Component]. Created by the transform functions such as
+ * [scaleTo] and advanced by [Component.update].
  */
 class Transform internal constructor(
-    private val target: UIComponent,
+    private val target: Component,
     private val kind: Kind,
     internal val startTime: Float,
     private val duration: Float,
@@ -134,7 +134,7 @@ class Transform internal constructor(
 
 
 /**
- * The transforms running on a [UIComponent].
+ * The transforms running on a [Component].
  */
 internal class TransformTracker {
 
@@ -147,7 +147,7 @@ internal class TransformTracker {
     /**
      * The current time for the transforms of [target], in seconds.
      */
-    fun currentTime(target: UIComponent) = target.activeClock?.time ?: accumulatedTime
+    fun currentTime(target: Component) = target.activeClock?.time ?: accumulatedTime
 
     fun add(transform: Transform): Transform {
         transforms.add(transform)
@@ -180,7 +180,7 @@ internal class TransformTracker {
         }
     }
 
-    fun update(target: UIComponent, elapsedTime: Float) {
+    fun update(target: Component, elapsedTime: Float) {
         if (transforms.isEmpty()) {
             accumulatedTime = 0f
             return
@@ -208,10 +208,10 @@ internal class TransformTracker {
 
 
 /**
- * A group of transforms on the same [UIComponent]. Transforms added one after another run at the same
+ * A group of transforms on the same [Component]. Transforms added one after another run at the same
  * time, use [then] or [delay] to make the next ones wait.
  */
-class TransformSequence internal constructor(private val target: UIComponent, private var cursor: Float) {
+class TransformSequence internal constructor(private val target: Component, private var cursor: Float) {
 
     private var last: Transform? = null
 
@@ -280,7 +280,7 @@ class TransformSequence internal constructor(private val target: UIComponent, pr
 }
 
 
-private fun UIComponent.addTransform(kind: Transform.Kind, duration: Float, easing: Easing, x: Float = 0f, y: Float = 0f, color: Color4 = Color4.White): Transform {
+private fun Component.addTransform(kind: Transform.Kind, duration: Float, easing: Easing, x: Float = 0f, y: Float = 0f, color: Color4 = Color4.White): Transform {
     val tracker = transformTracker()
     return tracker.add(Transform(this, kind, tracker.currentTime(this), duration, easing, x, y, color))
 }
@@ -289,78 +289,78 @@ private fun UIComponent.addTransform(kind: Transform.Kind, duration: Float, easi
  * Creates a group of transforms starting after [delay] seconds, see [TransformSequence]. A negative delay
  * makes them start in the past, as if they were already running.
  */
-inline fun UIComponent.transformSequence(delay: Float = 0f, block: TransformSequence.() -> Unit): TransformSequence {
+inline fun Component.transformSequence(delay: Float = 0f, block: TransformSequence.() -> Unit): TransformSequence {
     return newTransformSequence(delay).apply(block)
 }
 
 @PublishedApi
-internal fun UIComponent.newTransformSequence(delay: Float): TransformSequence {
+internal fun Component.newTransformSequence(delay: Float): TransformSequence {
     return TransformSequence(this, transformTracker().currentTime(this) + delay)
 }
 
 /**
- * Animates [UIComponent.scale] to [value], in seconds.
+ * Animates [Component.scale] to [value], in seconds.
  */
 @JvmOverloads
-fun UIComponent.scaleTo(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
+fun Component.scaleTo(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
     addTransform(Transform.Kind.Scale, duration, easing, value, value)
 
 /**
- * Animates [UIComponent.alpha] to [value], in seconds.
+ * Animates [Component.alpha] to [value], in seconds.
  */
 @JvmOverloads
-fun UIComponent.fadeTo(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
+fun Component.fadeTo(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
     addTransform(Transform.Kind.Alpha, duration, easing, value)
 
 /**
- * Animates [UIComponent.alpha] to 1, in seconds.
+ * Animates [Component.alpha] to 1, in seconds.
  */
 @JvmOverloads
-fun UIComponent.fadeIn(duration: Float = 0f, easing: Easing = Easing.None) = fadeTo(1f, duration, easing)
+fun Component.fadeIn(duration: Float = 0f, easing: Easing = Easing.None) = fadeTo(1f, duration, easing)
 
 /**
- * Animates [UIComponent.alpha] to 0, in seconds.
+ * Animates [Component.alpha] to 0, in seconds.
  */
 @JvmOverloads
-fun UIComponent.fadeOut(duration: Float = 0f, easing: Easing = Easing.None) = fadeTo(0f, duration, easing)
+fun Component.fadeOut(duration: Float = 0f, easing: Easing = Easing.None) = fadeTo(0f, duration, easing)
 
 /**
- * Animates [UIComponent.translationX] and [UIComponent.translationY] to the given pixel values, in seconds.
+ * Animates [Component.translationX] and [Component.translationY] to the given pixel values, in seconds.
  */
 @JvmOverloads
-fun UIComponent.moveTo(x: Float, y: Float, duration: Float = 0f, easing: Easing = Easing.None) =
+fun Component.moveTo(x: Float, y: Float, duration: Float = 0f, easing: Easing = Easing.None) =
     addTransform(Transform.Kind.Translation, duration, easing, x, y)
 
 /**
- * Animates [UIComponent.translationX] to the given pixel value, in seconds.
+ * Animates [Component.translationX] to the given pixel value, in seconds.
  */
 @JvmOverloads
-fun UIComponent.moveToX(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
+fun Component.moveToX(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
     addTransform(Transform.Kind.TranslationX, duration, easing, value)
 
 /**
- * Animates [UIComponent.rotationZ] to [value] degrees, in seconds.
+ * Animates [Component.rotationZ] to [value] degrees, in seconds.
  */
 @JvmOverloads
-fun UIComponent.rotateTo(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
+fun Component.rotateTo(value: Float, duration: Float = 0f, easing: Easing = Easing.None) =
     addTransform(Transform.Kind.Rotation, duration, easing, value)
 
 /**
- * Animates the RGB channels of [UIComponent.color] to [color], in seconds.
+ * Animates the RGB channels of [Component.color] to [color], in seconds.
  */
 @JvmOverloads
-fun UIComponent.colorTo(color: Color4, duration: Float = 0f, easing: Easing = Easing.None) =
+fun Component.colorTo(color: Color4, duration: Float = 0f, easing: Easing = Easing.None) =
     addTransform(Transform.Kind.Color, duration, easing, color = color)
 
 /**
  * Does nothing for [duration] seconds. Useful to run code later through [Transform.after].
  */
-fun UIComponent.delay(duration: Float) = addTransform(Transform.Kind.Delay, duration, Easing.None)
+fun Component.delay(duration: Float) = addTransform(Transform.Kind.Delay, duration, Easing.None)
 
 /**
  * Stops all transforms of this component, leaving its properties at their current values. Their
  * [Transform.after] callbacks are not called.
  */
-fun UIComponent.clearTransforms() {
+fun Component.clearTransforms() {
     transforms?.clear()
 }

@@ -1,7 +1,7 @@
 package com.reco1l.verktex.ui
 
 /**
- * The state of a component as the user interacts with it, see [UIComponent.interactionState].
+ * The state of a component as the user interacts with it, see [Component.interactionState].
  */
 enum class InteractionState {
 
@@ -11,23 +11,23 @@ enum class InteractionState {
     Idle,
 
     /**
-     * A pointer is over it, see [UIComponent.isHovered].
+     * A pointer is over it, see [Component.isHovered].
      */
     Hovered,
 
     /**
-     * It's being pressed, e.g. [com.reco1l.verktex.ui.container.UIClickableContainer.isPressed].
+     * It's being pressed, e.g. [com.reco1l.verktex.ui.container.ClickableContainer.isPressed].
      */
     Pressed,
 
     /**
-     * It doesn't take input, e.g. [UIButton.isEnabled] is false.
+     * It doesn't take input, e.g. [Button.isEnabled] is false.
      */
     Disabled
 }
 
 /**
- * The transforms a component runs when its [UIComponent.interactionState] changes, e.g.
+ * The transforms a component runs when its [Component.interactionState] changes, e.g.
  *
  * ```
  * transitions {
@@ -44,24 +44,24 @@ enum class InteractionState {
  */
 class StateTransitions {
 
-    private val blocks = arrayOfNulls<UIComponent.() -> Unit>(InteractionState.entries.size)
+    private val blocks = arrayOfNulls<Component.() -> Unit>(InteractionState.entries.size)
 
-    fun idle(block: UIComponent.() -> Unit) = set(InteractionState.Idle, block)
+    fun idle(block: Component.() -> Unit) = set(InteractionState.Idle, block)
 
-    fun hovered(block: UIComponent.() -> Unit) = set(InteractionState.Hovered, block)
+    fun hovered(block: Component.() -> Unit) = set(InteractionState.Hovered, block)
 
-    fun pressed(block: UIComponent.() -> Unit) = set(InteractionState.Pressed, block)
+    fun pressed(block: Component.() -> Unit) = set(InteractionState.Pressed, block)
 
-    fun disabled(block: UIComponent.() -> Unit) = set(InteractionState.Disabled, block)
+    fun disabled(block: Component.() -> Unit) = set(InteractionState.Disabled, block)
 
     /**
      * Sets the transforms to run when the component enters [state].
      */
-    operator fun set(state: InteractionState, block: UIComponent.() -> Unit) {
+    operator fun set(state: InteractionState, block: Component.() -> Unit) {
         blocks[state.ordinal] = block
     }
 
-    internal fun blockFor(state: InteractionState): (UIComponent.() -> Unit)? {
+    internal fun blockFor(state: InteractionState): (Component.() -> Unit)? {
         return blocks[state.ordinal] ?: when (state) {
             InteractionState.Pressed -> blocks[InteractionState.Hovered.ordinal] ?: blocks[InteractionState.Idle.ordinal]
             else -> blocks[InteractionState.Idle.ordinal]
@@ -70,8 +70,8 @@ class StateTransitions {
 }
 
 /**
- * Sets the [UIComponent.transitions] of this component.
+ * Sets the [Component.transitions] of this component.
  */
-inline fun UIComponent.transitions(block: StateTransitions.() -> Unit) {
+inline fun Component.transitions(block: StateTransitions.() -> Unit) {
     transitions = StateTransitions().apply(block)
 }

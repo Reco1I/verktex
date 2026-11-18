@@ -4,8 +4,8 @@ import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import com.reco1l.verktex.Provider
 import com.reco1l.verktex.fonts.FontFamily
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
 
 class AndroidProvider(private val context: android.content.Context) : Provider {
 
@@ -91,7 +91,7 @@ class AndroidProvider(private val context: android.content.Context) : Provider {
         return AndroidFontSource(typeface)
     }
 
-    override fun createTextureSource(path: String, isExternal: Boolean): GraphicsTexture.Source? {
+    override fun createTextureSource(path: String, isExternal: Boolean): Texture.Source? {
         return try {
             if (isExternal) {
                 val file = java.io.File(path)
@@ -117,13 +117,13 @@ class AndroidProvider(private val context: android.content.Context) : Provider {
         vertexShaderPath: String,
         fragmentShaderPath: String,
         isExternal: Boolean
-    ): GraphicsShader.Source? {
+    ): Shader.Source? {
         return try {
             val vertexShader = openFile(vertexShaderPath, isExternal)?.bufferedReader().use { it?.readText() }
             val fragmentShader = openFile(fragmentShaderPath, isExternal)?.bufferedReader().use { it?.readText() }
 
             if (vertexShader != null && fragmentShader != null) {
-                GraphicsShader.Source(
+                Shader.Source(
                     vertexShader,
                     fragmentShader,
                     spirvVertex = readSpirv(vertexShaderPath, isExternal),
@@ -138,7 +138,7 @@ class AndroidProvider(private val context: android.content.Context) : Provider {
         }
     }
 
-    // The SPIR-V the build compiled next to a shader, see GraphicsShader.Source.
+    // The SPIR-V the build compiled next to a shader, see Shader.Source.
     private fun readSpirv(shaderPath: String, isExternal: Boolean): ByteArray? {
         val path = "$shaderPath.spv"
         if (!exists(path, isExternal)) return null

@@ -22,7 +22,7 @@ import com.reco1l.verktex.android.WebPageActivity
 import com.reco1l.verktex.android.isVulkanAvailable
 import com.reco1l.verktex.android.video.ExoPlayerVideoDecoder
 import com.reco1l.verktex.audio.AudioBackend
-import com.reco1l.verktex.graphics.GraphicsBackend
+import com.reco1l.verktex.graphics.GPUBackend
 import com.reco1l.verktex.io.systemFileSystem
 import com.reco1l.verktex.video.VideoDecoder
 import com.reco1l.verktex.worker.LoopWorker
@@ -120,12 +120,12 @@ actual object Platform {
     actual val isLowEndDevice: Boolean
         get() = attached.isLowEndDevice
 
-    actual val availableGraphicsBackends: List<GraphicsBackend>
+    actual val availableGraphicsBackends: List<GPUBackend>
         get() = listOfNotNull(
-            GraphicsBackend.Auto,
-            GraphicsBackend.OpenGLES3,
-            GraphicsBackend.OpenGLES2,
-            GraphicsBackend.Vulkan.takeIf { isVulkanAvailable(context) },
+            GPUBackend.Auto,
+            GPUBackend.OpenGLES3,
+            GPUBackend.OpenGLES2,
+            GPUBackend.Vulkan.takeIf { isVulkanAvailable(context) },
         )
 
     actual val haptics: Haptics?

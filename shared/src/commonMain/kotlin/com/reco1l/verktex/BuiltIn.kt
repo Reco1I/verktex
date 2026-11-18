@@ -1,7 +1,7 @@
 package com.reco1l.verktex
 
 import com.reco1l.verktex.fonts.FontFamily
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 
 /**
  * Contains built-in resources that are automatically loaded by the engine.
@@ -17,43 +17,43 @@ object BuiltIn {
         /**
          * A shader for rendering solid-colored quads.
          */
-        lateinit var SolidQuad: GraphicsShader
+        lateinit var SolidQuad: Shader
 
         /**
          * A shader drawing only the interpolated vertex color. It's much cheaper per pixel than
          * [UI], which matters for large areas such as fullscreen gradients.
          */
-        lateinit var Color: GraphicsShader
+        lateinit var Color: Shader
 
         /**
          * A shader for rounded boxes and text in the same batches, see [com.reco1l.verktex.graphics.VertexLayout.UI].
          */
-        lateinit var UI: GraphicsShader
+        lateinit var UI: Shader
 
         /**
          * A shader for rendering textured quads.
          */
-        lateinit var TextureQuad: GraphicsShader
+        lateinit var TextureQuad: Shader
 
         /**
          * A shader for rendering external (video) textures, sampled through their transform.
          */
-        lateinit var Video: GraphicsShader
+        lateinit var Video: Shader
 
         /**
-         * A shader blurring a texture along one axis, see [com.reco1l.verktex.ui.container.UICaptureContainer.blurRadius].
+         * A shader blurring a texture along one axis, see [com.reco1l.verktex.ui.container.CaptureContainer.blurRadius].
          */
-        lateinit var Blur: GraphicsShader
+        lateinit var Blur: Shader
 
         /**
-         * A shader for rendering particles, see [com.reco1l.verktex.ui.UIParticleSystem].
+         * A shader for rendering particles, see [com.reco1l.verktex.ui.ParticleSystem].
          */
-        lateinit var Particle: GraphicsShader
+        lateinit var Particle: Shader
 
         /**
-         * A shader for the bands of a path, see [com.reco1l.verktex.ui.UIPath].
+         * A shader for the bands of a path, see [com.reco1l.verktex.ui.shape.PathShape].
          */
-        lateinit var Path: GraphicsShader
+        lateinit var Path: Shader
 
 
         /**
@@ -62,11 +62,11 @@ object BuiltIn {
         class Program(
             val vertexPath: String,
             val fragmentPath: String,
-            internal val store: (GraphicsShader) -> Unit,
+            internal val store: (Shader) -> Unit,
         )
 
         /**
-         * Every built-in shader, created by the renderer with `GraphicsRenderer.createBuiltInShaders`.
+         * Every built-in shader, created by the renderer with `Renderer.createBuiltInShaders`.
          */
         val Programs = listOf(
             Program("shaders/main.vert", "shaders/quad.frag") { SolidQuad = it },

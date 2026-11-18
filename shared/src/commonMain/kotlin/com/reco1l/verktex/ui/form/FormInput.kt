@@ -3,7 +3,7 @@ package com.reco1l.verktex.ui.form
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.ui.control.FloatTextInput
 import com.reco1l.verktex.ui.control.IntegerTextInput
-import com.reco1l.verktex.ui.control.UITextInput
+import com.reco1l.verktex.ui.control.TextInput
 
 /**
  * A form control with a text input below its label.
@@ -14,8 +14,8 @@ import com.reco1l.verktex.ui.control.UITextInput
 @Suppress("LeakingThis")
 open class FormInput(
     initialValue: String = "",
-    createControl: (initialValue: String) -> UITextInput = ::UITextInput
-) : FormControl<String, UITextInput>(initialValue) {
+    createControl: (initialValue: String) -> TextInput = ::TextInput
+) : FormControl<String, TextInput>(initialValue) {
 
     final override val control = createControl(initialValue).apply {
         width = fill()

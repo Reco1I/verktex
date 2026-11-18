@@ -10,17 +10,17 @@ data class DrawCommand(
     /**
      * The graphics buffer containing the vertex data to be rendered.
      */
-    val buffer: GraphicsBuffer? = null,
+    val buffer: Buffer? = null,
 
     /**
      * The shader program to be used for rendering the object.
      */
-    val shader: GraphicsShader? = null,
+    val shader: Shader? = null,
 
     /**
      * The texture to be applied to the object during rendering.
      */
-    val texture: GraphicsTexture? = null,
+    val texture: Texture? = null,
 
     /**
      * The scissor rectangle defining the area of the screen where rendering is allowed.
@@ -41,7 +41,7 @@ data class DrawCommand(
     /**
      * The set of uniform variables to be passed to the shader program during rendering.
      */
-    val uniformSet: GraphicsShader.UniformSet = GraphicsShader.UniformSet(),
+    val uniformSet: Shader.UniformSet = Shader.UniformSet(),
 
     /**
      * Whether this command clears the depth buffer instead of drawing. A clear command carries no
@@ -57,7 +57,7 @@ data class DrawCommand(
     /**
      * The per-instance data of an instanced draw, which is never merged with other commands.
      */
-    val instanceBuffer: GraphicsBuffer? = null,
+    val instanceBuffer: Buffer? = null,
 
     /**
      * How the data of [instanceBuffer] maps to the attributes of the shader.
@@ -79,7 +79,7 @@ data class DrawCommand(
      * When set, this command copies what was drawn so far into the texture instead of drawing.
      * Like a depth clear, it carries no buffer or shader and is never merged with other commands.
      */
-    val captureTexture: GraphicsTexture? = null,
+    val captureTexture: Texture? = null,
 
     /**
      * The first vertex of [buffer] drawn.
@@ -108,12 +108,12 @@ data class DrawCommand(
      * Whether a draw with the given state can be appended to this command instead of starting a new one.
      */
     fun canReuse(
-        shader: GraphicsShader?,
-        texture: GraphicsTexture?,
+        shader: Shader?,
+        texture: Texture?,
         scissor: Vec4?,
         blendMode: BlendMode,
         depthState: DepthState,
-        uniformSet: GraphicsShader.UniformSet,
+        uniformSet: Shader.UniformSet,
         vertexLayout: VertexLayout = VertexLayout.Default,
         isQuads: Boolean = false,
     ): Boolean {

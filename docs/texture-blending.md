@@ -27,7 +27,7 @@ premultiplied alpha below fixed.
 
   A `Custom` mode ported from straight alpha uses `One` where it had `SrcAlpha` as the RGB source
   factor (see the hit lighting in `GameplayEffects`).
-- **Atlas gutter.** Every atlas region keeps `GraphicsTexture.regionPadding` (1) pixels free around it,
+- **Atlas gutter.** Every atlas region keeps `Texture.regionPadding` (1) pixels free around it,
   filled with copies of its edge pixels when it's uploaded (`extrudePixels`), so filtering at the edge
   of a sprite never reads its neighbour or uninitialized memory. Standalone textures (one region the
   size of the texture) have no gutter, clamping to the edge does the same.
@@ -37,7 +37,7 @@ premultiplied alpha below fixed.
 1. **Checking the rest on Android.** The border is gone on the Adreno 610 phone. What the desktop UI
    tests didn't cover still needs a look there, on each backend (OpenGL ES 3, OpenGL ES 2, Vulkan):
    - hit lighting (custom blend), the snow effect and the health bar (`Additive`),
-   - blurred backdrops (`UICaptureContainer`, `blur.frag`),
+   - blurred backdrops (`CaptureContainer`, `blur.frag`),
    - videos (`video.frag`) and particles,
    - anything drawn with `Multiply` (nothing uses it at the moment).
 
@@ -45,7 +45,7 @@ premultiplied alpha below fixed.
 2. **Uninitialized texture storage.** `ESTexture`/`GLTexture` create textures with `glTexImage2D(...,
    null)` and Vulkan images start in `VK_IMAGE_LAYOUT_UNDEFINED`, so free space holds whatever the
    driver left. The gutter makes this harmless for sources written in one piece, but a source written
-   in several parts (`GraphicsTexture.Source.writePixels` allows it) gets no extruded gutter, so its
+   in several parts (`Texture.Source.writePixels` allows it) gets no extruded gutter, so its
    edges can still read garbage. Clear textures to transparent when they're created, or extrude the
    bounding box of the parts.
 3. **Merging additive and alpha batches.** With premultiplied colours, additive is `Alpha` with a
@@ -74,7 +74,7 @@ premultiplied alpha below fixed.
    from the premultiplied pixels (which `glGenerateMipmap` does, as it averages what's stored).
 9. **Rules for new code.**
     - A new shader must output premultiplied colours and premultiply the straight colours it's given.
-    - A new texture source must write premultiplied pixels (`GraphicsTexture.PixelTarget` says so).
+    - A new texture source must write premultiplied pixels (`Texture.PixelTarget` says so).
     - The storyboard renderer (`legacy/storyboard/`), once rewritten on Verktex, must map its additive
       parameter to `BlendMode.Additive` and not port straight alpha factors.
 10. **Unrelated failing tests.** `ColorInheritanceTest`, `PointerEventTest` and `ThemedValuesTest` in

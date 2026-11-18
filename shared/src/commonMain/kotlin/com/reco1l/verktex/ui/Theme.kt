@@ -245,7 +245,7 @@ open class Theme(
     }
 
     /**
-     * A class that holds button style information, with a [Size] for each [UIButton.Density].
+     * A class that holds button style information, with a [Size] for each [Button.Density].
      */
     open class ButtonStyle(
         val small: Size,
@@ -266,10 +266,10 @@ open class Theme(
         /**
          * Returns the size used for the given density.
          */
-        operator fun get(density: UIButton.Density) = when (density) {
-            UIButton.Density.Small -> small
-            UIButton.Density.Medium -> medium
-            UIButton.Density.Large -> large
+        operator fun get(density: Button.Density) = when (density) {
+            Button.Density.Small -> small
+            Button.Density.Medium -> medium
+            Button.Density.Large -> large
         }
 
         /**
@@ -286,7 +286,7 @@ open class Theme(
     }
 
     /**
-     * A class that holds badge style information, with a [Size] for each [UIBadge.Density].
+     * A class that holds badge style information, with a [Size] for each [Badge.Density].
      */
     open class BadgeStyle(
         val small: Size,
@@ -296,9 +296,9 @@ open class Theme(
         /**
          * Returns the size used for the given density.
          */
-        operator fun get(density: UIBadge.Density) = when (density) {
-            UIBadge.Density.Small -> small
-            UIBadge.Density.Medium -> medium
+        operator fun get(density: Badge.Density) = when (density) {
+            Badge.Density.Small -> small
+            Badge.Density.Medium -> medium
         }
 
         /**

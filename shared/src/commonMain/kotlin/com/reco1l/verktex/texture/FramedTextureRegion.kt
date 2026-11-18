@@ -1,20 +1,20 @@
 package com.reco1l.verktex.texture
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
  * The [FramedTextureRegion] class represents a texture region that consists of multiple frames, allowing
  * for animated textures.
  *
- * It extends [GraphicsTexture.Region] and provides functionality to manage the current frame, navigate
+ * It extends [Texture.Region] and provides functionality to manage the current frame, navigate
  * between frames, and update the region's position and size based on the selected frame.
  */
 open class FramedTextureRegion(
-    private val frames: List<GraphicsTexture.Region>,
+    private val frames: List<Texture.Region>,
 
-    mainTexture: GraphicsTexture,
+    mainTexture: Texture,
     mainSource: Source
-) : GraphicsTexture.Region(mainTexture, mainSource) {
+) : Texture.Region(mainTexture, mainSource) {
 
     /**
      * The index of the current frame in the [frames] list. Changing this value will update the region's
@@ -65,7 +65,7 @@ open class FramedTextureRegion(
 
     /**
      * Represents a source for a framed texture region, which consists of multiple frames. Each frame
-     * is represented by a [GraphicsTexture.Region], and the source has a specified width and height.
+     * is represented by a [Texture.Region], and the source has a specified width and height.
      *
      * Width and height must be calculated based on the atlas packing algorithm, as the frames may
      * not be arranged in a simple grid. The [writePixels] method writes all frames, taking into account
@@ -74,13 +74,13 @@ open class FramedTextureRegion(
      * @param frames The list of frames that make up the source.
      */
     class Source(
-        private val frames: List<GraphicsTexture.Region>,
-    ) : GraphicsTexture.Source {
+        private val frames: List<Texture.Region>,
+    ) : Texture.Source {
 
         override val width = frames.maxOfOrNull { it.x + it.width } ?: 0f
         override val height = frames.maxOfOrNull { it.y + it.height } ?: 0f
 
-        override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) {
+        override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) {
             frames.forEach { frame ->
                 frame.source.writePixels(target, x + frame.x.toInt(), y + frame.y.toInt())
             }

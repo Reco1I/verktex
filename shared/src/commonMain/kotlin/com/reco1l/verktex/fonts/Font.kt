@@ -1,7 +1,7 @@
 package com.reco1l.verktex.fonts
 
 import com.reco1l.verktex.data.Dimension
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
  * Represents a specific font with its associated metrics, atlas pages, and glyphs.
@@ -26,10 +26,10 @@ abstract class Font {
      * added when the current one has no room left for a glyph, so placed glyphs never move.
      * Each glyph's [Glyph.region] names its page.
      */
-    val pages: List<GraphicsTexture>
+    val pages: List<Texture>
         get() = mutablePages
 
-    private val mutablePages = mutableListOf<GraphicsTexture>()
+    private val mutablePages = mutableListOf<Texture>()
 
     /**
      * Indicates whether kerning is supported for this font. Kerning is the adjustment of space
@@ -53,7 +53,7 @@ abstract class Font {
      *
      * @throws IllegalStateException if the source does not fit on an empty page either.
      */
-    protected fun addGlyphSource(source: GraphicsTexture.Source): GraphicsTexture.Region {
+    protected fun addGlyphSource(source: Texture.Source): Texture.Region {
         mutablePages.lastOrNull()?.addSource(source)?.let { return it }
 
         val page = onCreatePage()
@@ -92,7 +92,7 @@ abstract class Font {
     /**
      * Creates a new, empty atlas page. Every page of a font has the same size.
      */
-    protected abstract fun onCreatePage(): GraphicsTexture
+    protected abstract fun onCreatePage(): Texture
 
     /**
      * Provides the kerning value between two characters, which is the additional adjustment of space
@@ -193,7 +193,7 @@ abstract class Font {
          * When the glyph is not yet rendered, this value may be null, indicating that the glyph'
          * s texture region has not been defined.
          */
-        val region: GraphicsTexture.Region? = null,
+        val region: Texture.Region? = null,
 
         )
 

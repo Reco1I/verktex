@@ -4,16 +4,16 @@ import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsBuffer
-import com.reco1l.verktex.graphics.GraphicsContext
-import com.reco1l.verktex.graphics.GraphicsDevice
-import com.reco1l.verktex.graphics.GraphicsRenderer
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
-import com.reco1l.verktex.graphics.GraphicsWindow
-import com.reco1l.verktex.ui.UIComponent
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.shape.UIBox
+import com.reco1l.verktex.graphics.Buffer
+import com.reco1l.verktex.graphics.GPUContext
+import com.reco1l.verktex.graphics.Device
+import com.reco1l.verktex.graphics.Renderer
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
+import com.reco1l.verktex.graphics.Window
+import com.reco1l.verktex.ui.Component
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.shape.Box
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -22,33 +22,33 @@ import org.junit.Test
  */
 class ColorInheritanceTest {
 
-    private object FakeDevice : GraphicsDevice {
-        override val capabilities = GraphicsDevice.Capabilities(maxTextureSize = 4096f)
-        override fun createBuffer(): GraphicsBuffer = throw UnsupportedOperationException()
-        override fun createShader(source: GraphicsShader.Source): GraphicsShader = throw UnsupportedOperationException()
-        override fun createTexture(width: Float, height: Float): GraphicsTexture = throw UnsupportedOperationException()
-        override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = throw UnsupportedOperationException()
+    private object FakeDevice : Device {
+        override val capabilities = Device.Capabilities(maxTextureSize = 4096f)
+        override fun createBuffer(): Buffer = throw UnsupportedOperationException()
+        override fun createShader(source: Shader.Source): Shader = throw UnsupportedOperationException()
+        override fun createTexture(width: Float, height: Float): Texture = throw UnsupportedOperationException()
+        override fun createExternalTexture(width: Float, height: Float): Texture = throw UnsupportedOperationException()
     }
 
-    private object FakeWindow : GraphicsWindow {
+    private object FakeWindow : Window {
         override var windowWidth = 1280
         override var windowHeight = 720
-        override var insets = GraphicsWindow.Insets(Vec4(0f, 0f, 1280f, 720f), Vec2(0f, 0f))
+        override var insets = Window.Insets(Vec4(0f, 0f, 1280f, 720f), Vec2(0f, 0f))
         override fun shouldClose() = false
         override fun pollEvents() = Unit
     }
 
-    private class FakeRenderer : GraphicsRenderer() {
-        override val device: GraphicsDevice = FakeDevice
-        override val context: GraphicsContext get() = throw UnsupportedOperationException()
-        override val window: GraphicsWindow = FakeWindow
+    private class FakeRenderer : Renderer() {
+        override val device: Device = FakeDevice
+        override val context: GPUContext get() = throw UnsupportedOperationException()
+        override val window: Window = FakeWindow
         override var version = "fake"
         override fun drawCommand(command: DrawCommand) = Unit
     }
 
-    private class ProbeBox : UIBox() {
+    private class ProbeBox : Box() {
         var seen: Color4? = null
-        override fun onDraw(renderer: GraphicsRenderer) {
+        override fun onDraw(renderer: Renderer) {
             seen = renderer.transformColor(Color4.White)
         }
     }
@@ -89,15 +89,15 @@ class ColorInheritanceTest {
     }
 
     /** Records the colour transform in effect when the component starts drawing, as its background would see it. */
-    private class ProbeContainer : UIContainer() {
+    private class ProbeContainer : Container() {
         var atBackground: Color4? = null
-        override fun drawContent(renderer: GraphicsRenderer) {
+        override fun drawContent(renderer: Renderer) {
             atBackground = renderer.transformColor(Color4.White)
             super.drawContent(renderer)
         }
     }
 
-    private fun drawn(component: UIComponent) {
+    private fun drawn(component: Component) {
         val renderer = FakeRenderer()
         renderer.begin()
         component.draw(renderer)
@@ -132,7 +132,7 @@ class ColorInheritanceTest {
     @Test
     fun untintedContainerLeavesChildUntinted() {
         val child = ProbeBox()
-        val container = UIContainer().apply {
+        val container = Container().apply {
             tintChildren = false
             color = Color4(0.5f, 0.5f, 1f, 1f)
         }
@@ -146,7 +146,7 @@ class ColorInheritanceTest {
     @Test
     fun tintDoesNotLeakPastTheContainer() {
         val renderer = FakeRenderer()
-        val container = UIContainer().apply {
+        val container = Container().apply {
             tintChildren = true
             color = Color4(0.5f, 0.5f, 1f, 1f)
         }
@@ -161,7 +161,7 @@ class ColorInheritanceTest {
     fun componentFlagReachesChildDraw() {
         val renderer = FakeRenderer()
         val child = ProbeBox()
-        val container = UIContainer().apply {
+        val container = Container().apply {
             tintChildren = true
             color = Color4(0.5f, 0.5f, 1f, 1f)
         }

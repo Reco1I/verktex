@@ -1,8 +1,8 @@
 package com.reco1l.verktex
 
 import com.reco1l.verktex.fonts.FontFamily
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
 
 /**
  * An abstract class that provides a way to create resources from a given path. The implementation
@@ -64,7 +64,7 @@ interface Provider {
      * @param isExternal Whether the path is external or internal, in some platforms this may affect
      * how the path is resolved. As specified in the [exists] method.
      */
-    fun createTextureSource(path: String, isExternal: Boolean): GraphicsTexture.Source?
+    fun createTextureSource(path: String, isExternal: Boolean): Texture.Source?
 
     /**
      * Creates a ShaderSource from the given fragment and vertex shader paths.
@@ -74,5 +74,5 @@ interface Provider {
      * @param isExternal Whether the paths are external or internal, in some platforms this may affect
      * how the paths are resolved. As specified in the [exists] method.
      */
-    fun createShaderSource(vertexShaderPath: String, fragmentShaderPath: String, isExternal: Boolean): GraphicsShader.Source?
+    fun createShaderSource(vertexShaderPath: String, fragmentShaderPath: String, isExternal: Boolean): Shader.Source?
 }

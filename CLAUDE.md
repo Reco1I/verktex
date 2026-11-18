@@ -29,7 +29,7 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - `:shared` (`shared/`): the engine, one Kotlin Multiplatform module with an `android` and a
   `desktop` target, which applications depend on as `com.reco1l.verktex:shared`. Its source sets:
   - `commonMain`: everything platform independent: rendering, audio, input, clocks (`time/`), the UI
-    components (`UIComponent`, `UIContainer`, `UIScene`, `UISprite`…), settings, localization and
+    components (`Component`, `Container`, `Scene`, `Sprite`…), settings, localization and
     networking.
   - `jvmMain`: what Android and desktop share because both run on a JVM (`ThreadLoopWorker`, the
     actual `PixelBuffer`, the HTTP engine, the Vulkan backend's Kotlin side in `vulkan/`).
@@ -62,7 +62,7 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   `expect object`, which `AndroidGameHost` and `DesktopGameHost` attach themselves to
   (`Platform.attach`). Everything else comes from multiplatform libraries.
 - Interfaces are kept where a platform has several implementations or tests replace them:
-  `GraphicsRenderer`, `AudioDriver`, `VideoDecoder`, `Logger.Implementation`.
+  `Renderer`, `AudioDriver`, `VideoDecoder`, `Logger.Implementation`.
 - The audio driver (`Verktex.audio`) opens audio files (`createSampleSource`, `createStreamSource`),
   not `Provider`: the backend is `VerktexSettings.AudioBackend`, read when the engine starts.
 - The desktop target compiles against the API of Java 11 (`-Xjdk-release=11`): `PixelBuffer` is
@@ -71,13 +71,13 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - Engine-wide behavior an application chooses (e.g. a right click as a long press, the distance of a
   wheel notch) is a `VerktexOptions` field: the host gives them (`GameHost.options`) and
   `Verktex.initialize` keeps them in `Verktex.options`. User preferences are `VerktexSettings` instead.
-- Hover (`UIComponent.isHovered`) follows a mouse, never touches: hosts give its position
+- Hover (`Component.isHovered`) follows a mouse, never touches: hosts give its position
   (`Input.dispatchHover`), and each update a `HoverEvent` hit-tested like a press finds the topmost
   `isHoverable` component, which is hovered with its ancestors. Components that block presses block it
   too. Reactions to hover, presses and being disabled go through `interactionState`, with
   `transitions { hovered { … } }` (`ui/InteractionState.kt`), which replace built-in feedback.
 - Dependency and plugin versions go in `gradle/libs.versions.toml`.
-- UI is a tree of `UIComponent`s measured and laid out through `LayoutConstraints`, animated with
+- UI is a tree of `Component`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.
 - Textures and shader outputs are premultiplied, see `docs/texture-blending.md`.
 - UI tests are `UITestSuite`s (`commonMain/.../testing/`), browsed by `UITestActivity` on Android

@@ -8,7 +8,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
-import com.reco1l.verktex.graphics.GraphicsWindow
+import com.reco1l.verktex.graphics.Window
 import com.reco1l.verktex.Platform
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.settings.Settings
@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 import android.content.Context as AndroidContext
 
 
-class AndroidWindow(androidContext: AndroidContext) : SurfaceView(androidContext), SurfaceHolder.Callback, GraphicsWindow {
+class AndroidWindow(androidContext: AndroidContext) : SurfaceView(androidContext), SurfaceHolder.Callback, Window {
 
     override var windowWidth: Int = 0
     override var windowHeight: Int = 0
@@ -26,12 +26,12 @@ class AndroidWindow(androidContext: AndroidContext) : SurfaceView(androidContext
     // render at a lower resolution.
     private var viewSafeArea = Vec4.Zero
 
-    private var cachedInsets = GraphicsWindow.Insets(Vec4.Zero, Vec2.Zero)
+    private var cachedInsets = Window.Insets(Vec4.Zero, Vec2.Zero)
     private var cachedInsetsSafeArea = Vec4.Zero
     private var cachedInsetsScale = 1f
     private var cachedInsetsImeHeight = 0
 
-    override var insets: GraphicsWindow.Insets
+    override var insets: Window.Insets
         // The keyboard doesn't dispatch insets to this view (the window pans instead of resizing),
         // so its height is read from the root insets, which are always up to date.
         get() {
@@ -45,7 +45,7 @@ class AndroidWindow(androidContext: AndroidContext) : SurfaceView(androidContext
                 cachedInsetsScale = scale
                 cachedInsetsSafeArea = safeArea
 
-                cachedInsets = GraphicsWindow.Insets(
+                cachedInsets = Window.Insets(
                     safeArea = Vec4(safeArea.x * scale, safeArea.y * scale, safeArea.z * scale, safeArea.w * scale),
                     offsets = Vec2(0f, -imeHeight * scale)
                 )
@@ -148,7 +148,7 @@ class AndroidWindow(androidContext: AndroidContext) : SurfaceView(androidContext
                 w = 0f
             )
 
-            insets = GraphicsWindow.Insets(
+            insets = Window.Insets(
                 safeArea = safeArea,
                 offsets = Vec2.Zero
             )

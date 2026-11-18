@@ -1,11 +1,11 @@
 package com.reco1l.verktex.android.gles
 
 import android.opengl.GLES20
-import com.reco1l.verktex.graphics.GraphicsBuffer
+import com.reco1l.verktex.graphics.Buffer
 import java.nio.ByteBuffer.allocateDirect
 import java.nio.ByteOrder
 
-class ESBuffer : GraphicsBuffer() {
+class ESBuffer : Buffer() {
 
     private var id: Int = 0
 

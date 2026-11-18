@@ -6,7 +6,7 @@ import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.ui.container.UILinearContainer
+import com.reco1l.verktex.ui.container.LinearContainer
 import com.reco1l.verktex.ui.fadeOut
 import com.reco1l.verktex.ui.themed
 import com.reco1l.verktex.ui.transformSequence
@@ -16,7 +16,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Shows [UIToast]s at the bottom of the window, above the scene and the other overlays. They can be
+ * Shows [Toast]s at the bottom of the window, above the scene and the other overlays. They can be
  * shown and changed from any thread.
  *
  * Nothing is shown until the engine is initialized, so code that shows toasts also runs without it
@@ -36,8 +36,8 @@ object Toasts {
 
     private const val FADE_DURATION = 0.2f
 
-    private val container = UILinearContainer().apply {
-        orientation = UILinearContainer.Orientation.Vertical
+    private val container = LinearContainer().apply {
+        orientation = LinearContainer.Orientation.Vertical
         width = fill()
         anchor = Anchor.BottomCenter
         origin = Anchor.BottomCenter
@@ -64,8 +64,8 @@ object Toasts {
      * @param action The label of a button at the end of the toast, which calls [onAction] and hides
      * the toast, none if null.
      */
-    fun show(text: CharSequence, duration: Duration, action: CharSequence? = null, onAction: () -> Unit = {}): Toast {
-        val toast = Toast(text, title = "", duration)
+    fun show(text: CharSequence, duration: Duration, action: CharSequence? = null, onAction: () -> Unit = {}): Handle {
+        val toast = Handle(text, title = "", duration)
         if (action != null) {
             toast.setAction(action) {
                 onAction()
@@ -76,18 +76,18 @@ object Toasts {
     }
 
     /**
-     * Shows a toast that stays until [Toast.dismiss] is called, e.g. for the progress of a task.
+     * Shows a toast that stays until [Handle.dismiss] is called, e.g. for the progress of a task.
      */
     @JvmStatic
     @JvmOverloads
-    fun showPersistent(text: CharSequence, title: CharSequence = "", isIndeterminate: Boolean = false): Toast {
-        return Toast(text, title, duration = null).also {
+    fun showPersistent(text: CharSequence, title: CharSequence = "", isIndeterminate: Boolean = false): Handle {
+        return Handle(text, title, duration = null).also {
             it.isIndeterminate = isIndeterminate
             add(it)
         }
     }
 
-    private fun add(toast: Toast) = update {
+    private fun add(toast: Handle) = update {
         // Toasts stay above what was added since, e.g. a dialog.
         container.removeSelf()
         Verktex.addOverlay(container)
@@ -101,14 +101,14 @@ object Toasts {
         sequence.then().delay(duration.inWholeMilliseconds / 1000f).fadeOut(FADE_DURATION).after { remove(toast) }
     }
 
-    private fun remove(toast: Toast) {
+    private fun remove(toast: Handle) {
         container -= toast.component
         if (container.childCount == 0) {
             container.removeSelf()
         }
     }
 
-    internal fun dismiss(toast: Toast) = update {
+    internal fun dismiss(toast: Handle) = update {
         toast.component.fadeOut(FADE_DURATION, Easing.OutQuad).after { remove(toast) }
     }
 
@@ -124,11 +124,11 @@ object Toasts {
     /**
      * A toast on screen. Its properties can be changed from any thread.
      */
-    class Toast internal constructor(text: CharSequence, title: CharSequence, internal val duration: Duration?) {
+    class Handle internal constructor(text: CharSequence, title: CharSequence, internal val duration: Duration?) {
 
         // Created on first use, so nothing of the UI is built while the engine isn't initialized.
         internal val component by lazy {
-            UIToast().apply {
+            Toast().apply {
                 this.text = text
                 this.title = title
             }
@@ -171,7 +171,7 @@ object Toasts {
             }
 
         /**
-         * Shows a button labeled [text] at the end of the toast, see [UIToast.setAction].
+         * Shows a button labeled [text] at the end of the toast, see [Toast.setAction].
          */
         fun setAction(text: CharSequence?, onClick: () -> Unit = {}) = update { component.setAction(text, onClick) }
 

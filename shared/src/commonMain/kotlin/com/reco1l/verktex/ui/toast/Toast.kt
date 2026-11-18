@@ -1,0 +1,138 @@
+package com.reco1l.verktex.ui.toast
+
+import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.Background
+import com.reco1l.verktex.data.CornerRadius
+import com.reco1l.verktex.data.Padding
+import com.reco1l.verktex.data.dip
+import com.reco1l.verktex.data.fill
+import com.reco1l.verktex.ui.Button
+import com.reco1l.verktex.ui.LoadingIndicator
+import com.reco1l.verktex.ui.TextButton
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.LinearContainer
+import com.reco1l.verktex.ui.shape.Box
+import com.reco1l.verktex.ui.text.Text
+import com.reco1l.verktex.ui.themed
+
+/**
+ * A short message shown above the scene, see [Toasts]. It has a [text], an optional [title] above it,
+ * optionally a progress bar ([progress]) or a loading indicator ([isIndeterminate]), and a button at
+ * its end ([setAction]).
+ */
+open class Toast : LinearContainer() {
+
+    private val loadingIndicator = LoadingIndicator().apply {
+        width = 20f.dip
+        height = 20f.dip
+        anchor = Anchor.CenterLeft
+        origin = Anchor.CenterLeft
+        isVisible = false
+    }
+
+    private val titleText = Text().apply {
+        width = fill()
+        fontSettings = themed { typography.caption }
+        color = themed { palette.accent }
+        isVisible = false
+    }
+
+    private val messageText = Text().apply {
+        width = fill()
+        fontSettings = themed { typography.smallBody }
+    }
+
+    private val progressFill = Box().apply {
+        height = fill()
+        width = fill(0f)
+        color = themed { palette.accent }
+        radius = CornerRadius(2f.dip)
+    }
+
+    private val progressTrack = Container().apply {
+        width = fill()
+        height = 4f.dip
+        background = Background.Color(themed { palette.controlInactiveBackground })
+        radius = CornerRadius(2f.dip)
+        isVisible = false
+        +progressFill
+    }
+
+    private val actionButton = TextButton().apply {
+        anchor = Anchor.CenterRight
+        origin = Anchor.CenterRight
+        variant = Button.Variant.Ghost
+        density = Button.Density.Small
+        isVisible = false
+    }
+
+    /**
+     * The title above the text, none if empty.
+     */
+    var title: CharSequence = ""
+        set(value) {
+            field = value
+            titleText.text = value
+            titleText.isVisible = value.isNotEmpty()
+        }
+
+    /**
+     * The message of the toast.
+     */
+    var text by messageText::text
+
+    /**
+     * The progress of a task, from 0 to 1, shown as a bar below the text, or null for no bar.
+     */
+    var progress: Float? = null
+        set(value) {
+            field = value
+            progressTrack.isVisible = value != null
+            progressFill.width = fill(value?.coerceIn(0f, 1f) ?: 0f)
+        }
+
+    /**
+     * Whether a task runs without a known progress, shown as a loading indicator.
+     */
+    var isIndeterminate: Boolean
+        get() = loadingIndicator.isVisible
+        set(value) {
+            loadingIndicator.isVisible = value
+        }
+
+
+    init {
+        orientation = Orientation.Horizontal
+        anchor = Anchor.TopCenter
+        origin = Anchor.TopCenter
+        width = 360f.dip
+        maxWidth = fill(0.9f)
+        spacing = themed { gap.md }
+        padding = themed { Padding(gap.md) }
+        background = Background.Color(themed { palette.surface })
+        radius = themed { CornerRadius(radius.lg) }
+
+        +loadingIndicator
+        +LinearContainer().apply {
+            orientation = Orientation.Vertical
+            width = fill()
+            spacing = themed { gap.xs }
+
+            +titleText
+            +messageText
+            +progressTrack
+        }
+        +actionButton
+    }
+
+
+    /**
+     * Shows a button labeled [text] at the end of the toast, which calls [onClick], or removes it
+     * when [text] is null.
+     */
+    fun setAction(text: CharSequence?, onClick: () -> Unit = {}) {
+        actionButton.isVisible = text != null
+        actionButton.text = text ?: ""
+        actionButton.onActionUp = { onClick() }
+    }
+}

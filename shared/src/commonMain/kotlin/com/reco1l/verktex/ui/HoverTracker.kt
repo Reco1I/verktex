@@ -11,14 +11,14 @@ internal class HoverTracker {
     private val event = HoverEvent()
 
     // Outermost first.
-    private val chain = ArrayList<UIComponent>()
-    private val newChain = ArrayList<UIComponent>()
+    private val chain = ArrayList<Component>()
+    private val newChain = ArrayList<Component>()
 
 
     /**
      * Hovers what is under ([x], [y]) in [roots], tried in order as input events are.
      */
-    fun resolve(x: Float, y: Float, roots: List<UIComponent>) {
+    fun resolve(x: Float, y: Float, roots: List<Component>) {
         event.x = x
         event.y = y
         event.target = null

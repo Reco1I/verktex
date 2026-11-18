@@ -7,7 +7,7 @@ import java.nio.ByteOrder
  * Linear allocation in a frame's ring: the vertex and uniform data of every draw of the frame is
  * written one after the other, and the ring starts over when the frame comes around again, once the
  * GPU is done with it (the native side waits for the frame's fence when acquiring it). See the
- * lifetime in [com.reco1l.verktex.graphics.GraphicsBuffer].
+ * lifetime in [com.reco1l.verktex.graphics.Buffer].
  *
  * [buffer] is the ring's memory (a mapped buffer, or a plain one in tests).
  */

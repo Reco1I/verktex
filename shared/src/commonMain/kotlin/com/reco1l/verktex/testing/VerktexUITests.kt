@@ -7,8 +7,8 @@ import kotlin.math.min
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.PI
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.UIPath
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.shape.PathShape
 import com.reco1l.verktex.math.Path
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Border
@@ -19,28 +19,28 @@ import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.ui.FAIcon
-import com.reco1l.verktex.ui.UIBadge
-import com.reco1l.verktex.ui.UIButton
-import com.reco1l.verktex.ui.UIScene
-import com.reco1l.verktex.ui.shape.UIBox
+import com.reco1l.verktex.ui.Badge
+import com.reco1l.verktex.ui.Button
+import com.reco1l.verktex.ui.Scene
+import com.reco1l.verktex.ui.shape.Box
 import com.reco1l.verktex.ui.badge
 import com.reco1l.verktex.ui.card
-import com.reco1l.verktex.ui.container.UILinearContainer.Orientation
+import com.reco1l.verktex.ui.container.LinearContainer.Orientation
 import com.reco1l.verktex.ui.container.container
 import com.reco1l.verktex.ui.container.linearContainer
-import com.reco1l.verktex.ui.control.UICheckbox
-import com.reco1l.verktex.ui.control.UISelect
-import com.reco1l.verktex.ui.control.UITabSelector
-import com.reco1l.verktex.ui.control.slider
+import com.reco1l.verktex.ui.control.Checkbox
+import com.reco1l.verktex.ui.control.Select
+import com.reco1l.verktex.ui.control.TabSelector
+import com.reco1l.verktex.ui.control.seekBar
 import com.reco1l.verktex.ui.control.textInput
 import com.reco1l.verktex.ui.control.IntegerTextInput
-import com.reco1l.verktex.ui.dialog.UIConfirmDialog
-import com.reco1l.verktex.ui.dialog.UIMessageDialog
-import com.reco1l.verktex.ui.dialog.UIPromptDialog
+import com.reco1l.verktex.ui.dialog.ConfirmDialog
+import com.reco1l.verktex.ui.dialog.MessageDialog
+import com.reco1l.verktex.ui.dialog.PromptDialog
 import com.reco1l.verktex.ui.form.FormCheckbox
 import com.reco1l.verktex.ui.form.FormContainer
 import com.reco1l.verktex.ui.form.FormInput
-import com.reco1l.verktex.ui.form.FormSlider
+import com.reco1l.verktex.ui.form.FormSeekBar
 import com.reco1l.verktex.ui.gradientBox
 import com.reco1l.verktex.ui.icon
 import com.reco1l.verktex.ui.iconButton
@@ -198,9 +198,9 @@ object VerktexUITests : UITestSuite("Verktex") {
 
         test("Buttons") {
             column {
-                for (density in UIButton.Density.entries) {
+                for (density in Button.Density.entries) {
                     section("Density: $density") {
-                        for (variant in UIButton.Variant.entries) {
+                        for (variant in Button.Variant.entries) {
                             textButton {
                                 text = variant.name
                                 this.variant = variant
@@ -223,7 +223,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                 }
 
                 section("Icon buttons") {
-                    for (variant in UIButton.Variant.entries) {
+                    for (variant in Button.Variant.entries) {
                         iconButton {
                             icon = FAIcon.Gear
                             this.variant = variant
@@ -236,9 +236,9 @@ object VerktexUITests : UITestSuite("Verktex") {
 
         test("Badges") {
             column {
-                for (density in UIBadge.Density.entries) {
+                for (density in Badge.Density.entries) {
                     section("Density: $density") {
-                        for (variant in UIBadge.Variant.entries) {
+                        for (variant in Badge.Variant.entries) {
                             badge {
                                 text = variant.name
                                 this.variant = variant
@@ -254,7 +254,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                 }
 
                 section("Labeled") {
-                    for (variant in UIBadge.Variant.entries) {
+                    for (variant in Badge.Variant.entries) {
                         labeledBadge {
                             label = "Label"
                             value = variant.name
@@ -268,18 +268,18 @@ object VerktexUITests : UITestSuite("Verktex") {
         test("Controls") {
             column {
                 section("Checkbox") {
-                    +UICheckbox().apply { onValueChange = { log("Checkbox: $it") } }
-                    +UICheckbox(true).apply { onValueChange = { log("Checkbox: $it") } }
+                    +Checkbox().apply { onValueChange = { log("Checkbox: $it") } }
+                    +Checkbox(true).apply { onValueChange = { log("Checkbox: $it") } }
                 }
 
                 section("Slider") {
                     orientation = Orientation.Vertical
-                    slider {
+                    seekBar {
                         width = 300f.dip
                         value = 0.5f
                         onValueChange = { log("Slider: $it") }
                     }
-                    slider {
+                    seekBar {
                         width = 300f.dip
                         min = -10f
                         max = 10f
@@ -309,26 +309,26 @@ object VerktexUITests : UITestSuite("Verktex") {
                 }
 
                 section("Select") {
-                    +UISelect<String>().apply {
+                    +Select<String>().apply {
                         width = 220f.dip
                         options = listOf(
-                            UISelect.Option("easy", "Easy"),
-                            UISelect.Option("normal", "Normal"),
-                            UISelect.Option("hard", "Hard", leadingIcon = faSolidIcon(FAIcon.Star)),
+                            Select.Option("easy", "Easy"),
+                            Select.Option("normal", "Normal"),
+                            Select.Option("hard", "Hard", leadingIcon = faSolidIcon(FAIcon.Star)),
                         )
                         onValueChange = { log("Select: $it") }
                     }
-                    +UISelect<String>().apply {
+                    +Select<String>().apply {
                         width = 220f.dip
-                        selectionMode = UISelect.SelectionMode.Multiple
+                        selectionMode = Select.SelectionMode.Multiple
                         placeholder = "Multiple"
-                        options = listOf("A", "B", "C", "D").map { UISelect.Option(it, it) }
+                        options = listOf("A", "B", "C", "D").map { Select.Option(it, it) }
                         onValueChange = { log("Multi select: $it") }
                     }
                 }
 
                 section("Tab selector") {
-                    +UITabSelector().apply {
+                    +TabSelector().apply {
                         for (name in listOf("General", "Audio", "Graphics")) {
                             addButton(name) { log("Tab: $name") }
                         }
@@ -345,7 +345,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                     orientation = Orientation.Vertical
 
                     +FormCheckbox(true).apply { label = "Checkbox"; key = "checkbox" }
-                    +FormSlider(0.5f).apply { label = "Slider"; key = "slider" }
+                    +FormSeekBar(0.5f).apply { label = "Slider"; key = "slider" }
                     +FormInput("Text").apply { label = "Input"; key = "input" }
 
                     onSubmit = { log("Submitted: $it") }
@@ -379,7 +379,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                     textButton {
                         text = "Message"
                         onActionUp = {
-                            UIMessageDialog().apply {
+                            MessageDialog().apply {
                                 title = "Message"
                                 text = "A message dialog with a single button."
                                 addButton { text = "OK"; onActionUp = { hide() } }
@@ -389,7 +389,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                     textButton {
                         text = "Confirm"
                         onActionUp = {
-                            UIConfirmDialog().apply {
+                            ConfirmDialog().apply {
                                 title = "Confirm"
                                 text = "Do you want to continue?"
                                 onConfirm = { log("Confirmed") }
@@ -400,7 +400,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                     textButton {
                         text = "Prompt"
                         onActionUp = {
-                            UIPromptDialog(IntegerTextInput(120, 30, 300)).apply {
+                            PromptDialog(IntegerTextInput(120, 30, 300)).apply {
                                 title = "BPM"
                                 text = "A prompt dialog asking for a number."
                                 addButton { text = "OK"; onActionUp = { log("Entered: $value"); hide() } }
@@ -413,7 +413,7 @@ object VerktexUITests : UITestSuite("Verktex") {
         }
 
         test("Toasts") {
-            var task: Toasts.Toast? = null
+            var task: Toasts.Handle? = null
             var elapsed = 0f
 
             // A task that shows its progress after a second of loading.
@@ -507,7 +507,7 @@ object VerktexUITests : UITestSuite("Verktex") {
         }
 
         test("Borders and corners") {
-            fun UIContainer.panel(radius: CornerRadius, border: Border = Border.None) = container {
+            fun Container.panel(radius: CornerRadius, border: Border = Border.None) = container {
                 width = 140f.dip
                 height = 90f.dip
                 background = Background.Color(Color4(0.2f, 0.22f, 0.3f))
@@ -568,7 +568,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                 }
             }.build()
 
-            fun UIContainer.path(path: Path, block: UIPath.() -> Unit = {}) = UIPath().apply {
+            fun Container.path(path: Path, block: PathShape.() -> Unit = {}) = PathShape().apply {
                 this.path = path
                 halfWidth = 14f
                 borderWidth = 2.5f
@@ -579,16 +579,16 @@ object VerktexUITests : UITestSuite("Verktex") {
                 block()
             }.also { this += it }
 
-            fun UIContainer.pathCell(block: UIContainer.() -> Unit) = container {
+            fun Container.pathCell(block: Container.() -> Unit) = container {
                 width = 260f.dip
                 height = 110f.dip
                 padding = Padding(12f.dip)
                 block()
             }
 
-            val snakingIn = mutableListOf<UIPath>()
-            val snakingOut = mutableListOf<UIPath>()
-            val snakingBoth = mutableListOf<UIPath>()
+            val snakingIn = mutableListOf<PathShape>()
+            val snakingOut = mutableListOf<PathShape>()
+            val snakingBoth = mutableListOf<PathShape>()
 
             column {
                 section("Static") {
@@ -743,10 +743,10 @@ object VerktexUITests : UITestSuite("Verktex") {
             allowsNavigation = true
             var depth = 0
 
-            fun sceneAt(level: Int): UIScene = object : UIScene() {
+            fun sceneAt(level: Int): Scene = object : Scene() {
                 init {
                     // Drawn over the whole scene and not affected by its layout.
-                    backgroundComponent = UIBox().apply {
+                    backgroundComponent = Box().apply {
                         color = BACKGROUND_COLORS[level % BACKGROUND_COLORS.size]
                     }
 

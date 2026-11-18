@@ -1,6 +1,6 @@
 package com.reco1l.verktex.desktop
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import org.lwjgl.stb.STBImage
@@ -13,7 +13,7 @@ class PixelsTextureSource(
     private val pixelWidth: Int,
     private val pixelHeight: Int,
     private val pixels: ByteBuffer,
-) : GraphicsTexture.Source {
+) : Texture.Source {
 
     init {
         require(pixels.remaining() >= pixelWidth * pixelHeight * 4) { "The buffer doesn't hold $pixelWidth x $pixelHeight pixels." }
@@ -22,7 +22,7 @@ class PixelsTextureSource(
     override val width = pixelWidth.toFloat()
     override val height = pixelHeight.toFloat()
 
-    override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) {
+    override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) {
         // A duplicate, so the source can be written again (e.g. after a context loss).
         target.write(x, y, pixelWidth, pixelHeight, pixels.duplicate().order(ByteOrder.nativeOrder()))
     }

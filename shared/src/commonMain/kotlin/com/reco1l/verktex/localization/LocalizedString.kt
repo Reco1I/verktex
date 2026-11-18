@@ -4,7 +4,7 @@ import kotlin.concurrent.Volatile
 
 /**
  * Text that depends on the [Localization.locale]. Components showing it resolve it again when the
- * locale changes, see [com.reco1l.verktex.ui.UIComponent.bindLocale].
+ * locale changes, see [com.reco1l.verktex.ui.Component.bindLocale].
  */
 interface Localized : CharSequence
 

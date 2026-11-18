@@ -13,10 +13,10 @@ import com.reco1l.verktex.math.Easing
  * the state of the component is computed from the time alone, so the result doesn't depend on what was
  * played before, and going back in time just works.
  *
- * Times are in seconds on the clock of the component, see [UIComponent.clock]. Steps must be added in order. Each one
+ * Times are in seconds on the clock of the component, see [Component.clock]. Steps must be added in order. Each one
  * starts from where the previous one on the same property ended, or from the current value if it's the first.
  */
-class Choreography internal constructor(private val target: UIComponent) {
+class Choreography internal constructor(private val target: Component) {
 
     /**
      * The time the last step or callback ends at.
@@ -314,7 +314,7 @@ class Choreography internal constructor(private val target: UIComponent) {
         var fromColor = Color4.White
         var toColor = Color4.White
 
-        fun apply(target: UIComponent, time: Float) {
+        fun apply(target: Component, time: Float) {
             val progress = when {
                 duration <= 0f -> 1f
                 time >= startTime + duration -> 1f
@@ -328,7 +328,7 @@ class Choreography internal constructor(private val target: UIComponent) {
          * Applies the value at the given eased [progress], 0 being where the step starts from, even for one
          * without duration.
          */
-        fun applyProgress(target: UIComponent, progress: Float) {
+        fun applyProgress(target: Component, progress: Float) {
             val value = from + (to - from) * progress
 
             when (property) {
@@ -359,21 +359,21 @@ fun interface ChoreographyBlock {
 /**
  * Gets the choreography of this component, creating it if needed.
  */
-fun UIComponent.choreography(): Choreography = choreography ?: Choreography(this).also { choreography = it }
+fun Component.choreography(): Choreography = choreography ?: Choreography(this).also { choreography = it }
 
 /**
  * Adds steps to the choreography of this component starting at the given time.
  */
-fun UIComponent.choreographAt(time: Float, block: ChoreographyBlock) {
+fun Component.choreographAt(time: Float, block: ChoreographyBlock) {
     block.build(choreography().at(time))
 }
 
 /**
  * Adds steps to the choreography of this component starting at the current time.
  */
-fun UIComponent.choreographNow(block: ChoreographyBlock) = choreographAt(currentClockTime, block)
+fun Component.choreographNow(block: ChoreographyBlock) = choreographAt(currentClockTime, block)
 
 /**
  * Adds steps to the choreography of this component.
  */
-inline fun UIComponent.choreograph(block: Choreography.() -> Unit): Choreography = choreography().apply(block)
+inline fun Component.choreograph(block: Choreography.() -> Unit): Choreography = choreography().apply(block)

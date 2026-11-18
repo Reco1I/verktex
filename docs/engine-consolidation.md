@@ -41,7 +41,7 @@ the decisions taken. `CLAUDE.md` is updated whenever a phase changes a rule or a
   - `kotlinx-io-core` in `verktex/android/build.gradle.kts` is imported nowhere. Remove it.
 - **DitchOoM buffer:** Okio can't replace it. Okio's `Buffer` is made of heap segments, and the GL, Vulkan
   and stb uploads need direct memory without a copy.
-  - The library is only used for the texture upload contract (`GraphicsTexture.onWritePixels`/`write`
+  - The library is only used for the texture upload contract (`Texture.onWritePixels`/`write`
     taking `ReadBuffer`), plus two duplicated `Buffers.kt` bridges.
   - Replace it with a Verktex type: `expect class PixelBuffer` in core, with
     `actual typealias PixelBuffer = java.nio.ByteBuffer` in the core's `jvmMain`.
@@ -58,14 +58,14 @@ the decisions taken. `CLAUDE.md` is updated whenever a phase changes a rule or a
   callers use `Platform.fileSystem`.
 - `OsuPlatform.defaultCorePath`, `cachePath` and `canUseStorage` move to `Platform.storage`.
 
-**Files:** `verktex/core/.../graphics/GraphicsTexture.kt`, `ESTexture.kt`, `ESExternalTexture.kt`,
+**Files:** `verktex/core/.../graphics/Texture.kt`, `ESTexture.kt`, `ESExternalTexture.kt`,
 `VKTexture.kt`, `GLTexture.kt`, `PixelsTextureSource.kt`, both `Buffers.kt`, `Platform.kt`,
 `game/src/*/kotlin/com/osudroid/utils/FileSystems*.kt`.
 
 ### Phase 2: toasts in Verktex (easy)
 
 - Add `verktex/core/.../ui/toast/`:
-  - `UIToast` is a themeable component with text, an optional progress bar and an icon slot.
+  - `Toast` is a themeable component with text, an optional progress bar and an icon slot.
   - `Toasts` is a thread-safe queue: `show(text: CharSequence, duration)` returns a `ToastHandle` with
     `text`, `progress`, `isIndeterminate` and `dismiss()`.
 - Toasts are drawn on Verktex's overlay layer (`Verktex.addOverlay`, `Verktex.kt:510`), and posted to the
@@ -107,10 +107,10 @@ the decisions taken. `CLAUDE.md` is updated whenever a phase changes a rule or a
 - Text is a `CharSequence`:
   - `LocalizedString(key)` and `LocalizedString.format(args)` implement `CharSequence` by resolving
     against the current locale.
-  - `UIText.text`, `UITextButton.text`, `UIMessageDialog.text`, `UIPromptDialog.text` and
-    `UITextureText.text` become `CharSequence`.
+  - `Text.text`, `TextButton.text`, `MessageDialog.text`, `PromptDialog.text` and
+    `TextureText.text` become `CharSequence`.
   - When the value is localized, the component registers a locale binding, the same way `bindTheme`
-    does in `ui/Themed.kt` and `UIComponent`. A language change then re-resolves the text in place,
+    does in `ui/Themed.kt` and `Component`. A language change then re-resolves the text in place,
     without restarting the app.
   - Reads that need a `String` use `toString()`.
 - The game's `StringResource`/`StringArrayResource` (`game/.../com/osudroid/resources/StringResources.kt`)
@@ -120,7 +120,7 @@ the decisions taken. `CLAUDE.md` is updated whenever a phase changes a rule or a
   external source.
 - Delete `StringTable`, `AndroidStringTable` and `DesktopStringTable`.
   - `OptionInfo.title`/`summary: Any` become `CharSequence`.
-  - The `UIText.setText(StringResource)` extensions go.
+  - The `Text.setText(StringResource)` extensions go.
   - The remaining `R.string` uses in Java and the app go through `Res`.
 - `OsuPlatform.canChooseLanguage`/`setLanguage` become `Localization.locale`. Desktop gets every language.
 
@@ -251,35 +251,35 @@ migrations (a database of another version is recreated, nothing is imported from
 hosts no longer open it: `DatabaseManager` does, in common code, with the game's own expected
 builder per platform.
 
-### Phase 10: `Path` and `UIPath`; sliders without the edlplan code (hard; performance sensitive)
+### Phase 10: `Path` and `PathShape`; sliders without the edlplan code (hard; performance sensitive)
 
 **Verktex `math/Path`**
 - A polyline stored as a packed `FloatArray` (x, y) with cumulative lengths, accessed as `Vec2`.
 - Operations: `length`, `pointAt(distance)`, `indexAt`, `cut(start, end)`, `simplified(tolerance)` and
   `bounds`. This ports `com.osudroid.math.LinePath`.
 
-**Verktex `ui/UIPath`** draws a stroked path with round caps and joins.
+**Verktex `ui/PathShape`** draws a stroked path with round caps and joins.
 - **Geometry:** one triangulation per path, built once.
   - Each vertex carries its distance from the centre line, 0 at the centre and 1 at the edge.
   - Its depth equals that distance, so overlapping segments resolve with `DEPTH_LESS` (the trick already
     used in `SliderBody`).
 - **Shader:** a fragment shader maps the distance to colour (body gradient, border width and colour).
   - This replaces the three `UITriangleMesh` layers (background, border, hint) with one draw.
-  - The hint is a second `UIPath`, or a band in the same gradient.
+  - The hint is a second `PathShape`, or a band in the same gradient.
 - **Snaking:** the vertices are ordered along the path, so snaking in or out draws a vertex range plus
   one rebuilt partial segment and cap. This replaces the `tryBuildFast*` paths and the per-frame
   rebuilds.
-- **Renderer:** `GraphicsRenderer.drawTriangles` (`:740`) transforms vertices on the CPU every frame.
-  Add a static mesh (a vertex buffer kept between frames, with an extra attribute) for UIPath on GLES,
+- **Renderer:** `Renderer.drawTriangles` (`:740`) transforms vertices on the CPU every frame.
+  Add a static mesh (a vertex buffer kept between frames, with an extra attribute) for PathShape on GLES,
   GL and Vulkan.
 - **Evaluation:** this is the same approach as osu!lazer's slider bodies. Rendering the path to an
-  off-screen buffer is only needed for alpha fading of overlapping bodies, which UIPath can provide as an
+  off-screen buffer is only needed for alpha fading of overlapping bodies, which PathShape can provide as an
   option.
 
 **Game**
 - `SliderPath` exposes its calculated path as a Verktex `Path` in osu!pixels.
   - The difficulty calculation keeps its own `Double` lengths, so the 377 tests stay exact.
-- `GameplaySlider` places the `UIPath` inside the scaled playfield, so
+- `GameplaySlider` places the `PathShape` inside the scaled playfield, so
   `GameHelper.convertSliderPath`'s screen-space rescaling goes away. Point thinning becomes
   `Path.simplified`.
 - Delete `SliderBody`, `DrawLinePath`, `TriangleBuilder`, `UITriangleMesh` and `LinePath`, with their
@@ -303,7 +303,7 @@ builder per platform.
   - The bytedeco/JavaCV presets would be quicker to wire but add about 100 MB, so avoid them.
 
 **Work**
-- `UIVideo` moves to Verktex as a concrete component over `Platform.createVideoDecoder(path)`, with
+- `Video` moves to Verktex as a concrete component over `Platform.createVideoDecoder(path)`, with
   load, play, pause, seek, speed and release, driven by a `Clock`.
 - The ExoPlayer decoder moves into `verktex:android`. The local `media3-decoder-ffmpeg.aar` needs a
   local Maven repository in the repo, so a library module can consume it.
@@ -339,20 +339,20 @@ Updated at the end of every phase: what's done, what's left, and the decisions t
 | 7. Split `OsuPlatform` | Done |
 | 8. No `GlobalManager` | Done |
 | 9. Database in Verktex | Dropped, done in the game |
-| 10. `Path` and `UIPath` | Done (done before phase 9, as the user asked) |
+| 10. `Path` and `PathShape` | Done (done before phase 9, as the user asked) |
 | 11. Video | Done |
 
-### Phase 10: `Path` and `UIPath`
+### Phase 10: `Path` and `PathShape`
 
 - Verktex `math/Path`: a polyline packed as x, y pairs with the length up to each point, built
   with `Path.Builder` or `Path.of`. It has `length`, `lengthAt`, `indexAt`, `pointAt`, `cut`,
   `simplified(minDistance)` (drops points closer than that to the previous one kept) and `bounds`.
-- Renderer: `GraphicsRenderer.drawVertices` draws a range of a buffer the caller keeps between
+- Renderer: `Renderer.drawVertices` draws a range of a buffer the caller keeps between
   frames, with its own shader and layout, transformed by the shader. GL and GL ES upload a buffer
-  again only when it was cleared or written since (`GraphicsBuffer.clearCount` with the word count),
+  again only when it was cleared or written since (`Buffer.clearCount` with the word count),
   so a mesh that doesn't change stays on the GPU. Vulkan has no buffers of its own, it copies only
   the drawn range into its frame ring; device-local static buffers there are left for later.
-- Verktex `ui/UIPath` (`halfWidth`, `borderWidth`, `hintWidth`, `shadowWidth`, the colours with a
+- Verktex `ui/PathShape` (`halfWidth`, `borderWidth`, `hintWidth`, `shadowWidth`, the colours with a
   `bodyCenterColor` for a gradient, `startLength`, `endLength`): one mesh with round caps and joins,
   triangulated as `DrawLinePath` did, every vertex carrying its distance from the centre line.
   - The distance is the depth, as the plan said, but drawn in two passes over the mesh: the first
@@ -365,12 +365,12 @@ Updated at the end of every phase: what's done, what's left, and the decisions t
   - Snaking draws a range of the mesh plus a rebuilt piece (the partial segments, their caps and
     joins), in every direction, replacing the `tryBuildFast*` paths and the full rebuilds.
 - Game: `GameHelper.createRenderPath(slider)` makes the body's `Path` in osu!pixels from the
-  slider's calculated path, thinned out as before. `GameplaySlider` places the `UIPath` at the
+  slider's calculated path, thinned out as before. `GameplaySlider` places the `PathShape` at the
   stacked position scaled to the playfield, so the screen-space render path is gone. The game
   scene keeps a `Path` per slider instead of a `RenderPathCache`; the mesh is built when the slider
   first draws.
 - Deleted: `SliderBody`, `DrawLinePath`, `TriangleBuilder`, `UITriangleMesh`, `LinePath`,
-  `FloatArraySlice` and their tests. `PathTest` and `UIPathTest` cover what they did.
+  `FloatArraySlice` and their tests. `PathTest` and `PathShapeTest` cover what they did.
 - Slider bodies are drawn as osu!stable draws them (osu!lazer's `LegacySliderBody`), always: a
   gradient from the body colour darkened by 10% at the border to it lightened at the centre (in
   linear light), at the skin's body alpha, and a shadow outside the border, 25% black fading out,
@@ -385,7 +385,7 @@ Updated at the end of every phase: what's done, what's left, and the decisions t
 
 ### Phase 11: video
 
-- Verktex's `UIVideo` (`ui/UIVideo.kt`) is a concrete component over the platform's `VideoDecoder`
+- Verktex's `Video` (`ui/Video.kt`) is a concrete component over the platform's `VideoDecoder`
   (`video/VideoDecoder.kt`, from `Platform.createVideoDecoder`, null where `Platform.canPlayVideos`
   is false). It keeps the old API (`videoWidth`/`videoHeight`, `setOnReady`, `play`, `pause`,
   `seekTo`, `setPlaybackSpeed`, `release`) and `isAvailable`.
@@ -400,7 +400,7 @@ Updated at the end of every phase: what's done, what's left, and the decisions t
 - Desktop: `FFmpegVideoDecoder` over FFmpeg 8.1 through JNA, with the LGPL shared libraries
   downloaded at build time (as the user chose), see `docs/desktop-platform.md`. The decoder converts
   to RGBA with `sws_scale` (the plan's first step), uploaded into a plain texture: no YUV shader yet.
-- Deleted: `OsuGameHost.createVideo`, `ExoPlayerVideo` and the game's abstract `UIVideo`.
+- Deleted: `OsuGameHost.createVideo`, `ExoPlayerVideo` and the game's abstract `Video`.
 - Checked: the game tests, the common checks, `assembleDebug` (with the FFmpeg extension's natives
   for the 4 ABIs), `prepareFFmpeg` on Windows, and the `osu!/Video` UI test on desktop with a
   generated MPEG-4 clip: it plays in real time with the right colours, and seeks and plays at half
@@ -439,7 +439,7 @@ Found along the way, not fixed yet:
 
 ### Phase 2: toasts
 
-- Verktex has `UIToast` (title, text, progress bar or loading indicator, optional action button) and
+- Verktex has `Toast` (title, text, progress bar or loading indicator, optional action button) and
   `Toasts`, which stacks them at the bottom of the window on the overlay layer.
   - `Toasts.show(text)` and `showLong(text)` are for Java. `show(text, duration, action, onAction)`
     covers the rest.
@@ -506,13 +506,13 @@ Found along the way, not fixed yet:
   - `LocalizedString` is a `Localized` `CharSequence` resolved on read and cached per `version`;
     `format(args)` gives a formatted one. `LocalizedStringArray` has `values`.
   - `Platform.systemLocale` is the system's language (`Locale.getDefault()` on both platforms).
-- Components re-resolve on their own: `UIComponent.bindLocale` bindings run again on the component's
+- Components re-resolve on their own: `Component.bindLocale` bindings run again on the component's
   next update after the `version` changed. That's pulled rather than pushed, so scenes that aren't
   shown (the singleton ones) catch up when they come back.
-  - `UIText.text` and `UITextureText.text` are `CharSequence`. A `Localized` one is bound, and reading
-    it gives back what was set. Through them, so are the texts of `UITextButton`, `UIDialog`,
-    `UIMessageDialog`, `FormControl.label` and `UIToast`.
-  - `UIPromptDialog.text`, `UICard.title`, `UISelect.placeholder`, `UISelect.Option.text` and the
+  - `Text.text` and `TextureText.text` are `CharSequence`. A `Localized` one is bound, and reading
+    it gives back what was set. Through them, so are the texts of `TextButton`, `Dialog`,
+    `MessageDialog`, `FormControl.label` and `Toast`.
+  - `PromptDialog.text`, `Card.title`, `Select.placeholder`, `Select.Option.text` and the
     toasts (`Toasts.show`, `showPersistent`, `Toast.text/title`, the action) take a `CharSequence`.
 - In the game:
   - `:game:generateStringResources` also writes every language of the pack (and English's
@@ -584,7 +584,7 @@ Found along the way, not fixed yet:
     cached are read live, so the settings menu no longer reloads anything when it's left.
   - `PreferenceControls` take a `SettingKey`. `OptionInfo.setting` replaces `defaultValue` and
     `isFloat` (a `Float` key makes a float slider). The graphics backend option uses the engine's
-    `VerktexSettings.GraphicsBackend` directly.
+    `VerktexSettings.GPUBackend` directly.
   - Changed behavior:
     - `bursts` and `displayScoreStatistics` default to false, which the game used, while the settings
       showed true.

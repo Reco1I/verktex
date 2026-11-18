@@ -3,7 +3,7 @@ package com.reco1l.verktex
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.fonts.FontFamily
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
@@ -16,11 +16,11 @@ import org.junit.Test
  */
 class FontPagesTest {
 
-    private class FakeSource(override val width: Float, override val height: Float) : GraphicsTexture.Source {
-        override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) = Unit
+    private class FakeSource(override val width: Float, override val height: Float) : Texture.Source {
+        override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) = Unit
     }
 
-    private class FakeTexture(override val width: Float, override val height: Float) : GraphicsTexture() {
+    private class FakeTexture(override val width: Float, override val height: Float) : Texture() {
         var disposed = false
 
         // Glyphs tile the page exactly, so the paging is easy to follow.
@@ -49,7 +49,7 @@ class FontPagesTest {
         override val metrics = Metrics(ascent = 0f, descent = 0f, leading = 0f)
         override val isKerningSupported = false
 
-        override fun onCreatePage(): GraphicsTexture = FakeTexture(pageSize, pageSize).also { createdPages += it }
+        override fun onCreatePage(): Texture = FakeTexture(pageSize, pageSize).also { createdPages += it }
 
         override fun onCreateGlyph(codePoint: Int) = Glyph(
             codePoint = codePoint,

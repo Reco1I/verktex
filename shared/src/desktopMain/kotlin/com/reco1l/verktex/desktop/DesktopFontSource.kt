@@ -4,7 +4,7 @@ import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.fonts.FontFamily
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.ceil
@@ -106,7 +106,7 @@ class DesktopFont(
     private val skew = if (descriptor.style == Style.Oblique) OBLIQUE_SKEW else 0f
 
 
-    override fun onCreatePage(): GraphicsTexture {
+    override fun onCreatePage(): Texture {
         return Verktex.graphics.createTexture(pageSize, pageSize)
     }
 

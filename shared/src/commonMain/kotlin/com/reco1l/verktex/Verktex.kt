@@ -3,8 +3,8 @@ package com.reco1l.verktex
 import kotlin.jvm.JvmStatic
 import kotlin.time.Duration.Companion.seconds
 import com.reco1l.verktex.time.monotonicNanos
-import com.reco1l.verktex.ui.UIComponent
-import com.reco1l.verktex.ui.container.UICaptureContainer
+import com.reco1l.verktex.ui.Component
+import com.reco1l.verktex.ui.container.CaptureContainer
 import kotlinx.atomicfu.locks.withLock
 import com.reco1l.verktex.audio.AudioDriver
 import com.reco1l.verktex.data.dip
@@ -13,7 +13,7 @@ import kotlin.math.max
 import com.reco1l.verktex.audio.Sounds
 import com.reco1l.verktex.fonts.Fonts
 import com.reco1l.verktex.texture.Textures
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.settings.Settings
@@ -22,7 +22,7 @@ import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.time.SystemBasedFrameClock
 import com.reco1l.verktex.ui.Theme
 import com.reco1l.verktex.ui.*
-import com.reco1l.verktex.ui.container.UIContainer
+import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.worker.LoopWorker
 import com.reco1l.verktex.worker.RunOnDrawWorker
 import com.reco1l.verktex.worker.RunOnUpdateWorker
@@ -73,7 +73,7 @@ import com.reco1l.verktex.worker.RunOnUpdateWorker
  * application lifecycle events. The engine's main loops for drawing and updating are started using the
  * [start] method.
  *
- * [GameHost] -> ([GraphicsRenderer], [AudioDriver]) -> [Verktex] -> [UIScene] -> [UIComponent]
+ * [GameHost] -> ([Renderer], [AudioDriver]) -> [Verktex] -> [Scene] -> [Component]
  *
  * ### Requirements
  * This engine is built up with latest Kotlin language features, the minimum required compiler
@@ -88,7 +88,7 @@ object Verktex {
     // Released by dispose: the host and the renderer's window may be an activity, which would
     // otherwise outlive its destruction.
     private var currentHost: GameHost? = null
-    private var currentGraphics: GraphicsRenderer? = null
+    private var currentGraphics: Renderer? = null
 
     /**
      * The game host, responsible for managing the engine's lifecycle and dispatching native events.
@@ -101,7 +101,7 @@ object Verktex {
      * The rendered used by the engine. This is responsible for all rendering operations. Only while
      * the engine is initialized, see [isInitialized].
      */
-    val graphics: GraphicsRenderer
+    val graphics: Renderer
         get() = currentGraphics ?: throw IllegalStateException("The engine isn't initialized")
 
     /**
@@ -135,7 +135,7 @@ object Verktex {
     /**
      * Initializes the engine with the specified modules.
      */
-    fun initialize(host: GameHost, renderer: GraphicsRenderer, audio: AudioDriver) {
+    fun initialize(host: GameHost, renderer: Renderer, audio: AudioDriver) {
         if (isInitialized)
             throw IllegalStateException("Engine already initialized!")
 
@@ -152,16 +152,16 @@ object Verktex {
 
     //endregion
 
-    private val sceneStack = ArrayDeque<UIScene>().apply { addLast(UIScene.EmptyScene) }
+    private val sceneStack = ArrayDeque<Scene>().apply { addLast(Scene.EmptyScene) }
     // A scene of its own, so overlays are measured and laid out over the whole window.
-    private val overlayContainer = object : UIScene() {
+    private val overlayContainer = object : Scene() {
 
         // The overlays behind the topmost one showing a capture are part of the capture.
         override fun firstDrawnChildIndex() = topmostCapture()?.let { children.indexOf(it) } ?: 0
     }
 
     // Above the overlays, so the performance overlay stays visible over modals and dialogs.
-    private val diagnosticsContainer = UIScene()
+    private val diagnosticsContainer = Scene()
 
 
     /**
@@ -298,7 +298,7 @@ object Verktex {
         var targetShift = 0f
 
         // The keyboard is only shown for the focused component, e.g. a text input.
-        if (focused is UIComponent && keyboardHeight > 0f) {
+        if (focused is Component && keyboardHeight > 0f) {
             // The bottom of the input where it would be without the shift.
             val inputBottom = focused.toSceneSpace(0f, focused.bounds.height).y + imeShift
             val visibleBottom = graphics.window.windowHeight - keyboardHeight
@@ -310,7 +310,7 @@ object Verktex {
     }
 
     private val showPerformanceOverlay by VerktexSettings.ShowPerformanceOverlay
-    private val performanceOverlay by lazy { UIPerformanceOverlay() }
+    private val performanceOverlay by lazy { PerformanceOverlay() }
 
     /**
      * Guards the component tree, which is traversed by the draw and update workers and modified by
@@ -472,7 +472,7 @@ object Verktex {
      * scene and will be drawn and updated in subsequent frames.
      */
     @JvmStatic
-    fun pushScene(scene: UIScene): Unit = treeLock.withLock {
+    fun pushScene(scene: Scene): Unit = treeLock.withLock {
         sceneHost?.let {
             it.pushScene(scene)
             return
@@ -490,7 +490,7 @@ object Verktex {
      * stack, it returns null.
      */
     @JvmStatic
-    fun popScene(): UIScene? = treeLock.withLock {
+    fun popScene(): Scene? = treeLock.withLock {
         sceneHost?.let { return it.popScene() }
 
         if (sceneStack.size <= 1) {
@@ -513,7 +513,7 @@ object Verktex {
      * splash screen once the game has started.
      */
     @JvmStatic
-    fun resetScenes(scene: UIScene): Unit = treeLock.withLock {
+    fun resetScenes(scene: Scene): Unit = treeLock.withLock {
         sceneHost?.let {
             it.resetScenes(scene)
             return
@@ -531,10 +531,10 @@ object Verktex {
         scene.onEnter()
     }
 
-    private fun topmostCapture(): UICaptureContainer? {
+    private fun topmostCapture(): CaptureContainer? {
         for (index in overlayContainer.childCount - 1 downTo 0) {
             val overlay = overlayContainer[index]
-            if (overlay is UICaptureContainer && overlay.isVisible && overlay.isShowingCapture) {
+            if (overlay is CaptureContainer && overlay.isVisible && overlay.isShowingCapture) {
                 return overlay
             }
         }
@@ -544,13 +544,13 @@ object Verktex {
     /**
      * Whether the component is an overlay itself, not inside of one, added with [addOverlay].
      */
-    internal fun isOverlayRoot(component: UIComponent) = component.parent === overlayContainer
+    internal fun isOverlayRoot(component: Component) = component.parent === overlayContainer
 
     /**
      * Whether the component is an overlay or inside of one.
      */
-    internal fun isInOverlay(component: UIComponent): Boolean {
-        var current: UIComponent? = component
+    internal fun isInOverlay(component: Component): Boolean {
+        var current: Component? = component
         while (current != null) {
             if (current.parent === overlayContainer) return true
             current = current.parent
@@ -561,7 +561,7 @@ object Verktex {
     /**
      * The container of the overlays, see [addOverlay].
      */
-    internal val overlays: UIContainer
+    internal val overlays: Container
         get() = overlayContainer
 
     /**
@@ -569,7 +569,7 @@ object Verktex {
      * and can be used for UI elements like dialogs, notifications, or other temporary UI components.
      */
     @JvmStatic
-    fun addOverlay(overlay: UIComponent) {
+    fun addOverlay(overlay: Component) {
         (overlayHost ?: overlayContainer) += overlay
     }
 
@@ -578,7 +578,7 @@ object Verktex {
      * and receiving input events.
      */
     @JvmStatic
-    fun removeOverlay(overlay: UIComponent) {
+    fun removeOverlay(overlay: Component) {
         overlayContainer -= overlay
         overlayHost?.let { it -= overlay }
     }
@@ -589,14 +589,14 @@ object Verktex {
      * of the UI test browser.
      */
     @JvmStatic
-    var overlayHost: UIContainer? = null
+    var overlayHost: Container? = null
 
     //endregion
 
     //region Hover
 
     private val hoverTracker = HoverTracker()
-    private val hoverRoots = ArrayList<UIComponent>(3)
+    private val hoverRoots = ArrayList<Component>(3)
 
     // Where the hovering pointer is in window pixels, NaN while there's none.
     private var hoverX = Float.NaN
@@ -699,7 +699,7 @@ object Verktex {
             // Pressing outside the focused component removes its focus (e.g. closes the keyboard).
             val focused = focusedComponent
             if (event is PointerEvent && event.action == PointerEvent.Action.Down
-                && focused is UIComponent && !focused.containsScenePoint(event.x, event.y)) {
+                && focused is Component && !focused.containsScenePoint(event.x, event.y)) {
                 clearFocus()
             }
 
@@ -709,7 +709,7 @@ object Verktex {
 
     /**
      * Tells every scene in the stack that the game's window gained or lost the focus, see
-     * [UIScene.onGameWindowFocusChange]. The platform calls it from its own thread.
+     * [Scene.onGameWindowFocusChange]. The platform calls it from its own thread.
      */
     fun onGameWindowFocusChange(hasFocus: Boolean) = treeLock.withLock {
         // A copy, a scene can push or pop others in response.
@@ -731,22 +731,22 @@ interface SceneHost {
     /**
      * The topmost scene of the host, or null if it has none.
      */
-    val currentScene: UIScene?
+    val currentScene: Scene?
 
     /**
      * Shows [scene] on top of the current one.
      */
-    fun pushScene(scene: UIScene)
+    fun pushScene(scene: Scene)
 
     /**
      * Removes the topmost scene and returns it, or null if the host has no scenes.
      */
-    fun popScene(): UIScene?
+    fun popScene(): Scene?
 
     /**
      * Replaces every scene of the host with [scene]. By default, pops them all and pushes it.
      */
-    fun resetScenes(scene: UIScene) {
+    fun resetScenes(scene: Scene) {
         while (popScene() != null) {
             continue
         }

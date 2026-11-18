@@ -4,7 +4,7 @@ import android.opengl.GLES20
 import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.DefaultUniforms
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 import com.reco1l.verktex.graphics.VertexLayout
 
 /**
@@ -31,7 +31,7 @@ abstract class ESCommandExecutor {
     private var depthEnabled = false
     private var depthFunction = -1
     private var depthWrite = false
-    private var boundShader: GraphicsShader? = null
+    private var boundShader: Shader? = null
 
     /**
      * The vertex attribute arrays currently enabled, by location.
@@ -228,7 +228,7 @@ abstract class ESCommandExecutor {
 
     // Every uniform gets either the command's value or its default, uniform values persist per
     // program, so a value left by a previous draw would otherwise apply.
-    private fun applyUniforms(shader: GraphicsShader, uniformSet: GraphicsShader.UniformSet, defaults: GraphicsShader.UniformSet) {
+    private fun applyUniforms(shader: Shader, uniformSet: Shader.UniformSet, defaults: Shader.UniformSet) {
         val shader = shader as ESShader
         val values = uniformSet.entries
 

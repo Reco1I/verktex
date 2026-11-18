@@ -1,10 +1,10 @@
 package com.reco1l.verktex.android
 
 import android.view.Surface
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
- * What producers (e.g. a video player) see of a texture made with `GraphicsRenderer.createExternalTexture`
+ * What producers (e.g. a video player) see of a texture made with `Renderer.createExternalTexture`
  * on Android: a [Surface] to draw frames into. How the frames reach the GPU is up to the backend.
  */
 interface AndroidExternalTexture {
@@ -12,7 +12,7 @@ interface AndroidExternalTexture {
     /**
      * The region covering the whole texture.
      */
-    val region: GraphicsTexture.Region
+    val region: Texture.Region
 
     /**
      * The [Surface] producers draw into, null until the texture is loaded.

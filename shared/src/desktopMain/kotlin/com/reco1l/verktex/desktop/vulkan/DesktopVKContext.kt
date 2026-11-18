@@ -1,6 +1,6 @@
 package com.reco1l.verktex.desktop.vulkan
 
-import com.reco1l.verktex.desktop.DesktopGraphicsContext
+import com.reco1l.verktex.desktop.DesktopGPUContext
 import com.reco1l.verktex.desktop.DesktopWindow
 import com.reco1l.verktex.vulkan.VKContext
 import com.reco1l.verktex.vulkan.VKNative
@@ -24,7 +24,7 @@ import java.nio.ByteOrder
 class DesktopVKContext private constructor(
     override val window: DesktopWindow,
     handle: Long,
-) : VKContext(handle), DesktopGraphicsContext {
+) : VKContext(handle), DesktopGPUContext {
 
     @Volatile
     override var vsync = false

@@ -22,8 +22,8 @@ import com.reco1l.verktex.android.gles.es3.ES3Device
 import com.reco1l.verktex.android.gles.es3.ES3Renderer
 import com.reco1l.verktex.android.vulkan.AndroidVKContext
 import com.reco1l.verktex.android.vulkan.AndroidVKDevice
-import com.reco1l.verktex.graphics.GraphicsBackend
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.GPUBackend
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.settings.Settings
 import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
@@ -43,15 +43,15 @@ fun Verktex.initializeAndroid(
 
     val window = AndroidWindow(host)
 
-    val backend = GraphicsBackend.fromName(Settings[VerktexSettings.GraphicsBackend])
+    val backend = GPUBackend.fromName(Settings[VerktexSettings.GPUBackend])
 
     // Picking Vulkan again retries it, even if it crashed while starting the last time.
-    Settings.observe(VerktexSettings.GraphicsBackend) { name ->
-        if (name == GraphicsBackend.Vulkan.name) resetVulkanCrashGuard()
+    Settings.observe(VerktexSettings.GPUBackend) { name ->
+        if (name == GPUBackend.Vulkan.name) resetVulkanCrashGuard()
     }
 
-    val renderer = (if (backend == GraphicsBackend.Vulkan) createVulkanRenderer(host, window) else null)
-        ?: createESRenderer(window, if (backend == GraphicsBackend.OpenGLES2) ESVersion.ES2 else ESVersion.ES3)
+    val renderer = (if (backend == GPUBackend.Vulkan) createVulkanRenderer(host, window) else null)
+        ?: createESRenderer(window, if (backend == GPUBackend.OpenGLES2) ESVersion.ES2 else ESVersion.ES3)
 
     initialize(
         host = host,
@@ -87,7 +87,7 @@ internal fun isVulkanAvailable(context: Context): Boolean {
 private const val VULKAN_1_1 = 0x401000
 
 // Null when Vulkan can't be used on the device, the caller falls back to OpenGL ES.
-private fun createVulkanRenderer(host: AndroidGameHost, window: AndroidWindow): GraphicsRenderer? {
+private fun createVulkanRenderer(host: AndroidGameHost, window: AndroidWindow): Renderer? {
     val isDebuggable = host.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
     return startVulkanRenderer(
@@ -96,7 +96,7 @@ private fun createVulkanRenderer(host: AndroidGameHost, window: AndroidWindow): 
     )
 }
 
-private fun createESRenderer(window: AndroidWindow, preferredVersion: ESVersion): GraphicsRenderer {
+private fun createESRenderer(window: AndroidWindow, preferredVersion: ESVersion): Renderer {
     val context = ESContext(window, preferredVersion)
 
     Logger.i("Verktex", "Using the OpenGL ${context.esVersion} backend.")

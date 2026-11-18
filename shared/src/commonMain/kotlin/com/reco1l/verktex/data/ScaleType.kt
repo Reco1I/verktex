@@ -1,6 +1,6 @@
 package com.reco1l.verktex.data
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import kotlin.math.max
 import kotlin.math.min
 
@@ -31,7 +31,7 @@ enum class ScaleType {
      * coordinates it shows (u0, v0, u1, v1) to [out]. Returns false if the region has no size.
      */
     fun place(
-        region: GraphicsTexture.Region,
+        region: Texture.Region,
         width: Float,
         height: Float,
         gravity: Vec2,

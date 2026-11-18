@@ -31,7 +31,7 @@ toast.fadeOut(0.2f).after { it.removeSelf() }
 
 ## Functions
 
-Every function is an extension of `UIComponent`. Durations are in seconds. A duration of 0, the
+Every function is an extension of `Component`. Durations are in seconds. A duration of 0, the
 default, sets the value on the next update.
 
 | Function                      | Animates                                                            |
@@ -90,7 +90,7 @@ it in the past, as if it had already been running for that long.
 ## How they run
 
 Each component keeps its transforms in a `TransformTracker`, created with the first one. They
-advance in `UIComponent.update`, before `onUpdate`:
+advance in `Component.update`, before `onUpdate`:
 
 - **A transform takes its start value when it starts**, not when it's created. A delayed `fadeTo`
   starts from the alpha the component has once its delay ends.
@@ -109,7 +109,7 @@ advance in `UIComponent.update`, before `onUpdate`:
 By default transforms follow the engine's frame time: each update adds the frame's elapsed time.
 That count restarts at 0 whenever the component has no transforms left.
 
-When the component or one of its ancestors has a `clock` (`UIComponent.clock`, see `activeClock`),
+When the component or one of its ancestors has a `clock` (`Component.clock`, see `activeClock`),
 transforms use that clock's time instead. They then pause when it pauses and follow its rate. They
 don't rewind, though: going back before a transform's start only holds it, and doesn't restore the
 earlier value. For animations that must follow a clock both ways, use a
@@ -122,7 +122,7 @@ earlier value. For animations that must follow a clock both ways, use a
 Transforms set properties during the update, so anything that sets the same property later in the
 frame wins:
 
-- the component's `onUpdate`, such as `UIButton` easing its scale while pressed;
+- the component's `onUpdate`, such as `Button` easing its scale while pressed;
 - its `choreography`, which applies after transforms;
 - code that sets the property directly every frame.
 

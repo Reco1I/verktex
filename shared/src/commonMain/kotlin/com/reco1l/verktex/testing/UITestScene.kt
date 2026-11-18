@@ -18,21 +18,21 @@ import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.ui.FAIcon
-import com.reco1l.verktex.ui.UIButton
-import com.reco1l.verktex.ui.UIComponent
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.ui.Button
+import com.reco1l.verktex.ui.Component
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.ui.Theme
-import com.reco1l.verktex.ui.UIScene
-import com.reco1l.verktex.ui.UITextButton
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.container.UILinearContainer
+import com.reco1l.verktex.ui.Scene
+import com.reco1l.verktex.ui.TextButton
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.LinearContainer
 import com.reco1l.verktex.ui.container.linearContainer
 import com.reco1l.verktex.ui.container.scrollableContainer
 import com.reco1l.verktex.ui.iconButton
 import com.reco1l.verktex.ui.textButton
 import com.reco1l.verktex.time.derive
 import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.text.UIText
+import com.reco1l.verktex.ui.text.Text
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.data.oklch
 import com.reco1l.verktex.data.wrap
@@ -49,18 +49,18 @@ class UITestScene(
     private val suites: List<UITestSuite>,
     initialTest: String? = null,
     private val onTestSelected: (id: String) -> Unit = {}
-) : UIScene() {
+) : Scene() {
 
-    private val testButtons = mutableMapOf<UITest, UITextButton>()
+    private val testButtons = mutableMapOf<UITest, TextButton>()
 
     // Assigned from the builders in init.
-    private lateinit var titleText: UIText
-    private lateinit var logText: UIText
-    private lateinit var stageHost: UIContainer
+    private lateinit var titleText: Text
+    private lateinit var logText: Text
+    private lateinit var stageHost: Container
 
     // Holds the stage and its overlays, scaled down when the tests are shown at the window size.
-    private val viewport = object : UIContainer() {
-        override fun drawContent(renderer: GraphicsRenderer) {
+    private val viewport = object : Container() {
+        override fun drawContent(renderer: Renderer) {
             if (!outlinesComponents) {
                 return super.drawContent(renderer)
             }
@@ -138,7 +138,7 @@ class UITestScene(
 
     private var pendingTest: Pair<UITestSuite, UITest>? = null
 
-    private var currentOverlayLayer: UIScene? = null
+    private var currentOverlayLayer: Scene? = null
     private var backgroundIndex = 0
 
 
@@ -146,7 +146,7 @@ class UITestScene(
         background = Background.Color(BACKGROUNDS[0])
 
         linearContainer {
-            orientation = UILinearContainer.Orientation.Horizontal
+            orientation = LinearContainer.Orientation.Horizontal
             width = fill()
             height = fill()
 
@@ -158,7 +158,7 @@ class UITestScene(
                 background = Background.Color(Verktex.theme.palette.surface)
 
                 linearContainer {
-                    orientation = UILinearContainer.Orientation.Vertical
+                    orientation = LinearContainer.Orientation.Vertical
                     width = fill()
                     padding = Padding(8f.dip)
                     spacing = 2f.dip
@@ -176,8 +176,8 @@ class UITestScene(
                                 text = test.name
                                 width = fill()
                                 alignment = Anchor.CenterLeft
-                                variant = UIButton.Variant.Surface
-                                density = UIButton.Density.Small
+                                variant = Button.Variant.Surface
+                                density = Button.Density.Small
                                 height = wrap()
                                 padding = Padding(8f.dip, 6f.dip)
                                 onActionUp = { select(suite, test) }
@@ -188,13 +188,13 @@ class UITestScene(
             }
 
             linearContainer {
-                orientation = UILinearContainer.Orientation.Vertical
+                orientation = LinearContainer.Orientation.Vertical
                 width = fill()
                 height = fill()
 
                 linearContainer {
                     theme = flatTheme
-                    orientation = UILinearContainer.Orientation.Horizontal
+                    orientation = LinearContainer.Orientation.Horizontal
                     width = fill()
                     padding = Padding(12f.dip, 6f.dip)
                     spacing = 4f.dip
@@ -209,7 +209,7 @@ class UITestScene(
 
                     iconButton {
                         icon = FAIcon.Pause
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = {
                             if (stageClock.isRunning) stageClock.pause() else stageClock.start()
                             icon = if (stageClock.isRunning) FAIcon.Pause else FAIcon.Play
@@ -218,7 +218,7 @@ class UITestScene(
 
                     textButton {
                         text = formatRate(stageClock.rate)
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = {
                             val index = (RATES.indexOf(stageClock.rate) + 1) % RATES.size
                             stageClock.rate = RATES[index]
@@ -228,7 +228,7 @@ class UITestScene(
 
                     iconButton {
                         icon = viewportIcon()
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = {
                             isFittingWindow = !isFittingWindow
                             // Measured again with the constraints of the new mode.
@@ -240,7 +240,7 @@ class UITestScene(
 
                     iconButton {
                         icon = safeAreaIcon()
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = {
                             hasSafeArea = !hasSafeArea
                             icon = safeAreaIcon()
@@ -250,23 +250,23 @@ class UITestScene(
 
                     iconButton {
                         icon = FAIcon.ObjectGroup
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = {
                             outlinesComponents = !outlinesComponents
-                            variant = if (outlinesComponents) UIButton.Variant.Soft else UIButton.Variant.Surface
+                            variant = if (outlinesComponents) Button.Variant.Soft else Button.Variant.Surface
                             log(if (outlinesComponents) "Showing the bounds of components" else "Hiding the bounds of components")
                         }
                     }
 
                     iconButton {
                         icon = FAIcon.ArrowRotateRight
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = { reload() }
                     }
 
                     iconButton {
                         icon = FAIcon.Palette
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = {
                             backgroundIndex = (backgroundIndex + 1) % BACKGROUNDS.size
                             viewport.background = Background.Color(BACKGROUNDS[backgroundIndex])
@@ -276,7 +276,7 @@ class UITestScene(
                     // Gives the stage a random accent, to see the components follow theme changes.
                     iconButton {
                         icon = FAIcon.Dice
-                        variant = UIButton.Variant.Surface
+                        variant = Button.Variant.Surface
                         onActionUp = { randomizeAccent() }
                         onActionLongPress = {
                             viewport.theme = null
@@ -290,7 +290,7 @@ class UITestScene(
                     height = fill()
 
                     // The tests run on a clock of their own, so they can be paused or sped up.
-                    stageHost = object : UIContainer() {
+                    stageHost = object : Container() {
                         override fun onInputEvent(event: InputEvent): Boolean {
                             return try {
                                 super.onInputEvent(event)
@@ -401,7 +401,7 @@ class UITestScene(
 
         // Overlays opened by the test (e.g. modals) are kept inside the stage, above its content,
         // instead of covering the whole browser. A scene, as in the game, so they keep its safe area.
-        val overlayLayer = UIScene()
+        val overlayLayer = Scene()
         viewport += overlayLayer
         currentOverlayLayer = overlayLayer
         Verktex.overlayHost = overlayLayer

@@ -2,7 +2,7 @@ package com.reco1l.verktex.desktop.testing
 
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.desktop.DesktopGameHost
-import com.reco1l.verktex.graphics.GraphicsBackend
+import com.reco1l.verktex.graphics.GPUBackend
 import com.reco1l.verktex.settings.Settings
 import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.testing.UITestScene
@@ -24,7 +24,7 @@ import java.util.prefs.Preferences
  * to this PNG and the window closes, e.g. for smoke checks.
  * @param screenshotDelay How long after starting the screenshot is taken.
  * @param vsync Whether frames wait for the display's refresh, see [DesktopGameHost].
- * @param backend The graphics backend to open with (a [GraphicsBackend] name, e.g. `Vulkan`), the
+ * @param backend The graphics backend to open with (a [GPUBackend] name, e.g. `Vulkan`), the
  * setting's otherwise.
  */
 abstract class UITestApplication(
@@ -52,10 +52,10 @@ abstract class UITestApplication(
 
     override fun onPlatformAttached() {
         val backend = backend ?: return
-        Settings[VerktexSettings.GraphicsBackend] = backend
+        Settings[VerktexSettings.GPUBackend] = backend
 
         // Asked for explicitly, it's tried even if it crashed while starting the last time.
-        if (backend == GraphicsBackend.Vulkan.name) {
+        if (backend == GPUBackend.Vulkan.name) {
             resetVulkanCrashGuard()
         }
     }

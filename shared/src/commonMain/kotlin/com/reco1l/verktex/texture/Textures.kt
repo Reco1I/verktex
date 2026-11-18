@@ -3,7 +3,7 @@ package com.reco1l.verktex.texture
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Platform
 import com.reco1l.verktex.Verktex
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import kotlin.collections.iterator
 import kotlin.math.min
 
@@ -16,9 +16,9 @@ object Textures {
     // The gutter around each region of an atlas, see docs/texture-blending.md.
     private const val ATLAS_REGION_PADDING = 1
 
-    private val atlases = mutableListOf<GraphicsTexture>()
-    private val standaloneTextures = mutableListOf<GraphicsTexture>()
-    private val textureRegions = mutableMapOf<String, GraphicsTexture.Region>()
+    private val atlases = mutableListOf<Texture>()
+    private val standaloneTextures = mutableListOf<Texture>()
+    private val textureRegions = mutableMapOf<String, Texture.Region>()
 
 
     /**
@@ -45,13 +45,13 @@ object Textures {
     /**
      * Loads multiple texture frames from the specified file paths and stores them in a [FramedTextureRegion].
      */
-    fun load(key: String, paths: List<String>, isInternal: Boolean = false): GraphicsTexture.Region? {
+    fun load(key: String, paths: List<String>, isInternal: Boolean = false): Texture.Region? {
         if (paths.isEmpty()) {
             Logger.w("TextureManager", "No paths provided for loading frames with key: $key")
             return null
         }
 
-        val frames = mutableListOf<GraphicsTexture.Region>()
+        val frames = mutableListOf<Texture.Region>()
         val dedicatedAtlas = createNewAtlas()
 
         for (path in paths) {
@@ -82,16 +82,16 @@ object Textures {
      * @param path The file path of the texture to load.
      * @param isInternal A boolean indicating whether the file path is internal to the application.
      * @param density How many pixels of the image make one pixel of the size it's shown at, see
-     * [GraphicsTexture.Region.density], e.g. 2 for an `@2x` image.
-     * @return A [GraphicsTexture.Region] representing the loaded texture.
+     * [Texture.Region.density], e.g. 2 for an `@2x` image.
+     * @return A [Texture.Region] representing the loaded texture.
      */
     fun load(
         key: String,
         path: String,
         isInternal: Boolean = false,
-        destinationAtlas: GraphicsTexture? = null,
+        destinationAtlas: Texture? = null,
         density: Float = 1f
-    ): GraphicsTexture.Region? {
+    ): Texture.Region? {
 
         val textureSource = Platform.provider.createTextureSource(path, !isInternal)
             ?: run {
@@ -112,17 +112,17 @@ object Textures {
      * larger than the atlas size are always standalone.
      * @param destinationAtlas The atlas to store the source in, if any.
      * @param density How many pixels of the source make one pixel of the size it's shown at, see
-     * [GraphicsTexture.Region.density].
-     * @return A [GraphicsTexture.Region] representing the loaded texture, or null if the source exceeds the
+     * [Texture.Region.density].
+     * @return A [Texture.Region] representing the loaded texture, or null if the source exceeds the
      * maximum texture size.
      */
     fun load(
         key: String,
-        source: GraphicsTexture.Source,
+        source: Texture.Source,
         standalone: Boolean = false,
-        destinationAtlas: GraphicsTexture? = null,
+        destinationAtlas: Texture? = null,
         density: Float = 1f
-    ): GraphicsTexture.Region? {
+    ): Texture.Region? {
 
         val existingRegion = textureRegions.remove(key)
         if (existingRegion != null) {
@@ -170,7 +170,7 @@ object Textures {
     /**
      * Detaches [region] from its texture, and disposes the texture if it is a standalone one.
      */
-    private fun release(region: GraphicsTexture.Region) {
+    private fun release(region: Texture.Region) {
         val texture = region.texture
 
         if (standaloneTextures.remove(texture)) {
@@ -188,7 +188,7 @@ object Textures {
     /**
      * Unloads a texture region from the texture manager and removes it from its texture atlas.
      */
-    fun unload(region: GraphicsTexture.Region) {
+    fun unload(region: Texture.Region) {
         val key = textureRegions.entries.find { it.value == region }?.key ?: run {
             Logger.w("TextureManager", "Texture region not found in store. Cannot unload.")
             return
@@ -200,7 +200,7 @@ object Textures {
      * Unloads all texture regions that match the specified predicate from the texture manager and removes
      * them from their respective texture atlases.
      */
-    fun unloadAll(predicate: (key: String, region: GraphicsTexture.Region) -> Boolean = { _, _ -> true }) {
+    fun unloadAll(predicate: (key: String, region: Texture.Region) -> Boolean = { _, _ -> true }) {
         val keysToUnload = textureRegions.filter { predicate(it.key, it.value) }
 
         for (entry in keysToUnload) {
@@ -216,7 +216,7 @@ object Textures {
         return textureRegions.containsKey(key)
     }
 
-    operator fun get(key: String): GraphicsTexture.Region? {
+    operator fun get(key: String): Texture.Region? {
         return textureRegions[key]
     }
 
@@ -233,16 +233,16 @@ object Textures {
 
     private fun atlasSize(): Float = min(2048f, Verktex.graphics.device.capabilities.maxTextureSize)
 
-    private fun fitsEmptyAtlas(source: GraphicsTexture.Source): Boolean {
+    private fun fitsEmptyAtlas(source: Texture.Source): Boolean {
         val largest = atlasSize() - 2 * ATLAS_REGION_PADDING
         return source.width <= largest && source.height <= largest
     }
 
     /**
-     * Stores a [GraphicsTexture.Source] larger than an atlas on a texture of exactly its own size.
+     * Stores a [Texture.Source] larger than an atlas on a texture of exactly its own size.
      * Returns null when the source exceeds the device's maximum texture size.
      */
-    private fun storeStandalone(source: GraphicsTexture.Source): GraphicsTexture.Region? {
+    private fun storeStandalone(source: Texture.Source): Texture.Region? {
         val maxSize = Verktex.graphics.device.capabilities.maxTextureSize
 
         if (source.width > maxSize || source.height > maxSize) {
@@ -264,7 +264,7 @@ object Textures {
         return region
     }
 
-    private fun createNewAtlas(): GraphicsTexture {
+    private fun createNewAtlas(): Texture {
         val preferedSize = atlasSize()
 
         val newAtlas = Verktex.graphics.createTexture(
@@ -278,10 +278,10 @@ object Textures {
     }
 
     /**
-     * Stores a [GraphicsTexture.Source] in a free texture atlas. If no existing atlas can accommodate the
+     * Stores a [Texture.Source] in a free texture atlas. If no existing atlas can accommodate the
      * source, a new atlas will be created.
      */
-    private fun storeOnTextureAtlas(source: GraphicsTexture.Source, destinationAtlas: GraphicsTexture? = null): GraphicsTexture.Region {
+    private fun storeOnTextureAtlas(source: Texture.Source, destinationAtlas: Texture? = null): Texture.Region {
 
         if (destinationAtlas != null) {
             if (destinationAtlas.fitsSource(source)) {

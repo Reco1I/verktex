@@ -1,7 +1,7 @@
 package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.data.Color4
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.math.interpolateFloat
 import com.reco1l.verktex.time.FrameClock
 
@@ -11,10 +11,10 @@ import com.reco1l.verktex.time.FrameClock
  * hovered, more when pressed, and out otherwise (also when disabled). Its opacities and speed come
  * from [Theme.highlightStyle].
  *
- * The component updates it from [UIComponent.onUpdate] and draws it from
- * [UIComponent.drawOverBackground].
+ * The component updates it from [Component.onUpdate] and draws it from
+ * [Component.drawOverBackground].
  */
-class StateHighlight(private val component: UIComponent) {
+class StateHighlight(private val component: Component) {
 
     /**
      * Whether the component highlights. When false the highlight fades out and stays hidden.
@@ -43,7 +43,7 @@ class StateHighlight(private val component: UIComponent) {
     /**
      * Draws the highlight in [color], whose alpha is ignored.
      */
-    fun draw(renderer: GraphicsRenderer, color: Color4) {
+    fun draw(renderer: Renderer, color: Color4) {
         if (opacity <= 0f) {
             return
         }

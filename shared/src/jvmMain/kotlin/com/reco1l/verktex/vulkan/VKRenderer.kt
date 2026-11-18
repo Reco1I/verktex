@@ -4,15 +4,15 @@ import com.reco1l.verktex.Logger
 import com.reco1l.verktex.PerformanceStats
 import com.reco1l.verktex.graphics.DefaultUniforms
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsBackend
-import com.reco1l.verktex.graphics.GraphicsRenderer
-import com.reco1l.verktex.graphics.GraphicsResource
-import com.reco1l.verktex.graphics.GraphicsTexture
-import com.reco1l.verktex.graphics.GraphicsWindow
+import com.reco1l.verktex.graphics.GPUBackend
+import com.reco1l.verktex.graphics.Renderer
+import com.reco1l.verktex.graphics.GPUResource
+import com.reco1l.verktex.graphics.Texture
+import com.reco1l.verktex.graphics.Window
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
 
 /**
- * The Vulkan implementation of [GraphicsRenderer]. Each command's vertices, instances and uniform
+ * The Vulkan implementation of [Renderer]. Each command's vertices, instances and uniform
  * blocks are written into the frame's ring and a draw is encoded for them, the native side records
  * and submits the whole frame at once when it's presented.
  *
@@ -24,13 +24,13 @@ import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
 class VKRenderer(
     override val context: VKContext,
     override val device: VKDevice,
-    override val window: GraphicsWindow,
-) : GraphicsRenderer() {
+    override val window: Window,
+) : Renderer() {
 
     override var version: String = context.version
 
-    override val backend: GraphicsBackend
-        get() = GraphicsBackend.Vulkan
+    override val backend: GPUBackend
+        get() = GPUBackend.Vulkan
 
     /**
      * The commands of the last frame that were skipped as their features aren't supported yet.
@@ -82,7 +82,7 @@ class VKRenderer(
 
         val texture = command.texture
 
-        if (shader.state == GraphicsResource.State.Unloaded) {
+        if (shader.state == GPUResource.State.Unloaded) {
             shader.load()
         }
 
@@ -157,7 +157,7 @@ class VKRenderer(
         )
     }
 
-    private fun capture(texture: GraphicsTexture) {
+    private fun capture(texture: Texture) {
         if (texture !is VKTexture) {
             skippedCommands++
             return

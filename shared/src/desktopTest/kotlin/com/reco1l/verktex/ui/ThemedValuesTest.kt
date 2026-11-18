@@ -7,8 +7,8 @@ import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.px
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.shape.UIBox
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.shape.Box
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,7 +43,7 @@ class ThemedValuesTest {
 
     @Test
     fun themedValuesResolveWhenAssigned() {
-        val box = UIBox()
+        val box = Box()
         box.color = themed { palette.accent }
         box.radius = themed { CornerRadius(radius.md) }
 
@@ -53,7 +53,7 @@ class ThemedValuesTest {
 
     @Test
     fun themedValuesResolveAgainWhenTheGlobalThemeChanges() {
-        val box = UIBox()
+        val box = Box()
         box.color = themed { palette.accent }
 
         Verktex.theme = blueTheme
@@ -64,8 +64,8 @@ class ThemedValuesTest {
 
     @Test
     fun themedValuesFollowTheThemeOfTheirParent() {
-        val parent = UIContainer().apply { theme = blueTheme }
-        val box = UIBox()
+        val parent = Container().apply { theme = blueTheme }
+        val box = Box()
         box.radius = themed { CornerRadius(radius.md) }
 
         parent += box
@@ -77,7 +77,7 @@ class ThemedValuesTest {
 
     @Test
     fun plainValuesReplaceTheBinding() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.color = themed { palette.accent }
         box.color = Color4.White
 
@@ -88,7 +88,7 @@ class ThemedValuesTest {
 
     @Test
     fun changingTheAlphaKeepsTheColorThemed() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.color = themed { palette.accent }
         box.alpha = 0.5f
 
@@ -99,7 +99,7 @@ class ThemedValuesTest {
 
     @Test
     fun nestedThemedValuesAreResolved() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.padding = Padding(themed { radius.md })
         box.border = Border(1f.px, themed { palette.accent })
 
@@ -112,7 +112,7 @@ class ThemedValuesTest {
 
     @Test
     fun boundValuesAreAppliedAgain() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         var applied: Color4? = null
         box.bindTheme("key", { palette.accent }) { applied = it }
         assertEquals(Color4.Red500, applied)
@@ -149,7 +149,7 @@ class ThemedValuesTest {
 
     @Test
     fun cornersCanBeThemedOneByOne() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.radius = CornerRadius(themed { radius.md }, 2f.px, 2f.px, themed { radius.md })
 
         box.theme = blueTheme
@@ -171,7 +171,7 @@ class ThemedValuesTest {
 
     @Test
     fun themedBordersResolveWithTheThemeOfTheirComponent() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.border = themed { Border(1f.px, palette.accent, Color4.Black) }
 
         assertEquals(Border(1f.px, Color4.Red500, Color4.Black), box.border)
@@ -182,7 +182,7 @@ class ThemedValuesTest {
 
     @Test
     fun changingTheColorOfAThemedBorderKeepsItsWidthThemed() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.border = themed { Border(radius.md, Color4.Black) }.withColor(Color4.White)
 
         assertEquals(Border(4f.px, Color4.White), box.border)
@@ -207,7 +207,7 @@ class ThemedValuesTest {
 
     @Test
     fun backgroundsTakeTheirColorFromTheTheme() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.background = Background.Color(themed { palette.accent })
 
         assertEquals(Background.Color(Color4.Red500), box.background)
@@ -218,7 +218,7 @@ class ThemedValuesTest {
 
     @Test
     fun themedBackgroundsResolveWithTheThemeOfTheirComponent() {
-        val box = UIBox().apply { theme = redTheme }
+        val box = Box().apply { theme = redTheme }
         box.background = themed { Background.Color(palette.accent.alpha(0.5f)) }
 
         assertEquals(Background.Color(Color4.Red500.alpha(0.5f)), box.background)

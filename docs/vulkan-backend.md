@@ -14,10 +14,10 @@ often poor), NDK 22.1.7171670 (ships Vulkan headers, `libvulkan.so` and `glslc` 
 
 ## Current architecture (what exists)
 - `verktex/core/src/main/kotlin/com/reco1l/verktex/graphics/` — backend-neutral API:
-  `GraphicsRenderer` (records `DrawCommand`s in `commandBatch`, flushes them in `end()` via
-  `drawCommand()`), `GraphicsDevice`, `GraphicsContext`, `GraphicsWindow`, `GraphicsBuffer`,
-  `GraphicsShader`, `GraphicsTexture`, `GraphicsResource`, `DrawCommand`, `VertexLayout`,
-  `BlendMode`, `DepthState`, `GraphicsBackend` (enum stored in settings).
+  `Renderer` (records `DrawCommand`s in `commandBatch`, flushes them in `end()` via
+  `drawCommand()`), `Device`, `GPUContext`, `Window`, `Buffer`,
+  `Shader`, `Texture`, `GPUResource`, `DrawCommand`, `VertexLayout`,
+  `BlendMode`, `DepthState`, `GPUBackend` (enum stored in settings).
 - `verktex/.../android/gles/` — `ESRenderer` (+ `es2/ES2Renderer`, `es3/ES3Renderer`),
   `ESCommandExecutor` (+ ES2/ES3 variants), `ESContext` (EGL),
   `ESDevice`, `ESBuffer`, `ESShader`, `ESTexture`, `ESExternalTexture` (SurfaceTexture/OES),
@@ -37,18 +37,18 @@ often poor), NDK 22.1.7171670 (ships Vulkan headers, `libvulkan.so` and `glslc` 
 ## Gaps (where the abstraction leaks GL)
 | # | Gap | Where | Why it blocks Vulkan |
 |---|-----|-------|----------------------|
-| 1 | **Texture uploads are done by the source**, `GraphicsTexture.Source.uploadToHardware(x, y)` | `GraphicsTexture.kt`, `AndroidTextureSource.kt` (calls `GLUtils.texSubImage2D` / `glTexSubImage2D`), `FramedTextureRegion.kt`, `AndroidFont.kt` (glyphs), `UICaptureContainer.CaptureSource` | Vulkan needs a staging buffer copy + image layout transitions recorded in a command buffer. The source must *provide pixels*, the backend texture must upload them. |
-| 2 | **Immediate bind semantics**, `GraphicsResource.bind()` = load + bind + (for textures) flush pending uploads | `GraphicsResource.kt`, `GraphicsTexture.onBind` | Vulkan has no bound state; "bind" becomes "make sure it's resident and pick its descriptor". Uploads must happen before the render pass, not mid-pass. |
-| 3 | **Buffer lifetime across frames** (✅ phase 2) — `GraphicsRenderer.bufferPool` reuses buffers every frame; `uploadDataToGPU()` overwrites in place | `GraphicsRenderer.kt`, `ESBuffer.kt` | GL drivers orphan implicitly; with 2–3 Vulkan frames in flight, overwriting a buffer still read by the GPU corrupts draws. Needs per-frame ring (linear) allocation. |
-| 4 | **Name-based loose uniforms** (`UniformSet` of `String → Any`, defaults like `uViewportSize`, `uColor`, `uTransform` injected in `ESCommandExecutor.defaultUniforms`) | `GraphicsShader.kt`, `ESShader.applyUniform`, `ESCommandExecutor` | Vulkan has only UBOs / push constants. Needs reflection (name → offset/type) and packing into a per-draw dynamic UBO slice. The default-uniform logic is backend-agnostic and should move up to common code. |
+| 1 | **Texture uploads are done by the source**, `Texture.Source.uploadToHardware(x, y)` | `Texture.kt`, `AndroidTextureSource.kt` (calls `GLUtils.texSubImage2D` / `glTexSubImage2D`), `FramedTextureRegion.kt`, `AndroidFont.kt` (glyphs), `CaptureContainer.CaptureSource` | Vulkan needs a staging buffer copy + image layout transitions recorded in a command buffer. The source must *provide pixels*, the backend texture must upload them. |
+| 2 | **Immediate bind semantics**, `GPUResource.bind()` = load + bind + (for textures) flush pending uploads | `GPUResource.kt`, `Texture.onBind` | Vulkan has no bound state; "bind" becomes "make sure it's resident and pick its descriptor". Uploads must happen before the render pass, not mid-pass. |
+| 3 | **Buffer lifetime across frames** (✅ phase 2) — `Renderer.bufferPool` reuses buffers every frame; `uploadDataToGPU()` overwrites in place | `Renderer.kt`, `ESBuffer.kt` | GL drivers orphan implicitly; with 2–3 Vulkan frames in flight, overwriting a buffer still read by the GPU corrupts draws. Needs per-frame ring (linear) allocation. |
+| 4 | **Name-based loose uniforms** (`UniformSet` of `String → Any`, defaults like `uViewportSize`, `uColor`, `uTransform` injected in `ESCommandExecutor.defaultUniforms`) | `Shader.kt`, `ESShader.applyUniform`, `ESCommandExecutor` | Vulkan has only UBOs / push constants. Needs reflection (name → offset/type) and packing into a per-draw dynamic UBO slice. The default-uniform logic is backend-agnostic and should move up to common code. |
 | 5 | **Pipeline state is set piecemeal** (blend, depth, attributes) | `ESCommandExecutor.execute` | Vulkan bakes blend, depth, vertex input and topology into a `VkPipeline`. Needs a pipeline cache keyed by (shader, `VertexLayout`, `BlendMode`, `DepthState`, render pass/format). `DrawCommand` already has all the inputs. |
-| 6 | **Framebuffer capture mid-frame** with `glCopyTexSubImage2D` (bottom-left origin) | `DrawCommand.captureTexture`, `ESCommandExecutor`, `UICaptureContainer` | Requires ending the render pass, copying, and resuming. Easiest if Vulkan always renders to an offscreen color image and blits/draws it to the swapchain at the end. The capture's origin convention must be made explicit (GL is bottom-left, Vulkan top-left) so `UICaptureContainer`'s UVs stay correct. |
-| 7 | **External (video) textures** are `SurfaceTexture` + `GL_TEXTURE_EXTERNAL_OES` | `ESExternalTexture.kt`, `video.frag`, `GraphicsDevice.createExternalTexture` | GL-only. Vulkan path: `ImageReader` (API 26+, `USAGE_GPU_SAMPLED_IMAGE`) → `AHardwareBuffer` → `VK_ANDROID_external_memory_android_hardware_buffer` + `VkSamplerYcbcrConversion`. The public API leaks `surfaceTexture`; expose only a `Surface` + "frame available" to producers. |
-| 8 | **Context/window types are EGL-shaped** — `GraphicsContext.makeCurrent/swapBuffers`, window class named `ESWindow` | `GraphicsContext.kt`, `ESWindow.kt`, `ESContext.prepare` | `ESWindow` is a generic `SurfaceView`; rename/move to `android/AndroidWindow` and share it. `GraphicsContext` should become `acquireFrame(): Boolean` / `present()`; Vulkan recreates `VkSurfaceKHR` + swapchain on `surfaceGeneration` change and on `VK_ERROR_OUT_OF_DATE_KHR`/`SUBOPTIMAL`. |
+| 6 | **Framebuffer capture mid-frame** with `glCopyTexSubImage2D` (bottom-left origin) | `DrawCommand.captureTexture`, `ESCommandExecutor`, `CaptureContainer` | Requires ending the render pass, copying, and resuming. Easiest if Vulkan always renders to an offscreen color image and blits/draws it to the swapchain at the end. The capture's origin convention must be made explicit (GL is bottom-left, Vulkan top-left) so `CaptureContainer`'s UVs stay correct. |
+| 7 | **External (video) textures** are `SurfaceTexture` + `GL_TEXTURE_EXTERNAL_OES` | `ESExternalTexture.kt`, `video.frag`, `Device.createExternalTexture` | GL-only. Vulkan path: `ImageReader` (API 26+, `USAGE_GPU_SAMPLED_IMAGE`) → `AHardwareBuffer` → `VK_ANDROID_external_memory_android_hardware_buffer` + `VkSamplerYcbcrConversion`. The public API leaks `surfaceTexture`; expose only a `Surface` + "frame available" to producers. |
+| 8 | **Context/window types are EGL-shaped** — `GPUContext.makeCurrent/swapBuffers`, window class named `ESWindow` | `GPUContext.kt`, `ESWindow.kt`, `ESContext.prepare` | `ESWindow` is a generic `SurfaceView`; rename/move to `android/AndroidWindow` and share it. `GPUContext` should become `acquireFrame(): Boolean` / `present()`; Vulkan recreates `VkSurfaceKHR` + swapchain on `surfaceGeneration` change and on `VK_ERROR_OUT_OF_DATE_KHR`/`SUBOPTIMAL`. |
 | 9 | **Clip-space / NDC conventions** | `main.vert`, `ui.vert`, `particle.vert` | Vulkan Y is flipped and depth is 0..1. Use a negative-height viewport (core in 1.1 / `VK_KHR_maintenance1`) instead of touching shaders. |
 | 10 | **GPU timing** | `es3/ES3GpuTimer.kt`, `PerformanceStats.gpuTime` | Replace with `vkCmdWriteTimestamp` queries. |
-| 11 | **Capabilities** only `maxTextureSize` from `GL_MAX_TEXTURE_SIZE` | `GraphicsDevice.Capabilities`, `ESDevice.refreshCapabilities` | Fill from `VkPhysicalDeviceLimits.maxImageDimension2D`; consider adding `supportsExternalTextures`, `maxVertexAttributes`. |
-| 12 | **Backend selection is GL-only** | `GraphicsBackend.kt`, `Android.kt`, `SettingsSections.kt`, `MainActivity.java`, `../src/com/acivev/utils/DevicePerfomanceUtils.kt` (GLES3 check) | Add `Vulkan` entry, fallback chain Vulkan → ES3 → ES2 on init failure. |
+| 11 | **Capabilities** only `maxTextureSize` from `GL_MAX_TEXTURE_SIZE` | `Device.Capabilities`, `ESDevice.refreshCapabilities` | Fill from `VkPhysicalDeviceLimits.maxImageDimension2D`; consider adding `supportsExternalTextures`, `maxVertexAttributes`. |
+| 12 | **Backend selection is GL-only** | `GPUBackend.kt`, `Android.kt`, `SettingsSections.kt`, `MainActivity.java`, `../src/com/acivev/utils/DevicePerfomanceUtils.kt` (GLES3 check) | Add `Vulkan` entry, fallback chain Vulkan → ES3 → ES2 on init failure. |
 
 Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source set and pending a rewrite on Verktex.
 
@@ -68,7 +68,7 @@ Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source se
   **rejected for now**:
   - It targets **Kotlin/Native only** (`androidNativeArm64`, plus iOS/Linux/macOS/Windows), with
     no Kotlin/JVM target. Verktex and the app run on ART (Kotlin/JVM), so it can't be called from
-    `GraphicsRenderer` directly. Using it means building a separate K/N shared library that the app
+    `Renderer` directly. Using it means building a separate K/N shared library that the app
     still reaches through JNI, so the JNI boundary stays and a second runtime and GC are added.
   - It **requires Vulkan 1.4**. Few Android devices have that (recent flagships only), while the
     app supports `minSdkVersion 24`. A useful Vulkan backend has to run on 1.1 (API 28–29+).
@@ -83,7 +83,7 @@ Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source se
   It supports Vulkan 1.0/1.1 and every ABI and adds no new toolchain.
 
 ### Kotlin layer — `../android/src/main/java/com/reco1l/verktex/android/vulkan`
-`VKRenderer : GraphicsRenderer`, `VKDevice : GraphicsDevice`, `VKContext : GraphicsContext`
+`VKRenderer : Renderer`, `VKDevice : Device`, `VKContext : GPUContext`
 (instance, device, swapchain, frames-in-flight sync), `VKBuffer`, `VKShader`, `VKTexture`,
 `VKExternalTexture`, `VKCommandEncoder` (the `DrawCommand` → stream serializer, mirroring
 `ESCommandExecutor`), `VKPipelineKey`, `VKGpuTimer`, `VKNative` (JNI declarations).
@@ -99,10 +99,10 @@ Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source se
 - SPIR-V is compiled **at build time** by the `compileVulkanShaders` task of `:verktex:android` (NDK `glslc`,
   `--target-env=vulkan1.0`) into generated assets as `<name>.spv`; without the NDK it skips with a
   warning. There is no reflection file: the runtime gets the layout by running the translator on the
-  GLSL it already loads. `GraphicsShader.Source` gained `spirvVertex/spirvFragment`, filled by
+  GLSL it already loads. `Shader.Source` gained `spirvVertex/spirvFragment`, filled by
   `AndroidProvider.createShaderSource`. `VKDevice.createShader` throws for a source without SPIR-V.
 - The built-in programs are listed once in `BuiltIn.Shaders.Programs` (created with
-  `GraphicsRenderer.createBuiltInShaders`), and `BuiltInShadersVulkanTest` checks they all link.
+  `Renderer.createBuiltInShaders`), and `BuiltInShadersVulkanTest` checks they all link.
 
 ### Per-frame flow
 `prepareFrame` = wait fence of frame N, acquire swapchain image (recreate on out-of-date / new
@@ -114,22 +114,22 @@ render pass, then blit to the swapchain image and present.
 
 ## Roadmap (each phase is a separately mergeable PR; phases 1–3 keep GL as the only backend)
 1. **Neutralize resource contracts (GL only, no behavior change).** ✅ Done:
-   `Source.writePixels(PixelTarget, x, y)` + `GraphicsTexture.onWritePixels`/`flushUploads`,
-   `graphics/DefaultUniforms`, `AndroidWindow` + `GraphicsContext.acquireFrame/present`,
-   `AndroidExternalTexture`, `GraphicsRenderer.framebufferOrigin`. Gaps 1, 2, 7 (API side) and 8
+   `Source.writePixels(PixelTarget, x, y)` + `Texture.onWritePixels`/`flushUploads`,
+   `graphics/DefaultUniforms`, `AndroidWindow` + `GPUContext.acquireFrame/present`,
+   `AndroidExternalTexture`, `Renderer.framebufferOrigin`. Gaps 1, 2, 7 (API side) and 8
    are closed; for gap 4 only the default uniforms moved, the reflection is phase 3.
    - Replace `Source.uploadToHardware(x, y)` with a pixel-providing API (e.g.
      `writePixels(target: ByteBuffer)` / `pixelFormat`), moving the GL upload into `ESTexture`.
      Keep the premultiply/pack logic of `AndroidTextureSource` (it's backend-neutral) and its tests.
-   - Split `GraphicsTexture.onBind` into "flush uploads" (backend) and "bind".
-   - Move default-uniform injection from `ESCommandExecutor` into `GraphicsRenderer`/a shared helper.
-   - Rename `ESWindow` → `android/AndroidWindow`; change `GraphicsContext` to `acquireFrame`/`present`.
+   - Split `Texture.onBind` into "flush uploads" (backend) and "bind".
+   - Move default-uniform injection from `ESCommandExecutor` into `Renderer`/a shared helper.
+   - Rename `ESWindow` → `android/AndroidWindow`; change `GPUContext` to `acquireFrame`/`present`.
    - Make external textures expose only `surface` + frame callback.
-   - Make the `captureTexture` origin explicit in `DrawCommand`/`UICaptureContainer`.
+   - Make the `captureTexture` origin explicit in `DrawCommand`/`CaptureContainer`.
    - Verify: `./gradlew test`, `./gradlew :verktex:core:test :verktex:android:testDebugUnitTest`, ES2 and ES3 visual checks in `OsuUITestActivity`.
 2. **Buffer lifetime.** ✅ Done: the CPU-side storage (`words`/`wordCount`, `put*`) moved from
-   `ESBuffer` into `GraphicsBuffer`, so a `VKBuffer` only copies `words` into its frame's ring in
-   `uploadDataToGPU`. The lifetime is documented on `GraphicsBuffer`: a buffer used by a recorded
+   `ESBuffer` into `Buffer`, so a `VKBuffer` only copies `words` into its frame's ring in
+   `uploadDataToGPU`. The lifetime is documented on `Buffer`: a buffer used by a recorded
    draw keeps its data until the frame is executed, then may be rewritten at once, and the backend
    keeps in-flight copies valid. The renderer marks recorded buffers and `clear()` warns on a
    violation (`BufferLifetimeTest`). Static buffers (the particle quad) are re-uploaded every frame;
@@ -139,7 +139,7 @@ render pass, then blit to the swapchain image and present.
    every ABI) behind `VKNative`; `VKContext`/`VKRenderer`/`VKDevice`/`VKShader` in `android/vulkan/`;
    2 frames in flight, each with a mapped 4 MB ring for vertices and uniforms (`VKFrameRing`,
    `VKUniformPacker`) and one int command stream (`VKCommandEncoder`); pipelines cached by
-   `VKPipelineKey`. `GraphicsBackend.Vulkan` falls back to ES3 when initialization fails (`Auto` stays
+   `VKPipelineKey`. `GPUBackend.Vulkan` falls back to ES3 when initialization fails (`Auto` stays
    GL, no settings entry yet); `UITestActivity` takes `--es backend <name>`. Draws triangles of
    shaders without samplers (`SolidQuad`, `Color`), the rest is skipped and logged once. Verified on
    an Adreno 610 (Vulkan 1.1.128): Shapes test matches ES3 for those draws, background/resume
@@ -199,7 +199,7 @@ solved, then the label is removed:
 - the "Vulkan (experimental)" entry of `opt_graphics_backend_names_with_vulkan` and the
   `opt_graphics_backend_vulkan_experimental` warning, shown by `graphicsBackendOption`
   (`SettingsSections.kt`);
-- "Experimental" in the KDoc of `GraphicsBackend.Vulkan` and "experimental" in the backend log line
+- "Experimental" in the KDoc of `GPUBackend.Vulkan` and "experimental" in the backend log line
   of `createVulkanRenderer` (`Android.kt`);
 - this document's mentions of it.
 
@@ -266,10 +266,10 @@ Linux x64 comes first, then Windows and macOS (MoltenVK).
      `glfwGetRequiredInstanceExtensions` and gives it the surface of `glfwCreateWindowSurface` (the raw
      `nglfw` call, no LWJGL `VkInstance` needed).
    - **Window:** `GLWindow` became `DesktopWindow`, and both contexts implement
-     `DesktopGraphicsContext` (vsync, `onBeforePresent`, `readPixels`), so screenshots work on
+     `DesktopGPUContext` (vsync, `onBeforePresent`, `readPixels`), so screenshots work on
      either.
    - **Startup:** `DesktopGameHost` attaches the platform before the window (density from the primary
-     monitor's content scale), then reads `VerktexSettings.GraphicsBackend`. It starts Vulkan through
+     monitor's content scale), then reads `VerktexSettings.GPUBackend`. It starts Vulkan through
      `startVulkanRenderer` and falls back to OpenGL 3.3.
    - **Settings:** `Platform.availableGraphicsBackends` lists Auto, OpenGL and Vulkan where
      `DesktopVKContext.isAvailable()`, and the game's settings show them

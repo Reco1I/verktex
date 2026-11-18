@@ -14,20 +14,20 @@ class DefaultUniforms {
 
     private var width = -1
     private var height = -1
-    private var uniforms = GraphicsShader.UniformSet()
+    private var uniforms = Shader.UniformSet()
 
     /**
      * The defaults for a viewport of [viewportWidth] x [viewportHeight] pixels. The returned set must
      * not be modified.
      */
-    fun forViewport(viewportWidth: Int, viewportHeight: Int): GraphicsShader.UniformSet {
+    fun forViewport(viewportWidth: Int, viewportHeight: Int): Shader.UniformSet {
         if (viewportWidth != width || viewportHeight != height) {
             width = viewportWidth
             height = viewportHeight
 
             val viewportSize = Vec2(viewportWidth.toFloat(), viewportHeight.toFloat())
 
-            uniforms = GraphicsShader.UniformSet().apply {
+            uniforms = Shader.UniformSet().apply {
                 set("uViewportSize", viewportSize)
                 set("uColor", Color4.White)
                 set("uTexture", 0)

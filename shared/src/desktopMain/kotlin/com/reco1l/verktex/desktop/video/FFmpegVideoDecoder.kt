@@ -2,7 +2,7 @@ package com.reco1l.verktex.desktop.video
 
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Verktex
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.video.VideoDecoder
 import com.sun.jna.Memory
 import com.sun.jna.Native
@@ -29,10 +29,10 @@ class FFmpegVideoDecoder(private val path: String) : VideoDecoder {
         private set
 
     @Volatile
-    override var region: GraphicsTexture.Region? = null
+    override var region: Texture.Region? = null
         private set
 
-    private var texture: GraphicsTexture? = null
+    private var texture: Texture? = null
     private val onSizeKnown = AtomicReference<(() -> Unit)?>()
 
     // The video's clock and what the thread is asked to do, guarded by the lock.
@@ -402,12 +402,12 @@ class FFmpegVideoDecoder(private val path: String) : VideoDecoder {
     /**
      * The shown frame, as the source of the texture's region.
      */
-    private inner class FrameSource(private val frameWidth: Int, private val frameHeight: Int) : GraphicsTexture.Source {
+    private inner class FrameSource(private val frameWidth: Int, private val frameHeight: Int) : Texture.Source {
 
         override val width = frameWidth.toFloat()
         override val height = frameHeight.toFloat()
 
-        override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) {
+        override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) {
             synchronized(frameLock) {
                 val pixels = shownFrame ?: return
                 pixels.position(0).limit(frameWidth * frameHeight * 4)

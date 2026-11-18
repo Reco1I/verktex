@@ -1,13 +1,13 @@
 package com.reco1l.verktex.vulkan
 
 import com.reco1l.verktex.graphics.PixelBuffer
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
  * An RGBA8 texture of the Vulkan backend. Uploads are staged and copied before the frame's render
- * pass, see [GraphicsTexture.flushUploads], which the renderer calls for each texture it draws.
+ * pass, see [Texture.flushUploads], which the renderer calls for each texture it draws.
  *
  * It may be created and released from any thread, the image is only destroyed once the GPU is done
  * with it.
@@ -16,7 +16,7 @@ class VKTexture internal constructor(
     override val width: Float,
     override val height: Float,
     private val context: VKContext,
-) : GraphicsTexture() {
+) : Texture() {
 
     /**
      * The native texture, 0 until loaded.

@@ -1,12 +1,12 @@
 package com.reco1l.verktex.android
 
 import android.graphics.Bitmap
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
 
-class AndroidTextureSource(source: Bitmap) : GraphicsTexture.Source {
+class AndroidTextureSource(source: Bitmap) : Texture.Source {
 
     // The atlas is GL_RGBA8: RGBA_F16 (16-bit PNGs), RGB_565 and HARDWARE bitmaps fail to upload
     // (GL_INVALID_OPERATION), which leaves whatever was in the atlas before.
@@ -16,7 +16,7 @@ class AndroidTextureSource(source: Bitmap) : GraphicsTexture.Source {
     override val width = bitmap.width.toFloat()
     override val height = bitmap.height.toFloat()
 
-    override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) {
+    override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) {
         val width = bitmap.width
         val height = bitmap.height
 

@@ -1,17 +1,17 @@
 package com.reco1l.verktex.desktop.gl
 
 import com.reco1l.verktex.graphics.PixelBuffer
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import org.lwjgl.opengl.GL33.*
 
 /**
- * The OpenGL implementation of [GraphicsTexture], an RGBA8 texture.
+ * The OpenGL implementation of [Texture], an RGBA8 texture.
  */
 class GLTexture(
     override val width: Float,
     override val height: Float,
-) : GraphicsTexture() {
+) : Texture() {
 
     private var id = 0
 

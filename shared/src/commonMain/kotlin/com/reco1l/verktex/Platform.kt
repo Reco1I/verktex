@@ -1,7 +1,7 @@
 package com.reco1l.verktex
 
 import com.reco1l.verktex.audio.AudioBackend
-import com.reco1l.verktex.graphics.GraphicsBackend
+import com.reco1l.verktex.graphics.GPUBackend
 import com.reco1l.verktex.video.VideoDecoder
 import com.reco1l.verktex.worker.LoopWorker
 import kotlin.time.Duration
@@ -97,9 +97,9 @@ expect object Platform {
 
     /**
      * The graphics backends the user can choose from (see
-     * [com.reco1l.verktex.settings.VerktexSettings.GraphicsBackend]), none where there's no choice.
+     * [com.reco1l.verktex.settings.VerktexSettings.GPUBackend]), none where there's no choice.
      */
-    val availableGraphicsBackends: List<GraphicsBackend>
+    val availableGraphicsBackends: List<GPUBackend>
 
     /**
      * The vibrator of the device, or null if it has none.

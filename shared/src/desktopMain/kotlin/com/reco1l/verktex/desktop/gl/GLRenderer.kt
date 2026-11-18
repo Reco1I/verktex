@@ -3,12 +3,12 @@ package com.reco1l.verktex.desktop.gl
 import com.reco1l.verktex.desktop.DesktopWindow
 import com.reco1l.verktex.graphics.DrawCommand
 import com.reco1l.verktex.graphics.FramebufferOrigin
-import com.reco1l.verktex.graphics.GraphicsBackend
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.GPUBackend
+import com.reco1l.verktex.graphics.Renderer
 import org.lwjgl.opengl.GL33.*
 
 /**
- * The OpenGL 3.3 implementation of [GraphicsRenderer], a port of the OpenGL ES 3 one.
+ * The OpenGL 3.3 implementation of [Renderer], a port of the OpenGL ES 3 one.
  *
  * Unlike on Android, nothing here may call GL before the context is current on the draw thread (see
  * [GLContext]), so the version and the capabilities are read once it is.
@@ -16,13 +16,13 @@ import org.lwjgl.opengl.GL33.*
 class GLRenderer(
     override val context: GLContext,
     override val device: GLDevice,
-) : GraphicsRenderer() {
+) : Renderer() {
 
     override val window: DesktopWindow
         get() = context.window
 
-    override val backend: GraphicsBackend
-        get() = GraphicsBackend.OpenGL
+    override val backend: GPUBackend
+        get() = GPUBackend.OpenGL
 
     override var version: String = "OpenGL"
 

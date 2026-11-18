@@ -2,14 +2,14 @@ package com.reco1l.verktex
 
 import com.reco1l.verktex.android.gles.ESExternalTexture
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsBuffer
-import com.reco1l.verktex.graphics.GraphicsContext
-import com.reco1l.verktex.graphics.GraphicsDevice
-import com.reco1l.verktex.graphics.GraphicsResource
-import com.reco1l.verktex.graphics.GraphicsRenderer
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
-import com.reco1l.verktex.graphics.GraphicsWindow
+import com.reco1l.verktex.graphics.Buffer
+import com.reco1l.verktex.graphics.GPUContext
+import com.reco1l.verktex.graphics.Device
+import com.reco1l.verktex.graphics.GPUResource
+import com.reco1l.verktex.graphics.Renderer
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
+import com.reco1l.verktex.graphics.Window
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertArrayEquals
@@ -45,7 +45,7 @@ class ExternalTextureTest {
     @Test
     fun mat4UniformIsAcceptedByTheUniformSet() {
         val matrix = FloatArray(16) { it.toFloat() }
-        val uniforms = GraphicsShader.UniformSet().apply { set("uTransform", matrix) }
+        val uniforms = Shader.UniformSet().apply { set("uTransform", matrix) }
 
         assertSame(matrix, uniforms.entries["uTransform"])
         assertEquals(16, (uniforms.entries["uTransform"] as FloatArray).size)
@@ -96,17 +96,17 @@ class ExternalTextureTest {
 
     @Test
     fun externalTextureIsRegisteredWithTheRenderer() {
-        val device = object : GraphicsDevice {
-            override val capabilities = GraphicsDevice.Capabilities(maxTextureSize = 4096f)
-            override fun createBuffer(): GraphicsBuffer = throw UnsupportedOperationException()
-            override fun createShader(source: GraphicsShader.Source): GraphicsShader = throw UnsupportedOperationException()
-            override fun createTexture(width: Float, height: Float): GraphicsTexture = throw UnsupportedOperationException()
-            override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = FakeExternalTexture()
+        val device = object : Device {
+            override val capabilities = Device.Capabilities(maxTextureSize = 4096f)
+            override fun createBuffer(): Buffer = throw UnsupportedOperationException()
+            override fun createShader(source: Shader.Source): Shader = throw UnsupportedOperationException()
+            override fun createTexture(width: Float, height: Float): Texture = throw UnsupportedOperationException()
+            override fun createExternalTexture(width: Float, height: Float): Texture = FakeExternalTexture()
         }
-        val renderer = object : GraphicsRenderer() {
+        val renderer = object : Renderer() {
             override val device = device
-            override val context: GraphicsContext get() = throw UnsupportedOperationException()
-            override val window: GraphicsWindow get() = throw UnsupportedOperationException()
+            override val context: GPUContext get() = throw UnsupportedOperationException()
+            override val window: Window get() = throw UnsupportedOperationException()
             override var version = "fake"
             override fun drawCommand(command: DrawCommand) = Unit
         }
@@ -117,16 +117,16 @@ class ExternalTextureTest {
         renderer.markContextLoss()
 
         assertEquals(1, texture.contextLosses)
-        assertEquals(GraphicsResource.State.Unloaded, texture.state)
+        assertEquals(GPUResource.State.Unloaded, texture.state)
     }
 
     @Test
     fun externalTextureRejectsSources() {
         val texture = FakeExternalTexture()
-        val source = object : GraphicsTexture.Source {
+        val source = object : Texture.Source {
             override val width = 1f
             override val height = 1f
-            override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) = Unit
+            override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) = Unit
         }
 
         assertFalse(texture.fitsSource(source))

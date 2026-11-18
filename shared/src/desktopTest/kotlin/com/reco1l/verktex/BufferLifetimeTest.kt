@@ -2,13 +2,13 @@ package com.reco1l.verktex
 
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsBuffer
-import com.reco1l.verktex.graphics.GraphicsContext
-import com.reco1l.verktex.graphics.GraphicsDevice
-import com.reco1l.verktex.graphics.GraphicsRenderer
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
-import com.reco1l.verktex.graphics.GraphicsWindow
+import com.reco1l.verktex.graphics.Buffer
+import com.reco1l.verktex.graphics.GPUContext
+import com.reco1l.verktex.graphics.Device
+import com.reco1l.verktex.graphics.Renderer
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
+import com.reco1l.verktex.graphics.Window
 import com.reco1l.verktex.graphics.VertexLayout
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -17,18 +17,18 @@ import org.junit.Test
 
 /**
  * A buffer used by a recorded draw must keep its data until the frame is executed, after which it
- * can be rewritten. See the lifetime in [GraphicsBuffer].
+ * can be rewritten. See the lifetime in [Buffer].
  */
 class BufferLifetimeTest {
 
-    private class FakeBuffer : GraphicsBuffer() {
+    private class FakeBuffer : Buffer() {
         override fun uploadDataToGPU() = Unit
         override fun onBind() = Unit
         override fun onLoad() = Unit
         override fun onUnload() = Unit
     }
 
-    private class FakeShader : GraphicsShader() {
+    private class FakeShader : Shader() {
         override val source = Source("", "")
         override fun applyUniforms(uniformSet: UniformSet) = Unit
         override fun onBind() = Unit
@@ -36,18 +36,18 @@ class BufferLifetimeTest {
         override fun onUnload() = Unit
     }
 
-    private object FakeDevice : GraphicsDevice {
-        override val capabilities = GraphicsDevice.Capabilities(maxTextureSize = 4096f)
-        override fun createBuffer(): GraphicsBuffer = FakeBuffer()
-        override fun createShader(source: GraphicsShader.Source): GraphicsShader = FakeShader()
-        override fun createTexture(width: Float, height: Float): GraphicsTexture = throw UnsupportedOperationException()
-        override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = throw UnsupportedOperationException()
+    private object FakeDevice : Device {
+        override val capabilities = Device.Capabilities(maxTextureSize = 4096f)
+        override fun createBuffer(): Buffer = FakeBuffer()
+        override fun createShader(source: Shader.Source): Shader = FakeShader()
+        override fun createTexture(width: Float, height: Float): Texture = throw UnsupportedOperationException()
+        override fun createExternalTexture(width: Float, height: Float): Texture = throw UnsupportedOperationException()
     }
 
-    private class RecordingRenderer : GraphicsRenderer() {
+    private class RecordingRenderer : Renderer() {
         override val device = FakeDevice
-        override val context: GraphicsContext get() = throw UnsupportedOperationException()
-        override val window: GraphicsWindow get() = throw UnsupportedOperationException()
+        override val context: GPUContext get() = throw UnsupportedOperationException()
+        override val window: Window get() = throw UnsupportedOperationException()
         override var version = "fake"
 
         // What each executed command's buffer held when it was executed.
@@ -74,7 +74,7 @@ class BufferLifetimeTest {
 
     private val shader = FakeShader()
 
-    private fun RecordingRenderer.drawParticles(vertices: GraphicsBuffer, instances: GraphicsBuffer, value: Int) {
+    private fun RecordingRenderer.drawParticles(vertices: Buffer, instances: Buffer, value: Int) {
         instances.clear()
         instances.putPackedBytes(value)
 
@@ -87,7 +87,7 @@ class BufferLifetimeTest {
             instanceBuffer = instances,
             instanceLayout = VertexLayout.Default,
             instanceCount = 1,
-            uniformSet = GraphicsShader.UniformSet()
+            uniformSet = Shader.UniformSet()
         )
     }
 

@@ -28,11 +28,11 @@ abstract class TexturePackingAlgorithm {
      *
      * The heuristic can fail on regions that fit when they were added one by one, so the regions and
      * [freeRegions] are only changed when every region fits. Each region keeps [padding] free pixels
-     * around it, see [GraphicsTexture.regionPadding].
+     * around it, see [Texture.regionPadding].
      *
      * @return Whether every region fit.
      */
-    fun pack(regions: List<GraphicsTexture.Region>, freeRegions: MutableList<Vec4>, rootWidth: Float, rootHeight: Float, padding: Int = 0): Boolean {
+    fun pack(regions: List<Texture.Region>, freeRegions: MutableList<Vec4>, rootWidth: Float, rootHeight: Float, padding: Int = 0): Boolean {
 
         val packedFreeRegions = mutableListOf(Vec4(0f, 0f, rootWidth, rootHeight))
         val gutter = 2f * padding

@@ -5,7 +5,7 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Font
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import androidx.core.graphics.createBitmap
 
 class AndroidFont(
@@ -38,7 +38,7 @@ class AndroidFont(
     private val rect = Rect()
 
 
-    override fun onCreatePage(): GraphicsTexture {
+    override fun onCreatePage(): Texture {
         return Verktex.graphics.createTexture(pageSize, pageSize)
     }
 

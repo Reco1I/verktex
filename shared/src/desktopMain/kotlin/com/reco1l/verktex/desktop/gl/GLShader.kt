@@ -3,15 +3,15 @@ package com.reco1l.verktex.desktop.gl
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 import org.lwjgl.opengl.GL33.*
 import org.lwjgl.system.MemoryStack
 
 /**
- * The OpenGL implementation of [GraphicsShader], a port of the OpenGL ES one. The GLSL ES 3.00
+ * The OpenGL implementation of [Shader], a port of the OpenGL ES one. The GLSL ES 3.00
  * sources are compiled as GLSL 3.30, see [GLSL330Translator].
  */
-class GLShader(override val source: Source) : GraphicsShader() {
+class GLShader(override val source: Source) : Shader() {
 
     private var programId = 0
     private val uniformLocations = HashMap<String, Int>()

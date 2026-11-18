@@ -27,11 +27,11 @@ object VerktexSettings {
     val ResolutionScale = setting("resolution_scale", 1f)
 
     /**
-     * The name of the [com.reco1l.verktex.graphics.GraphicsBackend] to render with. It's read once
+     * The name of the [com.reco1l.verktex.graphics.GPUBackend] to render with. It's read once
      * when the engine is initialized, so a change applies on the next start.
      */
     @JvmField
-    val GraphicsBackend = setting("graphics_backend", "Auto")
+    val GPUBackend = setting("graphics_backend", "Auto")
 
     /**
      * The name of the [com.reco1l.verktex.audio.AudioBackend] to play audio with. It's read once when

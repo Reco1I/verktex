@@ -1,7 +1,7 @@
 package com.reco1l.verktex.testing
 
 import com.reco1l.verktex.Verktex
-import com.reco1l.verktex.ui.UIScene
+import com.reco1l.verktex.ui.Scene
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,7 +13,7 @@ import org.junit.Test
 
 class UITestStageTest {
 
-    private class RecordingScene(private val events: MutableList<String>, private val name: String) : UIScene() {
+    private class RecordingScene(private val events: MutableList<String>, private val name: String) : Scene() {
         override fun onEnter() {
             events += "$name enter"
         }

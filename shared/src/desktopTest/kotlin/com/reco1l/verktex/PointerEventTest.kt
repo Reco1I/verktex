@@ -6,9 +6,9 @@ import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.input.PointerEvent.Action
 import com.reco1l.verktex.input.PointerEvent.Button
-import com.reco1l.verktex.ui.UIScene
-import com.reco1l.verktex.ui.container.UIClickableContainer
-import com.reco1l.verktex.ui.container.UIScrollableContainer
+import com.reco1l.verktex.ui.Scene
+import com.reco1l.verktex.ui.container.ClickableContainer
+import com.reco1l.verktex.ui.container.ScrollableContainer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,7 +21,7 @@ import org.junit.Test
  */
 class PointerEventTest {
 
-    private class RecordingScene : UIScene() {
+    private class RecordingScene : Scene() {
         val actions = mutableListOf<Action>()
         val times = mutableListOf<Long>()
 
@@ -67,7 +67,7 @@ class PointerEventTest {
     fun cancelReleasesLikeUnknown() {
         fun clickable(release: Action): Pair<Boolean, Int> {
             var cancels = 0
-            val container = UIClickableContainer().apply { onActionCancel = { cancels++ } }
+            val container = ClickableContainer().apply { onActionCancel = { cancels++ } }
             container.onInputEvent(PointerEvent(Action.Down, Button.Left, 0, 1f, 1f))
             assertTrue(container.isPressed)
             val consumed = container.onInputEvent(PointerEvent(release, Button.Left, 0, 1f, 1f))
@@ -78,8 +78,8 @@ class PointerEventTest {
         assertEquals(false to 1, clickable(Action.Cancel))
 
         fun scrollable(release: Action): Pair<Int, Boolean> {
-            val container = UIScrollableContainer()
-            val dragPointerId = UIScrollableContainer::class.java.getDeclaredField("dragPointerId").apply { isAccessible = true }
+            val container = ScrollableContainer()
+            val dragPointerId = ScrollableContainer::class.java.getDeclaredField("dragPointerId").apply { isAccessible = true }
             container.onInputEvent(PointerEvent(Action.Down, Button.Left, 0, 1f, 1f))
             assertEquals(0, dragPointerId.getInt(container))
             container.onInputEvent(PointerEvent(release, Button.Left, 0, 1f, 1f))

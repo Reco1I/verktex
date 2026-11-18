@@ -11,8 +11,8 @@ import com.reco1l.verktex.desktop.gl.GLContext
 import com.reco1l.verktex.desktop.gl.GLDevice
 import com.reco1l.verktex.desktop.gl.GLRenderer
 import com.reco1l.verktex.desktop.vulkan.DesktopVKContext
-import com.reco1l.verktex.graphics.GraphicsBackend
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.GPUBackend
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.settings.Settings
 import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
@@ -34,10 +34,10 @@ import java.io.File
  * [run] must be called from the main thread (the first one on macOS, see `-XstartOnFirstThread`)
  * and returns once the window is closed.
  *
- * The graphics backend is the `GraphicsBackend` setting ([VerktexSettings.GraphicsBackend]): Vulkan
+ * The graphics backend is the `GPUBackend` setting ([VerktexSettings.GPUBackend]): Vulkan
  * when it's picked and works, OpenGL 3.3 otherwise, see `docs/vulkan-backend.md`.
  *
- * @param vsync Whether frames wait for the display's refresh, see [DesktopGraphicsContext.vsync].
+ * @param vsync Whether frames wait for the display's refresh, see [DesktopGPUContext.vsync].
  * Off by default, so the frame rate isn't capped to the display's.
  */
 abstract class DesktopGameHost(
@@ -50,7 +50,7 @@ abstract class DesktopGameHost(
     /**
      * The graphics context (OpenGL or Vulkan) and its window, once [run] created them.
      */
-    lateinit var context: DesktopGraphicsContext
+    lateinit var context: DesktopGPUContext
         private set
 
     private val handle: Long
@@ -149,13 +149,13 @@ abstract class DesktopGameHost(
     open fun onPlatformAttached() {}
 
     // Vulkan when it's picked, it falls back to OpenGL where it can't start.
-    private fun createRenderer(): GraphicsRenderer {
+    private fun createRenderer(): Renderer {
         // Picking Vulkan again retries it, even if it crashed while starting the last time.
-        Settings.observe(VerktexSettings.GraphicsBackend) { name ->
-            if (name == GraphicsBackend.Vulkan.name) resetVulkanCrashGuard()
+        Settings.observe(VerktexSettings.GPUBackend) { name ->
+            if (name == GPUBackend.Vulkan.name) resetVulkanCrashGuard()
         }
 
-        if (GraphicsBackend.fromName(Settings[VerktexSettings.GraphicsBackend]) == GraphicsBackend.Vulkan) {
+        if (GPUBackend.fromName(Settings[VerktexSettings.GPUBackend]) == GPUBackend.Vulkan) {
             val vulkan = startVulkanRenderer(createContext = {
                 DesktopVKContext.create(title, initialWidth, initialHeight, enableValidation = platformApplication.isDebug)
             })

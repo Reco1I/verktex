@@ -1,12 +1,12 @@
 package com.reco1l.verktex.vulkan
 
-import com.reco1l.verktex.graphics.GraphicsBuffer
+import com.reco1l.verktex.graphics.Buffer
 
 /**
  * A vertex buffer of the Vulkan backend. It has no GPU storage of its own: the renderer copies its
  * words into the frame's ring for each draw, see [VKFrameRing].
  */
-class VKBuffer : GraphicsBuffer() {
+class VKBuffer : Buffer() {
 
     // The renderer writes the words into the ring itself, it knows the frame and the offset.
     override fun uploadDataToGPU() = Unit

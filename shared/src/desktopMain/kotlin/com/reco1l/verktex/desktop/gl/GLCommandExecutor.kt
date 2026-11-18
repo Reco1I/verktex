@@ -3,7 +3,7 @@ package com.reco1l.verktex.desktop.gl
 import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.DefaultUniforms
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 import com.reco1l.verktex.graphics.VertexLayout
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -33,7 +33,7 @@ class GLCommandExecutor {
     private var depthEnabled = false
     private var depthFunction = -1
     private var depthWrite = false
-    private var boundShader: GraphicsShader? = null
+    private var boundShader: Shader? = null
 
     private val enabledAttributes = BooleanArray(MAX_ATTRIBUTES)
     private val attributeDivisors = IntArray(MAX_ATTRIBUTES)
@@ -224,7 +224,7 @@ class GLCommandExecutor {
 
     // Every uniform gets either the command's value or its default, uniform values persist per
     // program, so a value left by a previous draw would otherwise apply.
-    private fun applyUniforms(shader: GLShader, uniformSet: GraphicsShader.UniformSet, defaults: GraphicsShader.UniformSet) {
+    private fun applyUniforms(shader: GLShader, uniformSet: Shader.UniformSet, defaults: Shader.UniformSet) {
         val values = uniformSet.entries
 
         for ((name, default) in defaults.entries) {

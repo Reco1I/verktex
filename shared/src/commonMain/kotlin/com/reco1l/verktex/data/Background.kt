@@ -1,13 +1,13 @@
 package com.reco1l.verktex.data
 
 import com.reco1l.verktex.Verktex
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture as GPUTexture
 import com.reco1l.verktex.ui.Theme
 import com.reco1l.verktex.ui.ThemeDependent
 import com.reco1l.verktex.ui.themed
 
 /**
- * What a component is filled with behind its content, see [com.reco1l.verktex.ui.UIComponent.background].
+ * What a component is filled with behind its content, see [com.reco1l.verktex.ui.Component.background].
  * It follows the shape of the component, rounded by its radius, and lies under its border.
  *
  * It can be taken from the theme with `themed { Background.Color(palette.surface) }`, see [Themed].
@@ -55,7 +55,7 @@ sealed class Background : ThemeDependent<Background> {
      * [gravity] where it doesn't fill it, then tinted by [tint].
      */
     class Texture(
-        val region: GraphicsTexture.Region,
+        val region: GPUTexture.Region,
         val scaleType: ScaleType = ScaleType.Crop,
         val gravity: Vec2 = Anchor.Center,
         val tint: Color4 = Color4.White,

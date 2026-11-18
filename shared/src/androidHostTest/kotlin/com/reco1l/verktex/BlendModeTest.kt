@@ -6,7 +6,7 @@ import com.reco1l.verktex.graphics.BlendFactor
 import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.DepthState
 import com.reco1l.verktex.graphics.DrawCommand
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -40,7 +40,7 @@ class BlendModeTest {
 
     @Test
     fun customBlendModesBatchOnlyWhenEqual() {
-        val uniforms = GraphicsShader.UniformSet()
+        val uniforms = Shader.UniformSet()
         val command = DrawCommand(
             blendMode = BlendMode.Custom(BlendFactor.One, BlendFactor.One, BlendFactor.Zero, BlendFactor.One),
             uniformSet = uniforms

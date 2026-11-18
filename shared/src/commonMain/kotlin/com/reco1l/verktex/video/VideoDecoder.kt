@@ -1,10 +1,10 @@
 package com.reco1l.verktex.video
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
  * Decodes a video file, without its sound, into a texture. Each platform has its own, created with
- * [com.reco1l.verktex.Platform.createVideoDecoder], and [com.reco1l.verktex.ui.UIVideo] shows it.
+ * [com.reco1l.verktex.Platform.createVideoDecoder], and [com.reco1l.verktex.ui.Video] shows it.
  *
  * Its methods may be called from any thread.
  */
@@ -13,7 +13,7 @@ interface VideoDecoder {
     /**
      * The region showing the current frame, null until the size of the video is known.
      */
-    val region: GraphicsTexture.Region?
+    val region: Texture.Region?
 
     /**
      * The width of the video in pixels, 0 until it's known.

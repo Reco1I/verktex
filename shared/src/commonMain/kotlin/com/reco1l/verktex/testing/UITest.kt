@@ -10,9 +10,9 @@ import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.UIScene
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.container.UILinearContainer
+import com.reco1l.verktex.ui.Scene
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.LinearContainer
 import com.reco1l.verktex.ui.container.linearContainer
 import com.reco1l.verktex.ui.container.scrollableContainer
 import com.reco1l.verktex.ui.text.text
@@ -57,13 +57,13 @@ open class UITestSuite(val name: String) {
  * A scene is tested in isolation: once the stage shows one, the scenes it would open and going
  * back from it are only logged, unless [allowsNavigation] is set.
  */
-class UITestStage internal constructor(private val logger: (String) -> Unit) : UIContainer(), SceneHost {
+class UITestStage internal constructor(private val logger: (String) -> Unit) : Container(), SceneHost {
 
     private val frameListeners = mutableListOf<(FrameClock) -> Unit>()
 
     private val disposeListeners = mutableListOf<() -> Unit>()
 
-    private val scenes = ArrayDeque<UIScene>()
+    private val scenes = ArrayDeque<Scene>()
 
     /**
      * Whether the scene shown can open other scenes inside the stage and go back from them, instead
@@ -111,16 +111,16 @@ class UITestStage internal constructor(private val logger: (String) -> Unit) : U
     /**
      * Pushes [scene] into the stage, as [Verktex.pushScene] would do in the test.
      */
-    fun <T : UIScene> scene(scene: T): T {
+    fun <T : Scene> scene(scene: T): T {
         pushScene(scene)
         return scene
     }
 
 
-    override val currentScene: UIScene?
+    override val currentScene: Scene?
         get() = scenes.lastOrNull()
 
-    override fun pushScene(scene: UIScene) {
+    override fun pushScene(scene: Scene) {
         val previous = scenes.lastOrNull()
 
         if (previous != null && !allowsNavigation) {
@@ -143,7 +143,7 @@ class UITestStage internal constructor(private val logger: (String) -> Unit) : U
         scene.onEnter()
     }
 
-    override fun popScene(): UIScene? {
+    override fun popScene(): Scene? {
         if (scenes.size <= 1 && !allowsNavigation || scenes.isEmpty()) {
             log("Blocked going back")
             return null
@@ -194,13 +194,13 @@ class UITestStage internal constructor(private val logger: (String) -> Unit) : U
  * Adds a vertically scrollable column filling the stage, the usual layout to show a set of
  * components.
  */
-inline fun UITestStage.column(block: UILinearContainer.() -> Unit) = scrollableContainer {
+inline fun UITestStage.column(block: LinearContainer.() -> Unit) = scrollableContainer {
     scrollAxes = Axis.Y
     width = fill()
     height = fill()
 
     linearContainer {
-        orientation = UILinearContainer.Orientation.Vertical
+        orientation = LinearContainer.Orientation.Vertical
         width = fill()
         padding = Padding(16f.dip)
         spacing = 20f.dip
@@ -211,8 +211,8 @@ inline fun UITestStage.column(block: UILinearContainer.() -> Unit) = scrollableC
 /**
  * Adds a titled row of components, meant to be used inside a [column].
  */
-inline fun UIContainer.section(title: String, block: UILinearContainer.() -> Unit) = linearContainer {
-    orientation = UILinearContainer.Orientation.Vertical
+inline fun Container.section(title: String, block: LinearContainer.() -> Unit) = linearContainer {
+    orientation = LinearContainer.Orientation.Vertical
     width = fill()
     spacing = 8f.dip
 
@@ -223,7 +223,7 @@ inline fun UIContainer.section(title: String, block: UILinearContainer.() -> Uni
     }
 
     linearContainer {
-        orientation = UILinearContainer.Orientation.Horizontal
+        orientation = LinearContainer.Orientation.Horizontal
         spacing = 8f.dip
         block()
     }

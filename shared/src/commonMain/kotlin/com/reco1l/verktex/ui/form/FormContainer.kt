@@ -1,15 +1,15 @@
 package com.reco1l.verktex.ui.form
 
-import com.reco1l.verktex.ui.UIComponent
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.container.UILinearContainer
-import com.reco1l.verktex.ui.control.UIControl
-import com.reco1l.verktex.ui.control.UISelect
+import com.reco1l.verktex.ui.Component
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.LinearContainer
+import com.reco1l.verktex.ui.control.Control
+import com.reco1l.verktex.ui.control.Select
 
 /**
- * A container that collects the values of every control with a [UIControl.key] inside of it.
+ * A container that collects the values of every control with a [Control.key] inside of it.
  */
-open class FormContainer : UILinearContainer() {
+open class FormContainer : LinearContainer() {
 
     /**
      * Called when [submit] is called and the data has been encoded.
@@ -18,11 +18,11 @@ open class FormContainer : UILinearContainer() {
 
 
     /**
-     * Encodes the value of a control, a [List] for a [UISelect]. Controls encoded as `null` are left
+     * Encodes the value of a control, a [List] for a [Select]. Controls encoded as `null` are left
      * out of the data.
      */
-    open fun onEncodeControlData(control: UIControl<*>): Any? {
-        if (control is UISelect<*>) {
+    open fun onEncodeControlData(control: Control<*>): Any? {
+        if (control is Select<*>) {
             return control.value.toList()
         }
         return control.value
@@ -34,14 +34,14 @@ open class FormContainer : UILinearContainer() {
     fun submit(): Map<String, Any?> {
         val data = LinkedHashMap<String, Any?>()
 
-        fun UIComponent.collect() {
-            val control = this as? UIControl<*>
+        fun Component.collect() {
+            val control = this as? Control<*>
             val key = control?.key
 
             if (control != null && key != null) {
                 val value = onEncodeControlData(control)
                 if (value != null) data[key] = value else data.remove(key)
-            } else if (this is UIContainer) {
+            } else if (this is Container) {
                 forEach { it.collect() }
             }
         }

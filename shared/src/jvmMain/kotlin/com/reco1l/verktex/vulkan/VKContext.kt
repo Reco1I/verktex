@@ -1,8 +1,8 @@
 package com.reco1l.verktex.vulkan
 
 import com.reco1l.verktex.Logger
-import com.reco1l.verktex.graphics.GraphicsContext
-import com.reco1l.verktex.graphics.GraphicsWindow
+import com.reco1l.verktex.graphics.GPUContext
+import com.reco1l.verktex.graphics.Window
 
 /**
  * The Vulkan instance, device and swapchain, see `vk_context.cpp`. The device lives as long as the
@@ -16,12 +16,12 @@ abstract class VKContext protected constructor(
      * The native context, see [VKNative].
      */
     internal val handle: Long,
-) : GraphicsContext {
+) : GPUContext {
 
     /**
      * The window drawn to, whose size is the swapchain's.
      */
-    abstract val window: GraphicsWindow
+    abstract val window: Window
 
     override val version: String = VKNative.apiVersion(handle).let { version ->
         "Vulkan ${version ushr 22}.${(version ushr 12) and 0x3FF}.${version and 0xFFF} (${VKNative.deviceName(handle)})"

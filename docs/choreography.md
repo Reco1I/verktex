@@ -43,7 +43,7 @@ sprite.choreograph {
 
 ## Building a choreography
 
-Each component has at most one choreography (`UIComponent.choreography`). These functions create
+Each component has at most one choreography (`Component.choreography`). These functions create
 it on first use and add steps to it:
 
 | Function                     | Starts the steps at                                         |
@@ -103,7 +103,7 @@ Steps are placed at a cursor, and steps added one after another start at the sam
 
 ## How it runs
 
-The choreography is applied in `UIComponent.update`, after the transforms, with the time of the
+The choreography is applied in `Component.update`, after the transforms, with the time of the
 component's clock (`currentClockTime`). That's its own `clock`, an ancestor's, or else the engine's
 time.
 

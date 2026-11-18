@@ -1,6 +1,6 @@
 package com.reco1l.verktex.android.vulkan
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.vulkan.VKContext
 import com.reco1l.verktex.vulkan.VKDevice
 
@@ -9,5 +9,5 @@ import com.reco1l.verktex.vulkan.VKDevice
  */
 class AndroidVKDevice(context: VKContext) : VKDevice(context, VKExternalTexture.isSupported(context)) {
 
-    override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = VKExternalTexture(width, height, context)
+    override fun createExternalTexture(width: Float, height: Float): Texture = VKExternalTexture(width, height, context)
 }

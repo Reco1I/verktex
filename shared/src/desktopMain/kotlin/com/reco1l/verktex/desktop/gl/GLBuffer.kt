@@ -1,15 +1,15 @@
 package com.reco1l.verktex.desktop.gl
 
-import com.reco1l.verktex.graphics.GraphicsBuffer
+import com.reco1l.verktex.graphics.Buffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
 import org.lwjgl.opengl.GL33.*
 
 /**
- * The OpenGL implementation of [GraphicsBuffer], a vertex buffer.
+ * The OpenGL implementation of [Buffer], a vertex buffer.
  */
-class GLBuffer : GraphicsBuffer() {
+class GLBuffer : Buffer() {
 
     private var id = 0
 

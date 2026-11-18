@@ -1,6 +1,6 @@
 package com.reco1l.verktex.texture
 
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
  * Refers to the texture region a component draws: a region given directly, one stored in [Textures]
@@ -11,14 +11,14 @@ abstract class TextureReference {
     /**
      * The region this reference points to now, or null if there is none.
      */
-    abstract fun resolve(): GraphicsTexture.Region?
+    abstract fun resolve(): Texture.Region?
 
 
     /**
      * A region given directly, it never changes.
      */
-    data class Region(val region: GraphicsTexture.Region) : TextureReference() {
-        override fun resolve(): GraphicsTexture.Region = region
+    data class Region(val region: Texture.Region) : TextureReference() {
+        override fun resolve(): Texture.Region = region
     }
 
     /**
@@ -27,7 +27,7 @@ abstract class TextureReference {
     abstract class Lookup : TextureReference() {
 
         private var resolvedRevision = -1
-        private var region: GraphicsTexture.Region? = null
+        private var region: Texture.Region? = null
 
         /**
          * Changes whenever the region [lookup] returns may have changed. By default it's
@@ -39,9 +39,9 @@ abstract class TextureReference {
         /**
          * Looks the region up.
          */
-        protected abstract fun lookup(): GraphicsTexture.Region?
+        protected abstract fun lookup(): Texture.Region?
 
-        final override fun resolve(): GraphicsTexture.Region? {
+        final override fun resolve(): Texture.Region? {
             if (resolvedRevision != revision) {
                 region = lookup()
                 // Taken after the lookup, which may load the region and change the revision itself.
@@ -67,5 +67,5 @@ fun storedTexture(key: String): TextureReference.Stored = TextureReference.Store
 /**
  * Refers to this region directly.
  */
-val GraphicsTexture.Region.reference: TextureReference.Region
+val Texture.Region.reference: TextureReference.Region
     get() = TextureReference.Region(this)

@@ -9,10 +9,10 @@ import com.reco1l.verktex.input.PointerEvent.Action
 import com.reco1l.verktex.input.PointerEvent.Button
 import com.reco1l.verktex.input.ScrollEvent
 import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.container.UIClickableContainer
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.container.UIScrollableContainer
-import com.reco1l.verktex.ui.shape.UIBox
+import com.reco1l.verktex.ui.container.ClickableContainer
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.ScrollableContainer
+import com.reco1l.verktex.ui.shape.Box
 import org.junit.After
 import org.junit.Before
 import org.junit.Assert.assertEquals
@@ -48,31 +48,31 @@ class MouseInputTest {
         Verktex.options = VerktexOptions()
     }
 
-    private fun frames(root: UIContainer, count: Int = 120) = repeat(count) {
+    private fun frames(root: Container, count: Int = 120) = repeat(count) {
         root.update(clock)
         root.measure(LayoutConstraints(0f, 800f, 0f, 600f))
         root.layout(Vec4(0f, 0f, 800f, 600f))
     }
 
-    private fun list(atX: Float, contentHeight: Float = 1000f) = UIScrollableContainer().apply {
+    private fun list(atX: Float, contentHeight: Float = 1000f) = ScrollableContainer().apply {
         x = atX.px
         width = 200f.px
         height = 100f.px
         scrollAxes = Axis.Y
-        this += UIBox().apply {
+        this += Box().apply {
             width = 200f.px
             height = contentHeight.px
         }
     }
 
-    private fun wheel(root: UIContainer, x: Float, y: Float, deltaY: Float, deltaX: Float = 0f) =
+    private fun wheel(root: Container, x: Float, y: Float, deltaY: Float, deltaX: Float = 0f) =
         root.onInputEvent(ScrollEvent(pointerId = 0, x = x, y = y, deltaX = deltaX, deltaY = deltaY))
 
     @Test
     fun wheelScrollsTheContainerUnderTheCursor() {
         val first = list(0f)
         val second = list(300f)
-        val root = UIContainer().apply { this += first; this += second }
+        val root = Container().apply { this += first; this += second }
         frames(root, 1)
 
         // Down two notches, over the first list.
@@ -87,7 +87,7 @@ class MouseInputTest {
     @Test
     fun wheelStopsAtTheEdges() {
         val list = list(0f, contentHeight = 150f)
-        val root = UIContainer().apply { this += list }
+        val root = Container().apply { this += list }
         frames(root, 1)
 
         // Up at the top: nothing to scroll, not consumed.
@@ -101,17 +101,17 @@ class MouseInputTest {
     @Test
     fun wheelChainsToTheParentAtTheChildEdge() {
         val inner = list(0f, contentHeight = 150f)
-        val outer = UIScrollableContainer().apply {
+        val outer = ScrollableContainer().apply {
             width = 400f.px
             height = 300f.px
             scrollAxes = Axis.Y
-            this += UIContainer().apply {
+            this += Container().apply {
                 width = 400f.px
                 height = 2000f.px
                 this += inner
             }
         }
-        val root = UIContainer().apply { this += outer }
+        val root = Container().apply { this += outer }
         frames(root, 1)
 
         // The inner list takes the wheel until its end.
@@ -127,13 +127,13 @@ class MouseInputTest {
 
     @Test
     fun verticalWheelScrollsHorizontalContainers() {
-        val row = UIScrollableContainer().apply {
+        val row = ScrollableContainer().apply {
             width = 200f.px
             height = 100f.px
             scrollAxes = Axis.X
-            this += UIBox().apply { width = 1000f.px; height = 100f.px }
+            this += Box().apply { width = 1000f.px; height = 100f.px }
         }
-        val root = UIContainer().apply { this += row }
+        val root = Container().apply { this += row }
         frames(root, 1)
 
         wheel(root, 50f, 50f, deltaY = -1f)
@@ -141,7 +141,7 @@ class MouseInputTest {
         assertEquals(step, row.scrollX, 1f)
     }
 
-    private class Clicks : UIClickableContainer() {
+    private class Clicks : ClickableContainer() {
         var ups = 0
         var longPresses = 0
         var cancels = 0
@@ -201,7 +201,7 @@ class MouseInputTest {
     @Test
     fun rightClickDoesNotDragScrollableContainers() {
         val list = list(0f)
-        val root = UIContainer().apply { this += list }
+        val root = Container().apply { this += list }
         frames(root, 1)
 
         root.onInputEvent(PointerEvent(Action.Down, Button.Right, 0, 50f, 90f))

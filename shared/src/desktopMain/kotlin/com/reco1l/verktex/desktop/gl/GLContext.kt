@@ -1,6 +1,6 @@
 package com.reco1l.verktex.desktop.gl
 
-import com.reco1l.verktex.desktop.DesktopGraphicsContext
+import com.reco1l.verktex.desktop.DesktopGPUContext
 import com.reco1l.verktex.desktop.DesktopWindow
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
@@ -16,7 +16,7 @@ import java.nio.ByteOrder
  * the draw thread by its first [acquireFrame]. LWJGL keeps the functions of a context per thread, so
  * no GL call can be made before that, nor from any other thread.
  */
-class GLContext private constructor(override val window: DesktopWindow) : DesktopGraphicsContext {
+class GLContext private constructor(override val window: DesktopWindow) : DesktopGPUContext {
 
     @Volatile
     private var isCurrent = false

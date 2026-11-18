@@ -4,15 +4,15 @@ import android.opengl.GLES20
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 
 /**
- * The OpenGL ES implementation of [GraphicsShader]. Each backend can adapt the sources and the
+ * The OpenGL ES implementation of [Shader]. Each backend can adapt the sources and the
  * program before it's linked.
  */
 abstract class ESShader(
     override val source: Source
-) : GraphicsShader() {
+) : Shader() {
 
 
     private var programId: Int = 0

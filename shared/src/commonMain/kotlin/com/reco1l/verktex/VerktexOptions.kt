@@ -11,7 +11,7 @@ data class VerktexOptions(
 
     /**
      * Whether a right click works as a long press: it fires the
-     * [com.reco1l.verktex.ui.container.UIClickableContainer.onActionLongPress] of the component when
+     * [com.reco1l.verktex.ui.container.ClickableContainer.onActionLongPress] of the component when
      * released inside it, without waiting, and is ignored by components without one. Touches never
      * press the right button, so this only affects mice.
      */
@@ -19,7 +19,7 @@ data class VerktexOptions(
 
     /**
      * The distance a notch of a mouse wheel scrolls a
-     * [com.reco1l.verktex.ui.container.UIScrollableContainer].
+     * [com.reco1l.verktex.ui.container.ScrollableContainer].
      */
     val wheelScrollStep: Dimension.Fixed = 64f.dip,
 )

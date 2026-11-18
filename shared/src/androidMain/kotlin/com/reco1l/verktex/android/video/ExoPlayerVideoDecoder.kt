@@ -20,7 +20,7 @@ import androidx.media3.exoplayer.video.VideoRendererEventListener
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.android.AndroidExternalTexture
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.video.VideoDecoder
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
@@ -45,7 +45,7 @@ class ExoPlayerVideoDecoder(context: Context, path: String) : VideoDecoder {
     private val texture = Verktex.graphics.createExternalTexture(NOMINAL_SIZE, NOMINAL_SIZE)
     private val externalTexture = texture as AndroidExternalTexture
 
-    override val region: GraphicsTexture.Region
+    override val region: Texture.Region
         get() = externalTexture.region
 
     private val player: ExoPlayer

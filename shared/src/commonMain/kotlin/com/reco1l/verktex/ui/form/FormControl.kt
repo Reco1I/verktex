@@ -11,12 +11,12 @@ import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.interpolateFloat
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.FAIcon
-import com.reco1l.verktex.ui.UIButton
-import com.reco1l.verktex.ui.UITextButton
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.container.UILinearContainer
-import com.reco1l.verktex.ui.control.UIControl
-import com.reco1l.verktex.ui.text.UIText
+import com.reco1l.verktex.ui.Button
+import com.reco1l.verktex.ui.TextButton
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.LinearContainer
+import com.reco1l.verktex.ui.control.Control
+import com.reco1l.verktex.ui.text.Text
 import com.reco1l.verktex.ui.text.faSolidIcon
 import com.reco1l.verktex.ui.themed
 
@@ -25,7 +25,7 @@ import com.reco1l.verktex.ui.themed
  * it to its [defaultValue].
  */
 @Suppress("LeakingThis", "MemberVisibilityCanBePrivate")
-abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinearContainer() {
+abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearContainer() {
 
     /**
      * The control that is used to change the value.
@@ -35,12 +35,12 @@ abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinea
     /**
      * The text showing the formatted [value], if the form control has one.
      */
-    open val valueText: UIText? = null
+    open val valueText: Text? = null
 
     /**
      * The text that is displayed as the label of the control.
      */
-    val labelText = UIText().apply {
+    val labelText = Text().apply {
         // Stretched to the header row so the label is centered next to the reset button.
         height = fill()
         alignment = Anchor.CenterLeft
@@ -50,17 +50,17 @@ abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinea
     /**
      * The button that resets the value of the control to its default value.
      */
-    val resetButton = UITextButton().apply {
+    val resetButton = TextButton().apply {
         text = "Reset"
         leadingIcon = faSolidIcon(FAIcon.RotateLeft)
-        density = UIButton.Density.Small
-        variant = UIButton.Variant.Soft
+        density = Button.Density.Small
+        variant = Button.Variant.Soft
         onActionUp = { value = defaultValue }
     }
 
     // Buttons animate their own alpha, so the reset button is faded through a holder. Hidden
     // components still receive input, so the holder ignores it while hidden.
-    private val resetButtonHolder = object : UIContainer() {
+    private val resetButtonHolder = object : Container() {
         override fun onInputEvent(event: InputEvent) = isVisible && super.onInputEvent(event)
     }.apply {
         isVisible = false
@@ -138,10 +138,10 @@ abstract class FormControl<V : Any, C : UIControl<V>>(initialValue: V) : UILinea
      * Creates the header of the form control: the label and the reset button on the left, and
      * [trailing] on the right.
      */
-    protected fun createHeader(trailing: UIContainer.() -> Unit = {}) = UIContainer().apply {
+    protected fun createHeader(trailing: Container.() -> Unit = {}) = Container().apply {
         width = fill()
 
-        +UILinearContainer().apply {
+        +LinearContainer().apply {
             anchor = Anchor.CenterLeft
             origin = Anchor.CenterLeft
             spacing = themed { gap.sm }

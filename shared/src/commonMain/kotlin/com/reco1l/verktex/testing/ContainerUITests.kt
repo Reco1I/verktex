@@ -15,17 +15,17 @@ import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.pct
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.container.UIContainer
-import com.reco1l.verktex.ui.container.UIScalingContainer
-import com.reco1l.verktex.ui.container.UILinearContainer
-import com.reco1l.verktex.ui.container.UIRecyclerContainer
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.container.ScalingContainer
+import com.reco1l.verktex.ui.container.LinearContainer
+import com.reco1l.verktex.ui.container.RecyclerContainer
 import com.reco1l.verktex.ui.container.RecyclableComponent
 import com.reco1l.verktex.ui.container.clipContainer
 import com.reco1l.verktex.ui.container.constraintContainer
 import com.reco1l.verktex.ui.container.container
 import com.reco1l.verktex.ui.container.linearContainer
 import com.reco1l.verktex.ui.container.scrollableContainer
-import com.reco1l.verktex.ui.text.UIText
+import com.reco1l.verktex.ui.text.Text
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.ui.textButton
 
@@ -39,7 +39,7 @@ private fun colorAt(index: Int) = COLORS[index % COLORS.size]
 /**
  * A colored block with a centered label, used to show how containers size and place children.
  */
-private inline fun UIContainer.block(label: String, tint: Color4, builder: UIContainer.() -> Unit = {}) = container {
+private inline fun Container.block(label: String, tint: Color4, builder: Container.() -> Unit = {}) = container {
     background = Background.Color(tint)
     radius = CornerRadius(6f.dip)
     padding = Padding(10f.dip, 6f.dip)
@@ -57,8 +57,8 @@ private inline fun UIContainer.block(label: String, tint: Color4, builder: UICon
 /**
  * A horizontal linear container with a fixed width and a faint background, so its free space is visible.
  */
-private inline fun UIContainer.row(builder: UILinearContainer.() -> Unit) = linearContainer {
-    orientation = UILinearContainer.Orientation.Horizontal
+private inline fun Container.row(builder: LinearContainer.() -> Unit) = linearContainer {
+    orientation = LinearContainer.Orientation.Horizontal
     width = 560f.dip
     padding = Padding(4f.dip)
     spacing = 4f.dip
@@ -69,8 +69,8 @@ private inline fun UIContainer.row(builder: UILinearContainer.() -> Unit) = line
 /**
  * A vertical linear container with a fixed height and a faint background, so its free space is visible.
  */
-private inline fun UIContainer.columnBox(builder: UILinearContainer.() -> Unit) = linearContainer {
-    orientation = UILinearContainer.Orientation.Vertical
+private inline fun Container.columnBox(builder: LinearContainer.() -> Unit) = linearContainer {
+    orientation = LinearContainer.Orientation.Vertical
     width = 100f.dip
     height = 280f.dip
     padding = Padding(4f.dip)
@@ -136,9 +136,9 @@ fun UITestSuite.addContainerTests() {
             }
 
             section("Hidden children take no space and no spacing") {
-                orientation = UILinearContainer.Orientation.Vertical
+                orientation = LinearContainer.Orientation.Vertical
 
-                lateinit var hidden: UIContainer
+                lateinit var hidden: Container
 
                 row {
                     block("fill()", colorAt(3)) { width = fill() }
@@ -204,7 +204,7 @@ fun UITestSuite.addContainerTests() {
     test("Sizes and padding") {
         column {
             section("Fixed, fill fractions and wrap inside a 400dip container") {
-                orientation = UILinearContainer.Orientation.Vertical
+                orientation = LinearContainer.Orientation.Vertical
 
                 for ((label, size) in listOf(
                     "200dip" to 200f.dip,
@@ -335,7 +335,7 @@ fun UITestSuite.addContainerTests() {
     }
 
     test("Constraint container") {
-        lateinit var target: UIContainer
+        lateinit var target: Container
 
         constraintContainer {
             width = fill()
@@ -417,9 +417,9 @@ fun UITestSuite.addContainerTests() {
     }
 
     test("Scaling container") {
-        lateinit var area: UIContainer
-        lateinit var scaling: UIScalingContainer
-        lateinit var factorText: UIText
+        lateinit var area: Container
+        lateinit var scaling: ScalingContainer
+        lateinit var factorText: Text
 
         area = container {
             anchor = Anchor.Center
@@ -428,7 +428,7 @@ fun UITestSuite.addContainerTests() {
             height = 0.7f.pct
             background = Background.Color(FAINT)
 
-            scaling = object : UIScalingContainer() {
+            scaling = object : ScalingContainer() {
                 override fun onUpdate(clock: FrameClock) {
                     super.onUpdate(clock)
 
@@ -470,7 +470,7 @@ fun UITestSuite.addContainerTests() {
             textButton {
                 text = "Change mode"
                 onActionUp = {
-                    val modes = UIScalingContainer.Mode.entries
+                    val modes = ScalingContainer.Mode.entries
                     scaling.mode = modes[(scaling.mode.ordinal + 1) % modes.size]
                 }
             }
@@ -488,7 +488,7 @@ fun UITestSuite.addContainerTests() {
     }
 
     test("Scrollable") {
-        lateinit var positionText: UIText
+        lateinit var positionText: Text
 
         val vertical = scrollableContainer {
             scrollAxes = Axis.Y
@@ -497,7 +497,7 @@ fun UITestSuite.addContainerTests() {
             background = Background.Color(FAINT)
 
             linearContainer {
-                orientation = UILinearContainer.Orientation.Vertical
+                orientation = LinearContainer.Orientation.Vertical
                 width = fill()
                 padding = Padding(4f.dip)
                 spacing = 4f.dip
@@ -564,7 +564,7 @@ fun UITestSuite.addContainerTests() {
     test("Recycler") {
         val items = (1..10_000).toList()
 
-        +UIRecyclerContainer<Int, RecyclerRow>().apply {
+        +RecyclerContainer<Int, RecyclerRow>().apply {
             width = fill()
             height = fill()
             spacing = 4f.dip
@@ -590,7 +590,7 @@ private class RecyclerRow : RecyclableComponent<Int>() {
 
     override val isRecyclable = true
 
-    private val label = UIText()
+    private val label = Text()
 
 
     init {

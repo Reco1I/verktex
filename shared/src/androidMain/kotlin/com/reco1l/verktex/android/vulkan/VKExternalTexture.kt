@@ -9,7 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Surface
 import com.reco1l.verktex.android.AndroidExternalTexture
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.graphics.PixelBuffer
 import com.reco1l.verktex.vulkan.VKContext
 import com.reco1l.verktex.vulkan.VKExternalFrames
@@ -32,7 +32,7 @@ class VKExternalTexture internal constructor(
     override val width: Float,
     override val height: Float,
     private val context: VKContext,
-) : GraphicsTexture(), AndroidExternalTexture, VKExternalFrames {
+) : Texture(), AndroidExternalTexture, VKExternalFrames {
 
     override val isExternal get() = true
 

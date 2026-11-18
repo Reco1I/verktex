@@ -1,6 +1,6 @@
 package com.reco1l.verktex.vulkan
 
-import com.reco1l.verktex.graphics.GraphicsShader
+import com.reco1l.verktex.graphics.Shader
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator.Stage
 
@@ -14,7 +14,7 @@ import com.reco1l.verktex.shaders.GLSL450VulkanTranslator.Stage
 class VKShader internal constructor(
     override val source: Source,
     private val context: VKContext,
-) : GraphicsShader() {
+) : Shader() {
 
     private val spirvVertex = source.spirvVertex ?: throw IllegalArgumentException(MISSING_SPIRV)
 

@@ -3,8 +3,8 @@ package com.reco1l.verktex.desktop
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Provider
 import com.reco1l.verktex.fonts.FontFamily
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
 import java.io.File
 import java.io.InputStream
 
@@ -93,19 +93,19 @@ class DesktopProvider : Provider {
         }
     }
 
-    override fun createTextureSource(path: String, isExternal: Boolean): GraphicsTexture.Source? {
+    override fun createTextureSource(path: String, isExternal: Boolean): Texture.Source? {
         val data = read(path, isExternal) ?: return null
         return PixelsTextureSource.decode(data).also {
             if (it == null) Logger.w("DesktopProvider", "Couldn't decode the image $path")
         }
     }
 
-    override fun createShaderSource(vertexShaderPath: String, fragmentShaderPath: String, isExternal: Boolean): GraphicsShader.Source? {
+    override fun createShaderSource(vertexShaderPath: String, fragmentShaderPath: String, isExternal: Boolean): Shader.Source? {
         val vertex = read(vertexShaderPath, isExternal)?.decodeToString() ?: return null
         val fragment = read(fragmentShaderPath, isExternal)?.decodeToString() ?: return null
 
         // The SPIR-V of the Vulkan backend, compiled by :desktop-natives next to the built-in shaders.
-        return GraphicsShader.Source(
+        return Shader.Source(
             vertex,
             fragment,
             spirvVertex = readSpirv(vertexShaderPath, isExternal),

@@ -8,7 +8,7 @@ import android.opengl.EGLExt
 import android.opengl.EGLSurface
 import com.reco1l.verktex.Logger
 import com.reco1l.verktex.android.AndroidWindow
-import com.reco1l.verktex.graphics.GraphicsContext
+import com.reco1l.verktex.graphics.GPUContext
 
 /**
  * The EGL context the OpenGL ES backends draw with.
@@ -19,7 +19,7 @@ import com.reco1l.verktex.graphics.GraphicsContext
 class ESContext(
     private val window: AndroidWindow,
     preferredVersion: ESVersion = ESVersion.ES3,
-) : GraphicsContext {
+) : GPUContext {
 
     private val display: EGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
 

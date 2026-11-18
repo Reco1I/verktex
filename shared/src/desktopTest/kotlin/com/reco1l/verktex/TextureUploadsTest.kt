@@ -1,7 +1,7 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.graphics.GraphicsResource
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.GPUResource
+import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.texture.FramedTextureRegion
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -13,7 +13,7 @@ import com.reco1l.verktex.graphics.PixelBuffer
  */
 class TextureUploadsTest {
 
-    private class RecordingTexture : GraphicsTexture() {
+    private class RecordingTexture : Texture() {
         override val width = 64f
         override val height = 64f
 
@@ -31,11 +31,11 @@ class TextureUploadsTest {
         }
     }
 
-    private class SolidSource(size: Int) : GraphicsTexture.Source {
+    private class SolidSource(size: Int) : Texture.Source {
         override val width = size.toFloat()
         override val height = size.toFloat()
 
-        override fun writePixels(target: GraphicsTexture.PixelTarget, x: Int, y: Int) {
+        override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) {
             val size = width.toInt()
             target.write(x, y, size, size, java.nio.ByteBuffer.allocate(size * size * 4))
         }
@@ -48,7 +48,7 @@ class TextureUploadsTest {
 
         texture.flushUploads()
 
-        assertEquals(GraphicsResource.State.Loaded, texture.state)
+        assertEquals(GPUResource.State.Loaded, texture.state)
         assertEquals(0, texture.binds)
         // The region is written with its one pixel gutter.
         assertEquals(listOf(listOf(region.x.toInt() - 1, region.y.toInt() - 1, 10, 10, 10 * 10 * 4)), texture.writes)
@@ -102,8 +102,8 @@ class TextureUploadsTest {
     fun framedSourceWritesEveryFrameAtItsOffset() {
         val atlas = RecordingTexture()
         val frames = listOf(
-            GraphicsTexture.Region(atlas, SolidSource(4), 0f, 0f, 4f, 4f),
-            GraphicsTexture.Region(atlas, SolidSource(4), 4f, 0f, 4f, 4f),
+            Texture.Region(atlas, SolidSource(4), 0f, 0f, 4f, 4f),
+            Texture.Region(atlas, SolidSource(4), 4f, 0f, 4f, 4f),
         )
         val source = FramedTextureRegion.Source(frames)
 

@@ -3,7 +3,7 @@ package com.reco1l.verktex.android
 import android.content.Context
 import android.os.Bundle
 import com.reco1l.verktex.Verktex
-import com.reco1l.verktex.graphics.GraphicsBackend
+import com.reco1l.verktex.graphics.GPUBackend
 import com.reco1l.verktex.settings.Settings
 import com.reco1l.verktex.settings.VerktexSettings
 import com.reco1l.verktex.testing.UITestScene
@@ -20,7 +20,7 @@ import com.reco1l.verktex.vulkan.resetVulkanCrashGuard
  *
  * The test to open first can be passed with the [EXTRA_TEST] extra, as `suite/test` or just the test
  * name. Without it, the last opened test is shown again. The [EXTRA_BACKEND] extra picks the
- * [com.reco1l.verktex.graphics.GraphicsBackend] by name, and [EXTRA_AUDIO_BACKEND] the
+ * [com.reco1l.verktex.graphics.GPUBackend] by name, and [EXTRA_AUDIO_BACKEND] the
  * [com.reco1l.verktex.audio.AudioBackend], to compare backends on the same test.
  */
 abstract class UITestActivity : AndroidGameHost() {
@@ -38,10 +38,10 @@ abstract class UITestActivity : AndroidGameHost() {
 
         // Read when the engine is initialized, in super.onCreate.
         intent.getStringExtra(EXTRA_BACKEND)?.let { backend ->
-            Settings[VerktexSettings.GraphicsBackend] = backend
+            Settings[VerktexSettings.GPUBackend] = backend
 
             // Asked for explicitly, it's tried even if it crashed while starting the last time.
-            if (backend == GraphicsBackend.Vulkan.name) {
+            if (backend == GPUBackend.Vulkan.name) {
                 resetVulkanCrashGuard()
             }
         }

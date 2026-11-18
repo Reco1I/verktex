@@ -1,13 +1,13 @@
 package com.reco1l.verktex
 
-import com.reco1l.verktex.ui.UIScene
+import com.reco1l.verktex.ui.Scene
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
 
 class SceneStackTest {
 
-    private class RecordingScene(private val events: MutableList<String>, private val name: String) : UIScene() {
+    private class RecordingScene(private val events: MutableList<String>, private val name: String) : Scene() {
         override fun onEnter() {
             events += "$name enter"
         }
@@ -35,6 +35,6 @@ class SceneStackTest {
 
         // The scenes it replaced can't be gone back to.
         assertSame(menu, Verktex.popScene())
-        assertSame(UIScene.EmptyScene, Verktex.scene)
+        assertSame(Scene.EmptyScene, Verktex.scene)
     }
 }

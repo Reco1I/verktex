@@ -5,10 +5,10 @@ import com.reco1l.verktex.Logger
 import com.reco1l.verktex.android.AndroidWindow
 import com.reco1l.verktex.graphics.DrawCommand
 import com.reco1l.verktex.graphics.FramebufferOrigin
-import com.reco1l.verktex.graphics.GraphicsRenderer
+import com.reco1l.verktex.graphics.Renderer
 
 /**
- * The OpenGL ES implementation of [GraphicsRenderer], common to every version. Each backend
+ * The OpenGL ES implementation of [Renderer], common to every version. Each backend
  * provides the [executor] running the draw commands.
  */
 abstract class ESRenderer(
@@ -16,7 +16,7 @@ abstract class ESRenderer(
     override val device: ESDevice,
     override val window: AndroidWindow,
     protected val executor: ESCommandExecutor,
-) : GraphicsRenderer() {
+) : Renderer() {
 
     final override var version: String
 

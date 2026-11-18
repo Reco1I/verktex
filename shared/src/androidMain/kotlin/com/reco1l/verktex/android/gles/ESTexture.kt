@@ -2,15 +2,15 @@ package com.reco1l.verktex.android.gles
 
 import com.reco1l.verktex.graphics.PixelBuffer
 import android.opengl.GLES20
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Texture
 
 /**
- * OpenGL ES implementation of the [GraphicsTexture] class.
+ * OpenGL ES implementation of the [Texture] class.
  */
 class ESTexture(
     override val width: Float,
     override val height: Float,
-) : GraphicsTexture() {
+) : Texture() {
 
     private var id = 0
 

@@ -1,19 +1,19 @@
 package com.reco1l.verktex.desktop.gl
 
-import com.reco1l.verktex.graphics.GraphicsDevice
-import com.reco1l.verktex.graphics.GraphicsShader
-import com.reco1l.verktex.graphics.GraphicsTexture
+import com.reco1l.verktex.graphics.Device
+import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.Texture
 import org.lwjgl.opengl.GL33.*
 
 /**
- * The OpenGL implementation of [GraphicsDevice].
+ * The OpenGL implementation of [Device].
  */
-class GLDevice : GraphicsDevice {
+class GLDevice : Device {
 
     // Written on the draw thread once the context is current, read from the update thread. Until
     // then the minimum every OpenGL 3.3 implementation supports.
     @Volatile
-    override var capabilities = GraphicsDevice.Capabilities(maxTextureSize = 2048f, supportsExternalTextures = false)
+    override var capabilities = Device.Capabilities(maxTextureSize = 2048f, supportsExternalTextures = false)
         private set
 
 
@@ -30,11 +30,11 @@ class GLDevice : GraphicsDevice {
 
     override fun createBuffer() = GLBuffer()
 
-    override fun createShader(source: GraphicsShader.Source) = GLShader(source)
+    override fun createShader(source: Shader.Source) = GLShader(source)
 
-    override fun createTexture(width: Float, height: Float): GraphicsTexture = GLTexture(width, height)
+    override fun createTexture(width: Float, height: Float): Texture = GLTexture(width, height)
 
     // Desktop has no external textures, its video decoder writes frames into a plain texture (see
     // FFmpegVideoDecoder). This one is never fed, which callers know from the capabilities.
-    override fun createExternalTexture(width: Float, height: Float): GraphicsTexture = GLTexture(width, height)
+    override fun createExternalTexture(width: Float, height: Float): Texture = GLTexture(width, height)
 }
