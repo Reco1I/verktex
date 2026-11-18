@@ -5,8 +5,8 @@ import com.reco1l.verktex.data.dip
 
 /**
  * A safe area the UI test browser gives the window where it has none (on desktop), so components
- * and scenes can be tried as on a phone in landscape. Its sides are in dip, as left, top, right and
- * bottom.
+ * and scenes can be tried as on a phone in landscape, whose cutouts are on its left and right. Its
+ * sides are in dip, as left, top, right and bottom.
  *
  * @param label The short name the browser shows, and that `--safe-area` takes (case ignored), as
  * the name of the constant does.
@@ -34,10 +34,9 @@ enum class SimulatedSafeArea(
     CutoutRight("Cutout right", 0f, 0f, 32f, 0f),
 
     /**
-     * A phone with a notch, whose safe area is kept on both sides whichever way it's turned, and
-     * the home indicator at the bottom.
+     * Cutouts on both sides, as on phones whose safe area is kept whichever way they're turned.
      */
-    Notch("Notch", 48f, 0f, 48f, 21f);
+    CutoutBoth("Cutout both", 32f, 0f, 32f, 0f);
 
 
     /**

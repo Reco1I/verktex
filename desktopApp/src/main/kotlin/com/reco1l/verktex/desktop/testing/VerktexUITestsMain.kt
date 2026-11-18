@@ -15,7 +15,7 @@ import kotlin.system.exitProcess
  * `--test` opens a test first (`suite/test` or the test name), `--screenshot` saves a frame after a
  * moment and exits, `--vsync` caps the frame rate to the display's refresh rate, `--backend` opens with
  * a graphics backend (e.g. `Vulkan`), `--safe-area` simulates a phone's safe area (a
- * `SimulatedSafeArea`, e.g. `Notch`).
+ * `SimulatedSafeArea`, e.g. `CutoutLeft`).
  */
 fun main(args: Array<String>) {
     var test: String? = null
