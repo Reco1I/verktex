@@ -1,5 +1,5 @@
 #version 300 es
-precision mediump float;
+precision highp float;
 
 // A path's colour by the distance from its centre line, see com.reco1l.verktex.ui.UIPath. The
 // distances are out of the mesh's radius: the hint up to uHintEnd, the body up to uBodyEnd going
@@ -18,7 +18,8 @@ uniform float uBorderEnd;
 
 out vec4 fragColor;
 
-// Colours given to shaders have straight alpha, the output is premultiplied.
+#import "lib/color.glsl"
+#import "lib/clip.glsl"
 
 void main() {
     float distance = vDistance;
@@ -45,5 +46,5 @@ void main() {
         color = vec4(uShadowColor.rgb, uShadowColor.a * (1.0 - progress));
     }
 
-    fragColor = vec4(color.rgb * color.a, color.a);
+    fragColor = premultiply(color) * clipCoverage();
 }

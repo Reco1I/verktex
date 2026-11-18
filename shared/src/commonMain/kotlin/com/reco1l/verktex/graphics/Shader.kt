@@ -27,6 +27,10 @@ abstract class Shader : GPUResource() {
      * The sources are GLSL ES 3.00. A backend that can't compile GLSL at runtime (Vulkan) uses the
      * SPIR-V compiled from them at build time instead, and derives their uniform layout from the GLSL
      * with `GLSL450VulkanTranslator`, which the SPIR-V was translated with.
+     *
+     * Sources loaded with [com.reco1l.verktex.Provider.createShaderSource] have their `#import`s
+     * expanded (see `ShaderImports` and `docs/shaders.md`), sources built from strings are used as they
+     * are.
      */
     class Source(
         /**
@@ -48,7 +52,29 @@ abstract class Shader : GPUResource() {
          * The SPIR-V of [fragment] for Vulkan, null when it wasn't compiled.
          */
         val spirvFragment: ByteArray? = null,
-    )
+
+        /**
+         * The files [vertex] was expanded from, indexed by the source string number of its `#line`
+         * directives: the shader, then the files it imports. Empty for sources built from strings.
+         */
+        val vertexFiles: List<String> = emptyList(),
+
+        /**
+         * The files [fragment] was expanded from, see [vertexFiles].
+         */
+        val fragmentFiles: List<String> = emptyList(),
+    ) {
+
+        /**
+         * Describes the files of a stage for a compile error, whose lines are prefixed with the source
+         * string number, e.g. "0:12" or "1:12" depending on the driver. Empty without imports.
+         */
+        fun describeFiles(isVertex: Boolean): String {
+            val files = if (isVertex) vertexFiles else fragmentFiles
+            if (files.size <= 1) return ""
+            return "\nSource strings: " + files.withIndex().joinToString { (index, file) -> "$index = $file" }
+        }
+    }
 
     /**
      * Represents a set of uniform variables that can be applied to a shader program.

@@ -6,14 +6,19 @@ import com.reco1l.verktex.vulkan.VKPipelineState
 import com.reco1l.verktex.vulkan.VKUniformPacker
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
+import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.CompareFunction
+import com.reco1l.verktex.graphics.DefaultUniforms
 import com.reco1l.verktex.graphics.DepthState
+import com.reco1l.verktex.graphics.ShaderClip
 import com.reco1l.verktex.graphics.VertexLayout
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator.Stage
+import com.reco1l.verktex.shaders.expandShaderImports
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.nio.ByteBuffer
@@ -56,7 +61,7 @@ class VulkanBackendTest {
     @Test
     fun uniformsArePackedAtTheTranslatorsOffsets() {
         // The fragment block of the solid shader: uColor, uBorderColor, uBorderWidth, uRadius, uSize.
-        val stage = GLSL450VulkanTranslator.translate(File("assets/shaders/quad.frag").readText(), Stage.Fragment)
+        val stage = GLSL450VulkanTranslator.translate(expandShaderImports(File("assets/shaders"), File("assets/shaders/quad.frag")).source, Stage.Fragment)
         val target = ByteBuffer.allocate(256).order(java.nio.ByteOrder.nativeOrder())
 
         // Garbage from a previous frame must not leak into members left unset.
@@ -89,8 +94,40 @@ class VulkanBackendTest {
     }
 
     @Test
+    fun clipUniformsComeFromTheClipElseTheDefaults() {
+        val stage = GLSL450VulkanTranslator.translate(expandShaderImports(File("assets/shaders"), File("assets/shaders/quad.frag")).source, Stage.Fragment)
+        fun offsetOf(name: String) = stage.uniforms.single { it.name == name }.offset
+
+        val clip = ShaderClip(
+            transform = Vec4(1f, 0f, 0f, 1f),
+            translation = Vec4(-5f, -6f, 0f, 1f),
+            rect = Vec4(0f, 0f, 100f, 50f),
+            radii = Vec4(8f, 8f, 8f, 8f),
+        )
+        val defaults = DefaultUniforms().forViewport(800, 600).entries
+
+        val clipped = ByteBuffer.allocate(256).order(java.nio.ByteOrder.nativeOrder())
+        VKUniformPacker.pack(clipped, 0, stage.uniformBlockSize, stage.uniforms, emptyMap(), defaults, clip)
+
+        assertEquals(-5f, clipped.getFloat(offsetOf(ShaderClip.TRANSLATION)), 0f)
+        assertEquals(1f, clipped.getFloat(offsetOf(ShaderClip.TRANSLATION) + 12), 0f)
+        assertEquals(100f, clipped.getFloat(offsetOf(ShaderClip.RECT) + 8), 0f)
+        assertEquals(8f, clipped.getFloat(offsetOf(ShaderClip.RADII)), 0f)
+
+        // Without a clip, the defaults disable it.
+        val unclipped = ByteBuffer.allocate(256).order(java.nio.ByteOrder.nativeOrder())
+        VKUniformPacker.pack(unclipped, 0, stage.uniformBlockSize, stage.uniforms, emptyMap(), defaults)
+
+        assertEquals(0f, unclipped.getFloat(offsetOf(ShaderClip.TRANSLATION) + 12), 0f)
+        assertEquals(1f, unclipped.getFloat(offsetOf(ShaderClip.TRANSFORM)), 0f)
+
+        // The fragment blocks stay within the 256 bytes of a stage.
+        assertTrue(stage.uniformBlockSize <= 256)
+    }
+
+    @Test
     fun matricesArePackedColumnMajor() {
-        val stage = GLSL450VulkanTranslator.translate(File("assets/shaders/particle.vert").readText(), Stage.Vertex)
+        val stage = GLSL450VulkanTranslator.translate(expandShaderImports(File("assets/shaders"), File("assets/shaders/particle.vert")).source, Stage.Vertex)
         val target = ByteBuffer.allocate(256).order(java.nio.ByteOrder.nativeOrder())
         val matrix = FloatArray(16) { it.toFloat() }
 

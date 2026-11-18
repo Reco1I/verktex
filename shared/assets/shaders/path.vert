@@ -11,17 +11,14 @@ uniform mat4 uTransform;
 
 out float vDistance;
 
+#import "lib/viewport.glsl"
+
 void main() {
     vec4 transformed = uTransform * vec4(aPosition, 0.0, 1.0);
 
     // The depth is the distance, so that where parts of the path overlap the one nearest to its
     // centre line is kept. Halved to stay below the cleared depth on every backend.
-    gl_Position = vec4(
-        (transformed.x / uViewportSize.x) * 2.0 - 1.0,
-        1.0 - (transformed.y / uViewportSize.y) * 2.0,
-        aDistance * 0.5,
-        1.0
-    );
+    gl_Position = vec4(toNDC(transformed.xy, uViewportSize), aDistance * 0.5, 1.0);
 
     vDistance = aDistance;
 }

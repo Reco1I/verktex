@@ -3,6 +3,7 @@ package com.reco1l.verktex
 import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator.Stage
+import com.reco1l.verktex.shaders.expandShaderImports
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,7 +16,7 @@ import java.io.File
 class BuiltInShadersVulkanTest {
 
     private fun translate(path: String, stage: Stage) =
-        GLSL450VulkanTranslator.translate(File("assets", path).readText(), stage)
+        GLSL450VulkanTranslator.translate(expandShaderImports(File("assets/shaders"), File("assets", path)).source, stage)
 
     @Test
     fun everyProgramTranslatesAndLinks() {

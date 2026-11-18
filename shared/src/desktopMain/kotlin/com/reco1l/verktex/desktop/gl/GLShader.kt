@@ -68,7 +68,8 @@ class GLShader(override val source: Source) : Shader() {
         glCompileShader(id)
 
         if (glGetShaderi(id, GL_COMPILE_STATUS) == 0) {
-            throw IllegalStateException("$stageName shader compilation failed:\n${glGetShaderInfoLog(id)}")
+            val files = this.source.describeFiles(isVertex = stage == GL_VERTEX_SHADER)
+            throw IllegalStateException("$stageName shader compilation failed:\n${glGetShaderInfoLog(id)}$files")
         }
         return id
     }

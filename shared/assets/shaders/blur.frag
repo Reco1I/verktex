@@ -11,7 +11,7 @@ uniform vec2 uDirection;
 
 out vec4 fragColor;
 
-// Colours given to shaders have straight alpha, textures and the output are premultiplied.
+#import "lib/color.glsl"
 
 // A 9-tap Gaussian (sigma of 2 steps) in 5 fetches, linear filtering blends each pair of taps.
 const float OFFSET_1 = 1.3846153846;
@@ -27,5 +27,5 @@ void main() {
     color += texture(uTexture, vUV + uDirection * OFFSET_2).rgb * WEIGHT_2;
     color += texture(uTexture, vUV - uDirection * OFFSET_2).rgb * WEIGHT_2;
 
-    fragColor = vec4(color, 1.0) * vec4(vColor.rgb * vColor.a, vColor.a);
+    fragColor = vec4(color, 1.0) * premultiply(vColor);
 }

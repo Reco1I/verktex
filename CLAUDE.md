@@ -80,6 +80,10 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - UI is a tree of `Component`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.
 - Textures and shader outputs are premultiplied, see `docs/texture-blending.md`.
+- Shaders are GLSL ES 3.00 in `shared/assets/shaders/`, sharing code from `lib/*.glsl` with
+  `#import "lib/x.glsl"`, expanded before any translation (`ShaderImports`). Built-in fragment
+  shaders multiply their output by `clipCoverage()` (`lib/clip.glsl`), which clips to rounded and
+  transformed components (`Renderer.pushClip`). See `docs/shaders.md`.
 - UI tests are `UITestSuite`s (`commonMain/.../testing/`), browsed by `UITestActivity` on Android
   and `UITestApplication` on desktop; `VerktexUITests` covers the engine's components.
 

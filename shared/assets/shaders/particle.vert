@@ -23,6 +23,8 @@ uniform vec4 uColorMultiplier;
 out vec2 vUV;
 out vec4 vColor;
 
+#import "lib/viewport.glsl"
+
 void main() {
     float age = uTime - aLife.x;
     float progress = clamp(age / aLife.y, 0.0, 1.0);
@@ -37,12 +39,7 @@ void main() {
     vec2 position = aPosition + aVelocity * age + 0.5 * aAcceleration * age * age + corner;
     vec4 transformed = uTransform * vec4(position, 0.0, 1.0);
 
-    gl_Position = vec4(
-        (transformed.x / uViewportSize.x) * 2.0 - 1.0,
-        1.0 - (transformed.y / uViewportSize.y) * 2.0,
-        0.0,
-        1.0
-    );
+    gl_Position = vec4(toNDC(transformed.xy, uViewportSize), 0.0, 1.0);
 
     vUV = mix(uUVRect.xy, uUVRect.zw, aCorner + 0.5);
     vColor = aColor * uColorMultiplier;

@@ -930,15 +930,28 @@ abstract class Component {
 
         drawOverBackground(renderer)
 
+        // A scissor is enough for a rectangle aligned to the screen, and costs nothing in the shaders.
+        // Rounded corners, rotations and skews need the shaders' clip.
+        var isShaderClipped = false
+
         if (clipping != ClipMode.Disabled) {
             val area = clippingArea()
+            val radii = clippingRadii()
 
-            renderer.pushScissor(
-                x = area.x,
-                y = area.y,
-                width = (area.z - area.x).coerceAtLeast(0f),
-                height = (area.w - area.y).coerceAtLeast(0f)
-            )
+            val x = area.x
+            val y = area.y
+            val width = (area.z - area.x).coerceAtLeast(0f)
+            val height = (area.w - area.y).coerceAtLeast(0f)
+
+            val isRounded = radii.x > 0f || radii.y > 0f || radii.z > 0f || radii.w > 0f
+            val isAxisAligned = localToSceneMatrix.b == 0f && localToSceneMatrix.c == 0f
+
+            if (isRounded || !isAxisAligned) {
+                renderer.pushClip(x, y, width, height, radii)
+                isShaderClipped = true
+            } else {
+                renderer.pushScissor(x, y, width, height)
+            }
         }
 
         drawContent(renderer)
@@ -948,7 +961,11 @@ abstract class Component {
             renderer.drawRect(0f, 0f, bounds.width, bounds.height, Color4.Transparent, 1f, Color4.White, 0f)
         }
 
-        if (clipping != ClipMode.Disabled) renderer.popScissor()
+        if (isShaderClipped) {
+            renderer.popClip()
+        } else if (clipping != ClipMode.Disabled) {
+            renderer.popScissor()
+        }
 
         renderer.popColor()
         renderer.popMatrix()
@@ -975,6 +992,36 @@ abstract class Component {
         }
 
         return Vec4(0f, 0f, bounds.width, bounds.height)
+    }
+
+    /**
+     * The radius of the top left, top right, bottom right and bottom left corners of the area the
+     * content is clipped to ([clippingArea]), in local space: the component's [radius], reduced by the
+     * padding with [ClipMode.Padding] as the inner corners of a CSS border are.
+     */
+    protected open fun clippingRadii(): Vec4 {
+        val radius = radius
+
+        if (clipping != ClipMode.Padding) {
+            return Vec4(
+                radius.topLeft.toPixels(),
+                radius.topRight.toPixels(),
+                radius.bottomRight.toPixels(),
+                radius.bottomLeft.toPixels()
+            )
+        }
+
+        val left = paddingLeft.toPixels()
+        val top = paddingTop.toPixels()
+        val right = paddingRight.toPixels()
+        val bottom = paddingBottom.toPixels()
+
+        return Vec4(
+            (radius.topLeft.toPixels() - max(left, top)).coerceAtLeast(0f),
+            (radius.topRight.toPixels() - max(right, top)).coerceAtLeast(0f),
+            (radius.bottomRight.toPixels() - max(right, bottom)).coerceAtLeast(0f),
+            (radius.bottomLeft.toPixels() - max(left, bottom)).coerceAtLeast(0f)
+        )
     }
 
     /**

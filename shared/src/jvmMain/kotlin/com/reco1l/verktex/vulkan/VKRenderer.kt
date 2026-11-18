@@ -188,6 +188,7 @@ class VKRenderer(
             uniforms = stage.uniforms,
             values = command.uniformSet.entries,
             defaults = defaultUniforms.forViewport(window.windowWidth, window.windowHeight).entries,
+            clip = command.clip,
         )
         return offset
     }

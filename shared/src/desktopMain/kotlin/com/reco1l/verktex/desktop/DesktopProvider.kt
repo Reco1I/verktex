@@ -5,6 +5,7 @@ import com.reco1l.verktex.Provider
 import com.reco1l.verktex.fonts.FontFamily
 import com.reco1l.verktex.graphics.Shader
 import com.reco1l.verktex.graphics.Texture
+import com.reco1l.verktex.graphics.readShaderSource
 import java.io.File
 import java.io.InputStream
 
@@ -101,16 +102,8 @@ class DesktopProvider : Provider {
     }
 
     override fun createShaderSource(vertexShaderPath: String, fragmentShaderPath: String, isExternal: Boolean): Shader.Source? {
-        val vertex = read(vertexShaderPath, isExternal)?.decodeToString() ?: return null
-        val fragment = read(fragmentShaderPath, isExternal)?.decodeToString() ?: return null
-
         // The SPIR-V of the Vulkan backend, compiled by :desktop-natives next to the built-in shaders.
-        return Shader.Source(
-            vertex,
-            fragment,
-            spirvVertex = readSpirv(vertexShaderPath, isExternal),
-            spirvFragment = readSpirv(fragmentShaderPath, isExternal)
-        )
+        return readShaderSource(this, vertexShaderPath, fragmentShaderPath, isExternal) { readSpirv(it, isExternal) }
     }
 
     private fun readSpirv(shaderPath: String, isExternal: Boolean): ByteArray? {

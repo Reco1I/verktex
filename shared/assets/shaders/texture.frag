@@ -18,30 +18,24 @@ uniform vec4 uUVRect;
 
 out vec4 fragColor;
 
-// Colours given to shaders have straight alpha, textures and the output are premultiplied.
-
-float roundedBoxSDF(vec2 p, vec2 halfSize, vec4 radii) {
-    float r = p.x > 0.0
-        ? (p.y > 0.0 ? radii.z : radii.y)
-        : (p.y > 0.0 ? radii.w : radii.x);
-    vec2 q = abs(p) - halfSize + r;
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
+#import "lib/color.glsl"
+#import "lib/sdf.glsl"
+#import "lib/clip.glsl"
 
 void main() {
+    float clip = clipCoverage();
 
-    vec4 color = texture(uTexture, vUV) * vec4(vColor.rgb * vColor.a, vColor.a);
+    vec4 color = texture(uTexture, vUV) * premultiply(vColor);
 
     if (uMask.z > 0.0) {
         vec2 local = uQuad.xy + (vUV - uUVRect.xy) / (uUVRect.zw - uUVRect.xy) * uQuad.zw;
         vec2 halfSize = uMask.zw * 0.5;
         vec4 radii = min(uRadii, vec4(min(halfSize.x, halfSize.y)));
 
-        // Antialiased over a unit, a pixel unless the component is scaled. Derivatives would need
-        // an extension on OpenGL ES 2.0, which every textured draw would then depend on.
+        // Antialiased over a unit, a pixel unless the component is scaled.
         float dist = roundedBoxSDF(local - uMask.xy - halfSize, halfSize, radii);
         color *= clamp(0.5 - dist, 0.0, 1.0);
     }
 
-    fragColor = color;
+    fragColor = color * clip;
 }

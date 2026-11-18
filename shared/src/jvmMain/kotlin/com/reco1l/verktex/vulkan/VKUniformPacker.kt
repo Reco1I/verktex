@@ -3,13 +3,14 @@ package com.reco1l.verktex.vulkan
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
+import com.reco1l.verktex.graphics.ShaderClip
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator.Uniform
 import com.reco1l.verktex.shaders.GLSL450VulkanTranslator.UniformType
 import java.nio.ByteBuffer
 
 /**
  * Packs uniform values by name into a std140 block laid out by `GLSL450VulkanTranslator`. A value
- * comes from the command's set, else from the defaults, as on OpenGL ES, and members without either
+ * comes from the command's set, else from its clip, else from the defaults, as on OpenGL ES, and members without any
  * are zero. Values of a type the member can't take are skipped, as GL would reject them.
  */
 object VKUniformPacker {
@@ -24,6 +25,7 @@ object VKUniformPacker {
         uniforms: List<Uniform>,
         values: Map<String, Any>,
         defaults: Map<String, Any>,
+        clip: ShaderClip? = null,
     ) {
         // Ring memory holds the previous use of the frame, members left unset must not see it.
         var i = 0
@@ -33,7 +35,7 @@ object VKUniformPacker {
         }
 
         for (uniform in uniforms) {
-            val value = values[uniform.name] ?: defaults[uniform.name] ?: continue
+            val value = values[uniform.name] ?: clip?.uniform(uniform.name) ?: defaults[uniform.name] ?: continue
             write(target, offset + uniform.offset, uniform.type, value)
         }
     }

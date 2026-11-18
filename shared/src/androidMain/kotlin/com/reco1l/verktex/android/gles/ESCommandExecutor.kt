@@ -5,6 +5,7 @@ import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.DefaultUniforms
 import com.reco1l.verktex.graphics.DrawCommand
 import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.ShaderClip
 import com.reco1l.verktex.graphics.VertexLayout
 
 /**
@@ -188,7 +189,7 @@ abstract class ESCommandExecutor {
             texture.bind()
         }
 
-        applyUniforms(shader, command.uniformSet, defaultUniforms.forViewport(viewportWidth, viewportHeight))
+        applyUniforms(shader, command.uniformSet, defaultUniforms.forViewport(viewportWidth, viewportHeight), command.clip)
 
         val vertexCount = command.drawnVertexCount()
 
@@ -228,12 +229,12 @@ abstract class ESCommandExecutor {
 
     // Every uniform gets either the command's value or its default, uniform values persist per
     // program, so a value left by a previous draw would otherwise apply.
-    private fun applyUniforms(shader: Shader, uniformSet: Shader.UniformSet, defaults: Shader.UniformSet) {
+    private fun applyUniforms(shader: Shader, uniformSet: Shader.UniformSet, defaults: Shader.UniformSet, clip: ShaderClip?) {
         val shader = shader as ESShader
         val values = uniformSet.entries
 
         for ((name, default) in defaults.entries) {
-            shader.applyUniform(name, values[name] ?: default)
+            shader.applyUniform(name, values[name] ?: clip?.uniform(name) ?: default)
         }
 
         if (values.isNotEmpty()) {

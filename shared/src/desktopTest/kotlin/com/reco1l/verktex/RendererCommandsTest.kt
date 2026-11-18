@@ -2,7 +2,15 @@ package com.reco1l.verktex
 
 import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.data.Color4
+import com.reco1l.verktex.data.ClipMode
+import com.reco1l.verktex.data.CornerRadius
+import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Mat2
+import com.reco1l.verktex.data.Padding
+import com.reco1l.verktex.data.Vec4
+import com.reco1l.verktex.data.px
+import com.reco1l.verktex.ui.container.Container
+import com.reco1l.verktex.ui.shape.Box
 import com.reco1l.verktex.graphics.DrawCommand
 import com.reco1l.verktex.graphics.Buffer
 import com.reco1l.verktex.graphics.GPUContext
@@ -260,6 +268,129 @@ class RendererCommandsTest {
 
         buffer.clear()
         assertEquals(before + 1, buffer.clearCount)
+    }
+
+    @Test
+    fun drawsUnderAClipCarryItAndMerge() {
+        val renderer = RecordingRenderer()
+        val radii = Vec4(8f, 8f, 8f, 8f)
+
+        renderer.begin()
+        renderer.drawRect(0f, 0f, 10f, 10f)
+        renderer.pushClip(0f, 0f, 100f, 50f, radii)
+        val clip = renderer.currentClip!!
+        renderer.drawRect(0f, 0f, 10f, 10f)
+        renderer.drawRect(20f, 0f, 10f, 10f)
+        renderer.popClip()
+        renderer.drawRect(0f, 0f, 10f, 10f)
+        renderer.end()
+
+        val commands = renderer.commands
+        assertEquals(3, commands.size)
+
+        assertNull(commands[0].clip)
+        assertNull(commands[0].scissor)
+
+        // Both rects under the clip share its command, scissored to its bounds.
+        assertSame(clip, commands[1].clip)
+        assertEquals(8 * Renderer.UI_VERTEX_STRIDE, commands[1].buffer!!.position)
+        assertEquals(Vec4(0f, 0f, 100f, 50f), commands[1].scissor)
+        assertEquals(radii, clip.radii)
+        assertEquals(Vec4(0f, 0f, 100f, 50f), clip.rect)
+
+        // Popping it removes its scissor too.
+        assertNull(commands[2].clip)
+        assertNull(commands[2].scissor)
+        assertNull(renderer.currentClip)
+    }
+
+    @Test
+    fun clipsWithEqualValuesDontMerge() {
+        val renderer = RecordingRenderer()
+        val radii = Vec4(4f, 4f, 4f, 4f)
+
+        renderer.begin()
+        renderer.pushClip(0f, 0f, 100f, 50f, radii)
+        renderer.drawRect(0f, 0f, 10f, 10f)
+        renderer.popClip()
+        renderer.pushClip(0f, 0f, 100f, 50f, radii)
+        renderer.drawRect(0f, 0f, 10f, 10f)
+        renderer.popClip()
+        renderer.end()
+
+        assertEquals(2, renderer.commands.size)
+        assertNotSame(renderer.commands[0].clip, renderer.commands[1].clip)
+    }
+
+    @Test
+    fun clipMapsTheSceneBackToTheClippedSpace() {
+        val renderer = RecordingRenderer()
+        val matrix = Mat2().apply {
+            skew(-15f, 0f)
+            rotate(30f)
+            translate(100f, 50f)
+        }
+
+        renderer.begin()
+        renderer.pushMatrix(matrix)
+        renderer.pushClip(0f, 0f, 100f, 50f, Vec4(0f, 0f, 0f, 0f))
+        val clip = renderer.currentClip!!
+        renderer.popClip()
+        renderer.popMatrix()
+        renderer.end()
+
+        // A point of the clipped space, drawn in the scene, comes back to where it was.
+        val scene = matrix.transform(10f, 20f)
+        val t = clip.transform
+        val o = clip.translation
+        assertEquals(10f, t.x * scene.x + t.z * scene.y + o.x, 1e-3f)
+        assertEquals(20f, t.y * scene.x + t.w * scene.y + o.y, 1e-3f)
+
+        // Enabled, and no flip on a framebuffer whose origin is at the top left.
+        assertEquals(1f, o.w, 0f)
+        assertEquals(0f, o.z, 0f)
+    }
+
+    @Test
+    fun componentsClipWithAScissorUnlessRoundedOrTransformed() {
+        fun clipOf(builder: Container.() -> Unit): DrawCommand {
+            val container = Container().apply {
+                width = 100f.px
+                height = 50f.px
+                clipping = ClipMode.Bounds
+                builder()
+                +Box().apply { width = 10f.px; height = 10f.px }
+            }
+            container.measure(LayoutConstraints(0f, 800f, 0f, 600f))
+            container.layout(Vec4(0f, 0f, 800f, 600f))
+
+            val renderer = RecordingRenderer()
+            renderer.begin()
+            container.draw(renderer)
+            renderer.end()
+
+            // The box, the only draw.
+            return renderer.commands.single()
+        }
+
+        val plain = clipOf { }
+        assertNull(plain.clip)
+        assertEquals(Vec4(0f, 0f, 100f, 50f), plain.scissor)
+
+        val rounded = clipOf { radius = CornerRadius(8f.px) }
+        assertEquals(Vec4(8f, 8f, 8f, 8f), rounded.clip!!.radii)
+
+        val rotated = clipOf { rotationZ = 10f }
+        assertEquals(Vec4(0f, 0f, 0f, 0f), rotated.clip!!.radii)
+
+        val padded = clipOf {
+            clipping = ClipMode.Padding
+            padding = Padding(4f.px, 4f.px, 4f.px, 4f.px)
+            radius = CornerRadius(10f.px)
+        }
+        // The inner corners, reduced by the padding.
+        assertEquals(Vec4(6f, 6f, 6f, 6f), padded.clip!!.radii)
+        assertEquals(Vec4(4f, 4f, 92f, 42f), padded.clip!!.rect)
     }
 
 }

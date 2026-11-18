@@ -40,6 +40,12 @@ class DefaultUniforms {
                 set("uQuad", ZERO_VEC4)
                 set("uUVRect", ZERO_VEC4)
                 set("uTransform", IDENTITY_MAT4)
+
+                // No clip, a draw under one takes its uniforms from DrawCommand.clip.
+                set(ShaderClip.TRANSFORM, ShaderClip.NONE.transform)
+                set(ShaderClip.TRANSLATION, ShaderClip.NONE.translation)
+                set(ShaderClip.RECT, ShaderClip.NONE.rect)
+                set(ShaderClip.RADII, ShaderClip.NONE.radii)
             }
         }
 

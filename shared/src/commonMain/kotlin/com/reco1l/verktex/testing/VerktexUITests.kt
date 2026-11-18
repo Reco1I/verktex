@@ -11,6 +11,7 @@ import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.shape.PathShape
 import com.reco1l.verktex.math.Path
 import com.reco1l.verktex.data.Anchor
+import com.reco1l.verktex.data.ClipMode
 import com.reco1l.verktex.data.Border
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Color4
@@ -550,6 +551,71 @@ object VerktexUITests : UITestSuite("Verktex") {
                         background = Background.Color(themed { palette.surface })
                         radius = themed { CornerRadius.top(radius.xl) }
                         border = themed { buttonStyle.elevation.border }
+                    }
+                }
+            }
+        }
+
+        test("Clipping") {
+            // Content larger than its clipping container, drawn by several shaders: a gradient (color),
+            // a triangle (quad), boxes and text (UI).
+            fun Container.overflowingContent() {
+                gradientBox {
+                    width = 220f.dip
+                    height = 160f.dip
+                    x = (-30f).dip
+                    y = (-30f).dip
+                    gradientAngle = 45f
+                    colorStart = Color4.Pink400
+                    colorEnd = Color4.Blue600
+                }
+                triangle { width = 90f.dip; height = 90f.dip; x = 90f.dip; y = 40f.dip; color = Color4.Yellow400 }
+                box { width = 60f.dip; height = 60f.dip; x = (-20f).dip; y = 60f.dip; color = Color4.Green400 }
+                text { text = "Clipped text that overflows"; x = 8f.dip; y = 8f.dip }
+            }
+
+            fun Container.clipped(builder: Container.() -> Unit) = container {
+                width = 160f.dip
+                height = 100f.dip
+                clipping = ClipMode.Bounds
+                background = Background.Color(Color4(0.2f, 0.22f, 0.3f))
+                overflowingContent()
+                builder()
+            }
+
+            column {
+                section("Scissor and rounded corners") {
+                    clipped { }
+                    clipped { radius = CornerRadius(24f.dip) }
+                    clipped { radius = CornerRadius(40f.dip, 0f.dip, 40f.dip, 0f.dip) }
+                }
+
+                section("Transformed") {
+                    clipped { rotationZ = 12f }
+                    clipped { skewX = -15f; radius = CornerRadius(16f.dip) }
+                    clipped { scale = 0.8f; rotationZ = -20f; radius = CornerRadius(1000f.dip) }
+                }
+
+                section("Padding and nesting") {
+                    clipped {
+                        clipping = ClipMode.Padding
+                        padding = Padding(12f.dip)
+                        radius = CornerRadius(24f.dip)
+                    }
+
+                    // The inner clip is applied by the shaders, the outer one by its bounding box.
+                    clipped {
+                        radius = CornerRadius(24f.dip)
+                        container {
+                            width = 100f.dip
+                            height = 70f.dip
+                            x = 30f.dip
+                            y = 15f.dip
+                            clipping = ClipMode.Bounds
+                            radius = CornerRadius(16f.dip)
+                            rotationZ = 10f
+                            overflowingContent()
+                        }
                     }
                 }
             }

@@ -35,15 +35,9 @@ bool hasFlag(float flags, float bit) {
     return mod(floor(flags / bit), 2.0) > 0.5;
 }
 
-// Signed distance to a rounded box centered at the origin, in pixels, with a radius per corner
-// (top left, top right, bottom right, bottom left). The y axis points down.
-float roundedBoxSDF(vec2 p, vec2 halfSize, vec4 radii) {
-    float r = p.x > 0.0
-        ? (p.y > 0.0 ? radii.z : radii.y)
-        : (p.y > 0.0 ? radii.w : radii.x);
-    vec2 q = abs(p) - halfSize + r;
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
+#import "lib/color.glsl"
+#import "lib/sdf.glsl"
+#import "lib/clip.glsl"
 
 // The color of the border at the given point, in pixels from the top left corner of the box.
 vec4 borderColor(vec2 pixel, vec2 size, float flags) {
@@ -86,18 +80,18 @@ vec4 borderColor(vec2 pixel, vec2 size, float flags) {
 }
 
 void main() {
+    float clip = clipCoverage();
+
     float flags = floor((vBox.w + 0.5) / 4.0);
     float mode = vBox.w - flags * 4.0;
 
     if (mode > 0.5 && mode < 1.5) {
-        vec4 tint = vColor * uColor;
-        fragColor = texture(uTexture, vUV) * vec4(tint.rgb * tint.a, tint.a);
+        fragColor = texture(uTexture, vUV) * premultiply(vColor * uColor) * clip;
         return;
     }
 
     if (mode > 2.5) {
-        vec4 fill = uColor * vColor;
-        fragColor = vec4(fill.rgb * fill.a, fill.a);
+        fragColor = premultiply(uColor * vColor) * clip;
         return;
     }
 
@@ -142,5 +136,5 @@ void main() {
     }
 
     fill.a *= alpha;
-    fragColor = vec4(fill.rgb * fill.a, fill.a);
+    fragColor = premultiply(fill) * clip;
 }

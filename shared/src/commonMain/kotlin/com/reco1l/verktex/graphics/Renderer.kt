@@ -91,6 +91,7 @@ abstract class Renderer {
     private val blendModeStack = ArrayDeque<BlendMode>()
     private val depthStateStack = ArrayDeque<DepthState>()
     private val shaderStack = ArrayDeque<Shader>()
+    private val clipStack = ArrayDeque<ShaderClip>()
     //endregion
 
     //region State
@@ -124,7 +125,8 @@ abstract class Renderer {
         depthState: DepthState = depthStateStack.lastOrNull() ?: DepthState.Default,
         uniformSet: Shader.UniformSet = activeUniformSet,
         vertexLayout: VertexLayout = VertexLayout.Default,
-        isQuads: Boolean = false
+        isQuads: Boolean = false,
+        clip: ShaderClip? = currentClip,
     ) {
         // A pushed shader replaces the one the draw call asked for, see pushShader.
         val usedShader = shaderStack.lastOrNull() ?: shader
@@ -140,6 +142,7 @@ abstract class Renderer {
                 uniformSet,
                 vertexLayout,
                 isQuads,
+                clip,
             )
         ) return
 
@@ -163,7 +166,8 @@ abstract class Renderer {
             depthState = depthState,
             uniformSet = uniformSet,
             vertexLayout = vertexLayout,
-            isQuads = isQuads
+            isQuads = isQuads,
+            clip = clip,
         )
 
         commandBatch.addLast(command)
@@ -204,7 +208,8 @@ abstract class Renderer {
             vertexLayout = vertexLayout,
             instanceBuffer = instanceBuffer,
             instanceLayout = instanceLayout,
-            instanceCount = instanceCount
+            instanceCount = instanceCount,
+            clip = currentClip,
         ))
     }
 
@@ -246,7 +251,8 @@ abstract class Renderer {
             uniformSet = uniformSet,
             vertexLayout = vertexLayout,
             firstVertex = firstVertex,
-            vertexCount = vertexCount
+            vertexCount = vertexCount,
+            clip = currentClip,
         ))
     }
 
@@ -466,6 +472,54 @@ abstract class Renderer {
     }
 
     /**
+     * The clip the shaders currently apply, see [pushClip], null without one.
+     */
+    val currentClip: ShaderClip?
+        get() = clipStack.lastOrNull()
+
+    /**
+     * Clips subsequent drawing operations to a rectangle with rounded corners, in the space of the
+     * current matrix ([pushMatrix]). Unlike [pushScissor] it follows the corners and any rotation or
+     * skew of the matrix, antialiased: the shaders bring each fragment back to that space and cover it
+     * by its distance to the rectangle (see `lib/clip.glsl`).
+     *
+     * It also pushes a scissor around it, so nothing is drawn past its bounding box and [clipBounds]
+     * stays meaningful for culling. Only the innermost clip is applied by the shaders: an outer one
+     * still limits what is drawn to its bounding box, not to its corners. Shaders pushed with
+     * [pushShader] apply it only if they import `lib/clip.glsl`.
+     *
+     * The radii are of the top left, top right, bottom right and bottom left corners. Pop it with
+     * [popClip].
+     */
+    fun pushClip(x: Float, y: Float, width: Float, height: Float, radii: Vec4) {
+        val matrix = currentTransform
+        val sceneToLocal = Mat2().apply {
+            set(matrix)
+            invertOrNaN()
+        }
+
+        val flipHeight = if (framebufferOrigin == FramebufferOrigin.BottomLeft) window.windowHeight.toFloat() else 0f
+
+        clipStack.addLast(ShaderClip(
+            transform = Vec4(sceneToLocal.a, sceneToLocal.b, sceneToLocal.c, sceneToLocal.d),
+            translation = Vec4(sceneToLocal.tx, sceneToLocal.ty, flipHeight, 1f),
+            rect = Vec4(x, y, width, height),
+            radii = radii,
+        ))
+
+        pushScissor(x, y, width, height)
+    }
+
+    /**
+     * Pops the clip pushed with [pushClip], with its scissor.
+     */
+    fun popClip() {
+        if (clipStack.removeLastOrNull() != null) {
+            popScissor()
+        }
+    }
+
+    /**
      * Transforms the given color by multiplying its alpha value with the alpha of the last color in
      * the color stack. If any tint is pushed ([pushTint]), the RGB is also multiplied by the product of
      * those tints.
@@ -625,6 +679,7 @@ abstract class Renderer {
             last.instanceBuffer == null &&
             last.uniformSet === EMPTY_UNIFORMS &&
             last.scissor == scissorStack.lastOrNull() &&
+            last.clip === currentClip &&
             last.blendMode == (blendModeStack.lastOrNull() ?: BlendMode.Alpha) &&
             last.depthState == (depthStateStack.lastOrNull() ?: DepthState.Default)
         ) {

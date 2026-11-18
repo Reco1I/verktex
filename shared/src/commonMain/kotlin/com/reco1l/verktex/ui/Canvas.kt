@@ -13,7 +13,9 @@ abstract class Canvas : Component() {
 
     /**
      * The shader to use for rendering the canvas. If null, the default shader will be used. It must
-     * use the built-in vertex layout, see [Renderer.pushShader].
+     * use the built-in vertex layout, see [Renderer.pushShader]. To be clipped by the shape of a
+     * rounded or transformed ancestor, it imports `lib/clip.glsl` and multiplies its output by
+     * `clipCoverage()`, see `docs/shaders.md`.
      */
     var shader: Shader? = null
 

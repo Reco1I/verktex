@@ -4,6 +4,7 @@ import com.reco1l.verktex.android.gles.es2.ES2CommandExecutor
 import com.reco1l.verktex.android.gles.es2.GLSLES100Translator
 import com.reco1l.verktex.android.gles.es2.GLSLES100Translator.Stage
 import com.reco1l.verktex.graphics.VertexLayout
+import com.reco1l.verktex.shaders.expandShaderImports
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,7 +20,7 @@ class GLSLES100TranslatorTest {
 
     private fun translate(name: String): GLSLES100Translator.Result {
         val stage = if (name.endsWith(".vert")) Stage.Vertex else Stage.Fragment
-        return GLSLES100Translator.translate(File(shaderDirectory, name).readText(), stage)
+        return GLSLES100Translator.translate(expandShaderImports(shaderDirectory, File(shaderDirectory, name)).source, stage)
     }
 
     private fun code(source: String) = source.lines().filterNot { it.trimStart().startsWith("//") }.joinToString("\n")

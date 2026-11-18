@@ -14,7 +14,8 @@ inline fun Container.clipContainer(builder: ClipContainer.() -> Unit): ClipConta
  * lays out its children as any container, only what's drawn is cut: [clipFactorX] and [clipFactorY] are
  * the fractions of its width and height that are shown, kept at [clipAnchor].
  *
- * The clipping is a rectangle aligned to the screen, see [ClipMode.Bounds].
+ * The shown area is clipped as with [ClipMode.Bounds]: with a [radius], its own corners are rounded, so
+ * the edge that moves is rounded too.
  */
 open class ClipContainer : Container() {
 

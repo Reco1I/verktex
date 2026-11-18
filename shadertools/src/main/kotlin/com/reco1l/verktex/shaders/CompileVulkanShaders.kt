@@ -38,7 +38,23 @@ fun main(args: Array<String>) {
 }
 
 /**
+ * Expands the imports of [shader], a file of [shaderDir], as [ShaderImports] does at runtime: its path
+ * is `<shaderDir name>/<file name>` from the assets root, the parent of [shaderDir], so relative and
+ * absolute imports resolve to the same files on both sides.
+ */
+fun expandShaderImports(shaderDir: File, shader: File): ShaderImports.Expanded {
+    val root = shaderDir.absoluteFile.parentFile
+    val path = "${shaderDir.name}/${shader.name}"
+
+    return ShaderImports.expand(shader.readText(), path) { importPath ->
+        File(root, importPath).takeIf { it.isFile }?.readText()
+    }
+}
+
+/**
  * Compiles the shaders of [sourceDir] into [outputDir], returning the errors of those that failed.
+ * The `.vert` and `.frag` files at its top level are shaders, the files they import (e.g. `lib/`)
+ * aren't compiled on their own.
  */
 fun compileShaders(sourceDir: File, outputDir: File, glslc: File): List<String> {
     val workDir = File(outputDir.parentFile, "${outputDir.name}-glsl450").apply {
@@ -52,9 +68,12 @@ fun compileShaders(sourceDir: File, outputDir: File, glslc: File): List<String> 
     for (shader in shaders) {
         val stage = GLSL450VulkanTranslator.Stage.ofFile(shader.name)!!
 
+        // Imports resolve as at runtime: from the assets root, the parent of the shader directory.
         val translated = try {
-            GLSL450VulkanTranslator.translate(shader.readText(), stage)
-        } catch (e: GLSL450VulkanTranslator.TranslationException) {
+            val expanded = expandShaderImports(sourceDir, shader)
+            GLSL450VulkanTranslator.translate(expanded.source, stage)
+        } catch (e: IllegalArgumentException) {
+            // TranslationException or ShaderImportException.
             errors += "${shader.name}: ${e.message}"
             continue
         }

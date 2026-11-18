@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import com.reco1l.verktex.Provider
 import com.reco1l.verktex.fonts.FontFamily
 import com.reco1l.verktex.graphics.Shader
+import com.reco1l.verktex.graphics.readShaderSource
 import com.reco1l.verktex.graphics.Texture
 
 class AndroidProvider(private val context: android.content.Context) : Provider {
@@ -119,19 +120,7 @@ class AndroidProvider(private val context: android.content.Context) : Provider {
         isExternal: Boolean
     ): Shader.Source? {
         return try {
-            val vertexShader = openFile(vertexShaderPath, isExternal)?.bufferedReader().use { it?.readText() }
-            val fragmentShader = openFile(fragmentShaderPath, isExternal)?.bufferedReader().use { it?.readText() }
-
-            if (vertexShader != null && fragmentShader != null) {
-                Shader.Source(
-                    vertexShader,
-                    fragmentShader,
-                    spirvVertex = readSpirv(vertexShaderPath, isExternal),
-                    spirvFragment = readSpirv(fragmentShaderPath, isExternal)
-                )
-            } else {
-                null
-            }
+            readShaderSource(this, vertexShaderPath, fragmentShaderPath, isExternal) { readSpirv(it, isExternal) }
         } catch (e: Exception) {
             e.printStackTrace()
             null

@@ -91,6 +91,12 @@ data class DrawCommand(
      * drawing a range is never merged with other commands.
      */
     val vertexCount: Int = -1,
+
+    /**
+     * The clip the shaders apply, see [Renderer.pushClip], null for none. Its uniforms are used for
+     * the names [uniformSet] doesn't set.
+     */
+    val clip: ShaderClip? = null,
 ) {
 
     /**
@@ -116,6 +122,7 @@ data class DrawCommand(
         uniformSet: Shader.UniformSet,
         vertexLayout: VertexLayout = VertexLayout.Default,
         isQuads: Boolean = false,
+        clip: ShaderClip? = null,
     ): Boolean {
         return !clearDepth &&
                 captureTexture == null &&
@@ -129,6 +136,8 @@ data class DrawCommand(
                 this.texture == texture &&
                 this.blendMode == blendMode &&
                 this.depthState == depthState &&
-                this.scissor == scissor
+                this.scissor == scissor &&
+                // By identity, each push is a new clip.
+                this.clip === clip
     }
 }

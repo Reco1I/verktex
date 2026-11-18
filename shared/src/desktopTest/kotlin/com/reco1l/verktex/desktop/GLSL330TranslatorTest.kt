@@ -1,6 +1,7 @@
 package com.reco1l.verktex.desktop
 
 import com.reco1l.verktex.desktop.gl.GLSL330Translator
+import com.reco1l.verktex.shaders.expandShaderImports
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,7 +18,7 @@ class GLSL330TranslatorTest {
         assertTrue("No shaders found", shaders.size >= 10)
 
         for (shader in shaders) {
-            val translated = GLSL330Translator.translate(shader.readText())
+            val translated = GLSL330Translator.translate(expandShaderImports(File("assets/shaders"), shader).source)
 
             assertTrue("${shader.name} doesn't start with the 3.30 version", translated.trimStart().startsWith("#version 330 core"))
             assertFalse("${shader.name} still targets GLSL ES", "300 es" in translated)

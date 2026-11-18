@@ -39,7 +39,7 @@ abstract class ESShader(
         val vertexStatus = GLESHelper.glGetShaderiv(vertexId, GLES20.GL_COMPILE_STATUS)
         if (vertexStatus == 0) {
             val log = GLES20.glGetShaderInfoLog(vertexId)
-            throw IllegalStateException("Vertex shader compilation failed:\n$log")
+            throw IllegalStateException("Vertex shader compilation failed:\n$log${source.describeFiles(isVertex = true)}")
         }
 
         val fragmentId = GLES20.glCreateShader(GLES20.GL_FRAGMENT_SHADER)
@@ -49,7 +49,7 @@ abstract class ESShader(
         val fragmentStatus = GLESHelper.glGetShaderiv(fragmentId, GLES20.GL_COMPILE_STATUS)
         if (fragmentStatus == 0) {
             val log = GLES20.glGetShaderInfoLog(fragmentId)
-            throw IllegalStateException("Fragment shader compilation failed:\n$log")
+            throw IllegalStateException("Fragment shader compilation failed:\n$log${source.describeFiles(isVertex = false)}")
         }
 
         programId = GLES20.glCreateProgram()

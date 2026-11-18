@@ -30,9 +30,9 @@ often poor), NDK 22.1.7171670 (ships Vulkan headers, `libvulkan.so` and `glslc` 
   `../src/ru/nsu/ccfit/zuev/osu/MainActivity.java`.
 - Frame loop: `Verktex.draw()` (`verktex/.../Verktex.kt`) on the draw worker:
   `prepareFrame() → begin() → tree records → end()`.
-- Shaders: GLSL ES 3.00 in `../core/assets/shaders` (`main.vert`, `ui.vert/frag`, `quad`,
+- Shaders: GLSL ES 3.00 in `shared/assets/shaders` (`main.vert`, `ui.vert/frag`, `quad`,
   `color`, `texture`, `video` (samplerExternalOES), `blur`, `particle.vert/frag`). Loaded as
-  strings by `AndroidProvider.createShaderSource`. The app creates no shaders of its own today.
+  strings by the providers' `createShaderSource`, which expand their imports (see `shaders.md`). The app creates no shaders of its own today.
 
 ## Gaps (where the abstraction leaks GL)
 | # | Gap | Where | Why it blocks Vulkan |
@@ -96,7 +96,7 @@ Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source se
   (`VertexUniforms` at set 0 binding 0, `FragmentUniforms` at binding 1), samplers (fragment only) →
   combined image samplers in set 1 from binding 0 (a set per texture in phase 5), `samplerExternalOES` → `sampler2D` reported as external.
   `checkInterface` verifies the varyings of a vertex/fragment pair line up.
-- SPIR-V is compiled **at build time** by the `compileVulkanShaders` task of `:verktex:android` (NDK `glslc`,
+- SPIR-V is compiled **at build time** by the `compileVulkanShaders` tasks of `:android-natives` and `:desktop-natives` (`glslc`, after expanding the imports,
   `--target-env=vulkan1.0`) into generated assets as `<name>.spv`; without the NDK it skips with a
   warning. There is no reflection file: the runtime gets the layout by running the translator on the
   GLSL it already loads. `Shader.Source` gained `spirvVertex/spirvFragment`, filled by

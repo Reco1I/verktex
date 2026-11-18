@@ -1,5 +1,5 @@
 #version 300 es
-precision mediump float;
+precision highp float;
 
 in vec2 vUV;
 in vec4 vColor;
@@ -12,19 +12,17 @@ uniform vec2 uSize;
 
 out vec4 fragColor;
 
-// Colours given to shaders have straight alpha, textures and the output are premultiplied.
-
-// Signed distance to a rounded box centered at the origin, in pixels.
-float roundedBoxSDF(vec2 p, vec2 halfSize, float r) {
-    vec2 q = abs(p) - halfSize + r;
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
+#import "lib/color.glsl"
+#import "lib/sdf.glsl"
+#import "lib/clip.glsl"
 
 void main() {
+    float clip = clipCoverage();
+
     vec2 p = (vUV - 0.5) * uSize;
     float r = min(uRadius, min(uSize.x, uSize.y) * 0.5);
 
-    float dist = roundedBoxSDF(p, uSize * 0.5, r);
+    float dist = roundedBoxSDF(p, uSize * 0.5, vec4(r));
     float aa = max(fwidth(dist), 0.0001);
 
     float alpha = clamp(0.5 - dist / aa, 0.0, 1.0);
@@ -32,5 +30,5 @@ void main() {
 
     vec4 finalColor = mix(uColor * vColor, uBorderColor, border);
     finalColor.a *= alpha;
-    fragColor = vec4(finalColor.rgb * finalColor.a, finalColor.a);
+    fragColor = premultiply(finalColor) * clip;
 }
