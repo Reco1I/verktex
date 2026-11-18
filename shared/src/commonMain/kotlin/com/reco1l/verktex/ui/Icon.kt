@@ -62,6 +62,7 @@ open class Icon(iconCode: Int = FAIcon.Question) : Canvas() {
     init {
         width = wrap()
         height = wrap()
+        color = themed { palette.accent }
     }
 
 

@@ -43,7 +43,7 @@ open class Theme(
 
     val typography: Typography = Typography(
         h1 = FontSettings(
-            size = 22f.dip,
+            size = 24f.dip,
             family = "torus",
             weight = Font.Weight.Bold,
         ),
@@ -338,7 +338,7 @@ open class Theme(
 
         val buttonBackgroundSolid = accent
         val buttonBackgroundSoft = accent.darken(2.5f)
-        val buttonBackgroundSurface = accent.darken(4.5f)
+        val buttonBackgroundSurface = accent.darken(4f)
 
         val badgeBackgroundSolid = accent
         val badgeBackgroundSoft = accent.darken(2.5f)

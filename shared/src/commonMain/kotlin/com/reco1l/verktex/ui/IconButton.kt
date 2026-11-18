@@ -33,6 +33,7 @@ open class IconButton : Button() {
 
     init {
         +iconComponent
+        tintChildren = false
     }
 
 }
