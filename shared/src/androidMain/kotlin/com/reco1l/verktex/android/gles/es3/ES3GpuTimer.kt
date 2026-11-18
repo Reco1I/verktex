@@ -6,8 +6,9 @@ import android.opengl.GLES20
 /**
  * Measures how long the GPU takes to execute each frame with `GL_EXT_disjoint_timer_query`.
  *
- * Results arrive a few frames late: each frame uses one query of a ring and reads the oldest one
- * when it's available, so the CPU never waits for the GPU.
+ * Results arrive a few frames late, so the CPU never waits for the GPU: each frame measured takes a
+ * free query of a pool, and every frame reads the results that became available, oldest first. A
+ * frame is left unmeasured only when every query still waits for its result.
  */
 internal class ES3GpuTimer {
 
@@ -26,9 +27,13 @@ internal class ES3GpuTimer {
     private var checkedSupport = false
 
     private val queries = IntArray(QUERY_COUNT)
-    private val pending = BooleanArray(QUERY_COUNT)
-    private var current = 0
-    private var running = false
+
+    // The queries waiting for their result, in the order they were issued: results become
+    // available in that order.
+    private val pending = ArrayDeque<Int>(QUERY_COUNT)
+
+    // The query of the frame being measured, -1 if it isn't.
+    private var running = -1
 
     private val result = IntArray(1)
 
@@ -46,12 +51,11 @@ internal class ES3GpuTimer {
         // The queries go away with the context, they're made again for the new one.
         if (queries[0] == 0 || !GLES30.glIsQuery(queries[0])) {
             GLES30.glGenQueries(QUERY_COUNT, queries, 0)
-            pending.fill(false)
-            current = 0
+            pending.clear()
         }
 
-        // A query still waiting for its result can't be reused, the frame isn't measured.
-        if (pending[current]) {
+        val free = queries.indexOfFirst { it !in pending }
+        if (free < 0) {
             return
         }
 
@@ -59,45 +63,46 @@ internal class ES3GpuTimer {
         // changed its frequency).
         GLES20.glGetIntegerv(GL_GPU_DISJOINT_EXT, result, 0)
 
-        GLES30.glBeginQuery(GL_TIME_ELAPSED_EXT, queries[current])
-        running = true
+        GLES30.glBeginQuery(GL_TIME_ELAPSED_EXT, queries[free])
+        running = queries[free]
     }
 
     fun end() {
-        if (!running) {
+        if (!isSupported) {
             return
         }
 
-        GLES30.glEndQuery(GL_TIME_ELAPSED_EXT)
-        running = false
-        pending[current] = true
-        current = (current + 1) % QUERY_COUNT
-
-        // The oldest query of the ring is the one most likely to be ready.
-        val oldest = current
-        if (!pending[oldest]) {
-            return
+        if (running != -1) {
+            GLES30.glEndQuery(GL_TIME_ELAPSED_EXT)
+            pending.addLast(running)
+            running = -1
         }
 
-        GLES30.glGetQueryObjectuiv(queries[oldest], GLES30.GL_QUERY_RESULT_AVAILABLE, result, 0)
-        if (result[0] == 0) {
-            return
-        }
+        // Every frame, measured or not, so results keep being read while the queries are all busy.
+        while (pending.isNotEmpty()) {
+            val query = pending.first()
 
-        GLES30.glGetQueryObjectuiv(queries[oldest], GLES30.GL_QUERY_RESULT, result, 0)
-        pending[oldest] = false
+            GLES30.glGetQueryObjectuiv(query, GLES30.GL_QUERY_RESULT_AVAILABLE, result, 0)
+            if (result[0] == 0) {
+                break
+            }
 
-        val nanos = result[0].toLong() and 0xFFFFFFFFL
+            GLES30.glGetQueryObjectuiv(query, GLES30.GL_QUERY_RESULT, result, 0)
+            pending.removeFirst()
 
-        GLES20.glGetIntegerv(GL_GPU_DISJOINT_EXT, result, 0)
-        if (result[0] == 0) {
-            gpuTime = nanos / 1_000_000f
+            val nanos = result[0].toLong() and 0xFFFFFFFFL
+
+            // A disjoint operation since the flag was last cleared makes the result meaningless.
+            GLES20.glGetIntegerv(GL_GPU_DISJOINT_EXT, result, 0)
+            if (result[0] == 0) {
+                gpuTime = nanos / 1_000_000f
+            }
         }
     }
 
 
     private companion object {
-        const val QUERY_COUNT = 4
+        const val QUERY_COUNT = 8
 
         const val GL_TIME_ELAPSED_EXT = 0x88BF
         const val GL_GPU_DISJOINT_EXT = 0x8FBB
