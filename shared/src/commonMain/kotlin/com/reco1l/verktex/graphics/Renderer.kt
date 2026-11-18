@@ -410,22 +410,24 @@ abstract class Renderer {
 
     /**
      * Pushes a scissor rectangle onto the scissor stack. This rectangle will be used to clip subsequent drawing operations.
+     *
+     * A scissor is axis aligned: under a rotated or skewed matrix it clips to the bounding box of the transformed
+     * rectangle.
      */
     fun pushScissor(x: Float, y: Float, width: Float, height: Float) {
 
         val currentMatrix = matrixStack.lastOrNull() ?: Mat2.Identity
 
+        // Every corner, a rotation or a skew moves the extremes to the other two.
         currentMatrix.transform(x, y, points, 0)
-        currentMatrix.transform(x + width, y + height, points, 2)
-        val x0 = points[0]
-        val y0 = points[1]
-        val x1 = points[2]
-        val y1 = points[3]
+        currentMatrix.transform(x + width, y, points, 2)
+        currentMatrix.transform(x + width, y + height, points, 4)
+        currentMatrix.transform(x, y + height, points, 6)
 
-        val x = min(x0, x1)
-        val y = min(y0, y1)
-        val width = abs(x1 - x0)
-        val height = abs(y1 - y0)
+        val x = min(min(points[0], points[2]), min(points[4], points[6]))
+        val y = min(min(points[1], points[3]), min(points[5], points[7]))
+        val width = max(max(points[0], points[2]), max(points[4], points[6])) - x
+        val height = max(max(points[1], points[3]), max(points[5], points[7])) - y
 
         val intersectedX: Float
         val intersectedY: Float

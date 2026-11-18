@@ -65,22 +65,27 @@ data class Mat2(
     }
 
     /**
-     * Skews the matrix by the specified angles in the x and y directions (in degrees).
-     * This effectively slants the coordinate system by the given angles.
+     * Skews the matrix by the specified angles in the x and y directions (in degrees), after the
+     * existing transformations as CSS's skew(): x' = x + tan(sx) * y and y' = tan(sy) * x + y. With
+     * the y axis pointing down, a positive [sx] moves lower points further to the right.
      */
     fun skew(sx: Float, sy: Float) {
         val tanX = tan(sx.toRadians())
         val tanY = tan(sy.toRadians())
 
-        val a1 = a + c * tanY
-        val b1 = b + d * tanY
-        val c1 = c + a * tanX
-        val d1 = d + b * tanX
+        val a1 = a + tanX * b
+        val b1 = tanY * a + b
+        val c1 = c + tanX * d
+        val d1 = tanY * c + d
+        val tx1 = tx + tanX * ty
+        val ty1 = tanY * tx + ty
 
         a = a1
         b = b1
         c = c1
         d = d1
+        tx = tx1
+        ty = ty1
     }
 
     /**

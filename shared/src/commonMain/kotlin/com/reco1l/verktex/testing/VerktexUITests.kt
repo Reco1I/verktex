@@ -51,7 +51,6 @@ import com.reco1l.verktex.ui.shape.box
 import com.reco1l.verktex.ui.shape.circle
 import com.reco1l.verktex.ui.shape.line
 import com.reco1l.verktex.ui.shape.triangle
-import com.reco1l.verktex.ui.shape.wedge
 import com.reco1l.verktex.ui.text.faSolidIcon
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.ui.text.spans
@@ -471,7 +470,8 @@ object VerktexUITests : UITestSuite("Verktex") {
                     circle { width = 80f.dip; height = 80f.dip; color = Color4.Blue400 }
                     circle { width = 80f.dip; height = 80f.dip; endAngle = 270f; color = Color4.Yellow400 }
                     triangle { width = 80f.dip; height = 80f.dip; color = Color4.Purple400 }
-                    wedge { width = 160f.dip; height = 80f.dip; color = Color4.Orange400 }
+                    // Skewed around its center, the bounds and the layout stay those of the box.
+                    box { width = 160f.dip; height = 80f.dip; skewX = -15f; radius = CornerRadius(12f.dip); color = Color4.Orange400 }
                 }
 
                 section("Lines") {

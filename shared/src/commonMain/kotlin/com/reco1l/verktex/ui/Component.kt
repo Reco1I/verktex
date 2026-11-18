@@ -204,6 +204,16 @@ abstract class Component {
             invalidateTransformations()
         }
 
+    /**
+     * Where the component should be skewed around. This is relative to the component's size.
+     */
+    var skewOrigin = Anchor.Center
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidateTransformations()
+        }
+
 
     /**
      * Called when the position of this component changes.
@@ -283,6 +293,30 @@ abstract class Component {
         }
 
     /**
+     * The skew of the component in degrees along the X axis, around [skewOrigin]: points move
+     * horizontally by the tangent of the angle times their distance below the origin, as CSS's
+     * skewX(). It doesn't affect the layout.
+     */
+    var skewX = 0f
+        set(value) {
+            if (field.almostEquals(value)) return
+            field = value
+            invalidateTransformations()
+        }
+
+    /**
+     * The skew of the component in degrees along the Y axis, around [skewOrigin]: points move
+     * vertically by the tangent of the angle times their distance right of the origin, as CSS's
+     * skewY(). It doesn't affect the layout.
+     */
+    var skewY = 0f
+        set(value) {
+            if (field.almostEquals(value)) return
+            field = value
+            invalidateTransformations()
+        }
+
+    /**
      * The rotation of the component in degrees of the X axis.
      */
     var rotationX = 0f
@@ -344,11 +378,11 @@ abstract class Component {
      * * [sceneToLocalMatrix]
      *
      * Default implementation will apply the following transformations:
-     * [x], [y], [scaleX], [scaleY], [rotationX], [rotationY], [rotationZ]
+     * [x], [y], [scaleX], [scaleY], [skewX], [skewY], [rotationZ]
      */
     open fun calculateTransformations() {
         // Mat2 operations are applied after the existing ones, so the order here is the order in
-        // which they affect a local point: scale, rotate and finally move to the layout position.
+        // which they affect a local point: scale, skew, rotate and finally move to the layout position.
         localToParentMatrix.apply {
             identity()
 
@@ -359,6 +393,15 @@ abstract class Component {
                 translate(-scaleCenterX, -scaleCenterY)
                 scale(scaleX, scaleY)
                 translate(scaleCenterX, scaleCenterY)
+            }
+
+            if (skewX != 0f || skewY != 0f) {
+                val skewCenterX = bounds.width * skewOrigin.x
+                val skewCenterY = bounds.height * skewOrigin.y
+
+                translate(-skewCenterX, -skewCenterY)
+                skew(skewX, skewY)
+                translate(skewCenterX, skewCenterY)
             }
 
             if (rotationZ != 0f) {
