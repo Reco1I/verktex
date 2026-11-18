@@ -21,6 +21,7 @@ open class IconButton : Button() {
         anchor = Anchor.Center
         origin = Anchor.Center
 
+        color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
         iconSize = themed { buttonStyle[density].iconSize }
     }
 
