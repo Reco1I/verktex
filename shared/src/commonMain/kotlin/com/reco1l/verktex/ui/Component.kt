@@ -432,6 +432,8 @@ abstract class Component {
 
         sceneToLocalMatrix.set(localToSceneMatrix)
         sceneToLocalMatrix.invertOrNaN()
+
+        attachedBackground?.calculateTransformations()
     }
 
     /**
@@ -521,10 +523,41 @@ abstract class Component {
     var clipping: ClipMode = ClipMode.Disabled
 
     /**
-     * What this component is filled with behind its content, a color or a texture, following its
-     * shape and under its border.
+     * What this component is filled with behind its content, a color, a texture or a component
+     * (only for containers), following its shape and under its border.
      */
-    var background: Background by themeable(Background.None)
+    var background: Background by themeable(Background.None) { attachBackgroundComponent(it) }
+
+    /**
+     * The component of a [Background.Component] background, attached to this component as long
+     * as it's the background. Null for any other background.
+     */
+    private var attachedBackground: Component? = null
+        private set
+
+    private fun attachBackgroundComponent(background: Background) {
+        val component = (background as? Background.Component)?.component
+        val old = attachedBackground
+        if (old === component) return
+
+        check(component == null || this is Container) {
+            "Only a container can have a component background, $this can't have $component"
+        }
+        check(component?.parent == null) {
+            "$component is already attached to ${component?.parent}, it can't be the background of $this"
+        }
+
+        if (old != null) {
+            old.parent = null
+            old.onDetached()
+        }
+        attachedBackground = component
+        if (component != null) {
+            component.parent = this as Container
+            component.onAttached()
+        }
+        invalidateMeasure()
+    }
 
     /**
      * The border drawn along the inner edge of this component. Null for none.
@@ -655,7 +688,12 @@ abstract class Component {
      * on a state that changed, e.g. the variant of a button.
      */
     fun restyle() {
-        if (this is Container) propagate { it.applyThemeBindings() } else applyThemeBindings()
+        val apply = { component: Component ->
+            component.applyThemeBindings()
+            component.attachedBackground?.restyle()
+            Unit
+        }
+        if (this is Container) propagate(apply) else apply(this)
     }
 
     /**
@@ -666,6 +704,8 @@ abstract class Component {
         val apply = { component: Component ->
             component.applyThemeBindings()
             component.onThemeChanged()
+            component.attachedBackground?.applyTheme()
+            Unit
         }
         if (this is Container) propagate(apply) else apply(this)
     }
@@ -849,6 +889,35 @@ abstract class Component {
         )
     }
 
+    private fun drawComponentBackground(renderer: Renderer, component: Component, radius: CornerRadius) {
+        val radii = Vec4(
+            radius.topLeft.toPixels(),
+            radius.topRight.toPixels(),
+            radius.bottomRight.toPixels(),
+            radius.bottomLeft.toPixels()
+        )
+        val isRounded = radii.x > 0f || radii.y > 0f || radii.z > 0f || radii.w > 0f
+
+        // The component's matrices already contain this one's, the renderer's are absolute.
+        if (isRounded) {
+            renderer.pushClip(0f, 0f, bounds.width, bounds.height, radii)
+            component.draw(renderer)
+            renderer.popClip()
+        } else {
+            component.draw(renderer)
+        }
+    }
+
+    // Lays the component of the background out over the whole component, not only inside its padding.
+    private fun layoutBackgroundComponent() {
+        val component = attachedBackground ?: return
+        val width = bounds.width
+        val height = bounds.height
+
+        component.measure(LayoutConstraints(minWidth = width, maxWidth = width, minHeight = height, maxHeight = height))
+        component.layout(Vec4(x = 0f, y = 0f, z = width, w = height))
+    }
+
     /**
      * Draws the component using the given renderer. This method is responsible for setting up the
      * rendering context, applying transformations, and calling [onDraw] to perform the actual
@@ -907,6 +976,10 @@ abstract class Component {
 
         if (background is Background.Texture && background.isVisible) {
             drawTextureBackground(renderer, background, radius)
+        }
+
+        if (background is Background.Component) {
+            drawComponentBackground(renderer, background.component, radius)
         }
 
         if (fill.alpha > 0f || border.isVisible) {
@@ -1065,6 +1138,7 @@ abstract class Component {
         updateInteractionState()
         transforms?.update(this, clock.elapsedFrameTime)
         choreography?.update(currentClockTime)
+        attachedBackground?.update(clock)
         onUpdate(clock)
     }
 
@@ -1438,6 +1512,7 @@ abstract class Component {
         ))
 
         onLayout(bounds)
+        layoutBackgroundComponent()
 
         if (oldBounds != bounds) {
             calculateTransformations()

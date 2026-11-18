@@ -1,11 +1,7 @@
 package com.reco1l.verktex.ui.container
 
 import com.reco1l.verktex.Verktex
-import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Vec4
-import com.reco1l.verktex.graphics.Renderer
-import com.reco1l.verktex.time.FrameClock
-import com.reco1l.verktex.ui.Component
 import com.reco1l.verktex.ui.findScene
 
 inline fun Container.extendIntoSafeAreaContainer(builder: ExtendIntoSafeAreaContainer.() -> Unit): ExtendIntoSafeAreaContainer {
@@ -20,22 +16,10 @@ inline fun Container.extendIntoSafeAreaContainer(builder: ExtendIntoSafeAreaCont
  * of its parent, and only on the sides that touch it.
  *
  * Its children are laid out where they would be without growing, so they stay in the safe area,
- * while the [backgroundComponent] covers the whole container.
+ * while its [background], e.g. a [com.reco1l.verktex.data.Background.Component], covers the whole
+ * container.
  */
 open class ExtendIntoSafeAreaContainer : Container() {
-
-    /**
-     * Drawn below the children and laid out over the whole container, including the part grown
-     * into the safe area.
-     */
-    var backgroundComponent: Component? = null
-        set(value) {
-            if (field === value) return
-            field?.parent = null
-            field = value
-            value?.parent = this
-            invalidateLayout()
-        }
 
     /**
      * How much the container grew into the safe area on each side after the last layout pass, as
@@ -87,11 +71,6 @@ open class ExtendIntoSafeAreaContainer : Container() {
     }
 
     override fun onLayout(bounds: Vec4) {
-        backgroundComponent?.let {
-            it.measure(LayoutConstraints(bounds.width, bounds.width, bounds.height, bounds.height))
-            it.layout(Vec4(0f, 0f, bounds.width, bounds.height))
-        }
-
         val contentBounds = contentBounds(bounds)
         val extent = safeAreaExtent
 
@@ -103,21 +82,6 @@ open class ExtendIntoSafeAreaContainer : Container() {
         )
 
         forEach { child -> child.layout(childBounds) }
-    }
-
-    override fun calculateTransformations() {
-        super.calculateTransformations()
-        backgroundComponent?.calculateTransformations()
-    }
-
-    override fun onUpdate(clock: FrameClock) {
-        backgroundComponent?.update(clock)
-        super.onUpdate(clock)
-    }
-
-    override fun onDraw(renderer: Renderer) {
-        backgroundComponent?.draw(renderer)
-        super.onDraw(renderer)
     }
 
 
