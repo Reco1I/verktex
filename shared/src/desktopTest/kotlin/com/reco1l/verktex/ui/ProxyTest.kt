@@ -116,6 +116,15 @@ class ProxyTest {
     }
 
     @Test
+    fun `Proxied component isn't drawn once removed from its parent`() {
+        owner -= piece
+
+        draw(root)
+
+        assertEquals(listOf("sibling"), log)
+    }
+
+    @Test
     fun `Removing the proxy gives the component back to its parent`() {
         layer -= pieceProxy
         assertNull(piece.proxy)

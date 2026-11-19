@@ -31,8 +31,9 @@ Sources:
   own position doesn't matter. The target's transformations, and its ancestors', are brought up to
   date before it's drawn, whatever was drawn before.
 - **The alpha and the tint of the target's ancestors apply**, so fading its parent fades it too.
-  The ones of the proxy's ancestors apply as well, on top. The target isn't drawn while one of its
-  ancestors is invisible.
+  The ones of the proxy's ancestors apply as well, on top. The target isn't drawn while it has no
+  parent (removing it from its parent hides it, as without a proxy) or one of its ancestors is
+  invisible.
 - **Only drawing moves.** The target is updated, animated (transforms and choreography) and gets
   input through its parent. The proxy takes no space, no input, and is culled by its target's
   bounds.

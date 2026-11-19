@@ -31,6 +31,8 @@ import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.data.wrap
 import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.ui.animatableFloat
+import com.reco1l.verktex.ui.animate
 import kotlin.math.*
 import com.reco1l.verktex.ui.themed
 
@@ -62,6 +64,10 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
 
     // The expansion or collapse animation, either cancels the other.
     private val expansion = transitionSlot()
+    private val menuHeightFraction = animatableFloat(
+        get = { (height as? Dimension.ContentSizeFraction)?.factor ?: 1f },
+        set = { height = wrap(percentage = it) }
+    )
 
     private var menuX = 0f
     private var menuY = 0f
@@ -262,9 +268,10 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
             snapPosition = alpha == 0f
 
             expansion.run {
+                animate(menuHeightFraction, 1f, 0.2f, Easing.OutQuint)
                 fadeTo(1f, 0.2f, Easing.OutQuint)
-                scaleTo(1f, 0.4f, Easing.OutBounce)
             }
+
             onExpand?.invoke()
         }
     }
@@ -276,7 +283,7 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
         host = null
 
         expansion.run {
-            scaleTo(0f, 0.2f, Easing.OutExpo)
+            animate(menuHeightFraction, 0f, 0.2f, Easing.OutExpo)
             fadeTo(0f, 0.2f, Easing.OutQuint).after { scheduleRemoval() }
         }
         onCollapse?.invoke()

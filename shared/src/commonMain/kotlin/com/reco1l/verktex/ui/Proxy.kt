@@ -18,7 +18,7 @@ inline fun Container.proxy(target: Component, builder: Proxy.() -> Unit = {}) = 
  *   one proxy at a time, the last one attached.
  * - The target keeps its own position: its matrices are absolute, so it's drawn where its parent puts it.
  * - The alpha and the tint of the target's ancestors are applied, so fading its parent fades it too, on top of the
- *   ones of the proxy's ancestors. It isn't drawn while one of its ancestors is invisible.
+ *   ones of the proxy's ancestors. It isn't drawn while it has no parent, or one of its ancestors is invisible.
  * - The proxy takes no space and no input: input reaches the target through its parent.
  */
 class Proxy(target: Component? = null) : Component() {
@@ -70,6 +70,9 @@ class Proxy(target: Component? = null) : Component() {
     override fun onDraw(renderer: Renderer) {
         val target = target ?: return
         if (target.proxy !== this) return
+
+        // A component taken out of its parent isn't shown, as it wouldn't be without a proxy.
+        if (target.parent == null) return
 
         var alpha = 1f
         var red = 1f
