@@ -51,6 +51,7 @@ import com.reco1l.verktex.ui.iconButton
 import com.reco1l.verktex.ui.labeledBadge
 import com.reco1l.verktex.ui.loadingIndicator
 import com.reco1l.verktex.ui.rotateTo
+import com.reco1l.verktex.ui.shape.arc
 import com.reco1l.verktex.ui.shape.box
 import com.reco1l.verktex.ui.shape.circle
 import com.reco1l.verktex.ui.shape.line
@@ -505,6 +506,21 @@ object VerktexUITests : UITestSuite("Verktex") {
                         height = 80f.dip
                         radius = CornerRadius(12f.dip)
                         border = Border(2f.dip, Color4.White)
+                    }
+                }
+
+                section("Arcs") {
+                    arc { width = 80f.dip; height = 80f.dip; thickness = 8f.dip.toPixels(); color = Color4.Blue400 }
+                    arc { width = 80f.dip; height = 80f.dip; thickness = 8f.dip.toPixels(); progress = 0.6f; color = Color4.Green400 }
+                    arc { width = 80f.dip; height = 80f.dip; thickness = 12f.dip.toPixels(); progress = 0.6f; roundedCaps = true; color = Color4.Yellow400 }
+                    arc { width = 80f.dip; height = 80f.dip; thickness = 4f.dip.toPixels(); startAngle = 180f; progress = -0.3f; roundedCaps = true; color = Color4.Pink400 }
+
+                    // Fills and empties, with round caps.
+                    val looping = arc { width = 80f.dip; height = 80f.dip; thickness = 10f.dip.toPixels(); roundedCaps = true; color = Color4.Orange400 }
+                    var time = 0f
+                    onEachFrame { clock ->
+                        time = (time + clock.elapsedFrameTime) % 2f
+                        looping.progress = if (time < 1f) time else 2f - time
                     }
                 }
             }
