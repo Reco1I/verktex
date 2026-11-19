@@ -39,11 +39,11 @@ open class Select<T : Any>(initialValues: List<T> = emptyList()) : Control<List<
     }
 
     val chevronIcon = Icon(FAIcon.ChevronDown).apply {
-        width = 32f.dip
-        height = 32f.dip
-        padding = Padding(8f.dip)
         anchor = Anchor.CenterRight
         origin = Anchor.CenterRight
+
+        // Already thinted by the button
+        color = Color4.White
     }
 
     /**
@@ -87,7 +87,7 @@ open class Select<T : Any>(initialValues: List<T> = emptyList()) : Control<List<
     init {
         // The button is already attached by its builder.
         updateTrigger()
-        +chevronIcon
+        button += chevronIcon
 
         dropdown.onExpand = { rotateChevron(180f) }
         dropdown.onCollapse = { rotateChevron(0f) }
