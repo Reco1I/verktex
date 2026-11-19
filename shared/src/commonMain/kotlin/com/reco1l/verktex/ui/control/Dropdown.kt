@@ -20,7 +20,6 @@ import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.math.interpolateFloat
 import com.reco1l.verktex.ui.fadeTo
-import com.reco1l.verktex.ui.scaleTo
 import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.ui.Button
@@ -64,9 +63,12 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
 
     // The expansion or collapse animation, either cancels the other.
     private val expansion = transitionSlot()
+    // The fraction of the menu's height that is shown, the height itself is limited to the space
+    // around the trigger, which is only known on update.
+    private var heightFraction = 0f
     private val menuHeightFraction = animatableFloat(
-        get = { (height as? Dimension.ContentSizeFraction)?.factor ?: 1f },
-        set = { height = wrap(percentage = it) }
+        get = { heightFraction },
+        set = { heightFraction = it }
     )
 
     private var menuX = 0f
@@ -137,17 +139,15 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
 
 
     init {
-        width = Dimension.WrapContent
-        height = Dimension.WrapContent
+        width = wrap()
+        height = 0f.px
         scrollAxes = Axis.Y
         clipping = ClipMode.Bounds
 
         radius = themed { CornerRadius(radius.md) }
         background = Background.Color(themed { palette.surface })
 
-        scaleOrigin = Anchor.TopCenter
         alpha = 0f
-        scale = 0f
 
         optionsContainer = linearContainer {
             width = fill()
@@ -178,7 +178,8 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
 
             // Height of the dropdown menu is limited to the available space below or above the trigger,
             // depending on the expansion direction.
-            height = min(optionsContainer.measuredSize.y, if (expandUpwards) triggerTopLeftY else spaceBelow).px
+            val menuHeight = min(optionsContainer.measuredSize.y, if (expandUpwards) triggerTopLeftY else spaceBelow) * heightFraction
+            height = menuHeight.px
 
             // Position of the dropdown menu is clamped to the host bounds, so it doesn't go off.
             // Essentially it will always be aligned to the trigger, but if the trigger is too close
@@ -186,11 +187,8 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
             // it.
             val targetX = triggerTopLeftX + min(0f, host.bounds.width - triggerTopLeftX - optionsContainer.bounds.width)
 
-            val targetY = if (expandUpwards) {
-                triggerTopLeftY - min(optionsContainer.bounds.height, triggerTopLeftY)
-            } else {
-                triggerBottomRightY
-            }
+            // The edge of the trigger the menu is attached to, it grows away from it.
+            val targetY = if (expandUpwards) triggerTopLeftY else triggerBottomRightY
 
             // Bounds are only updated on the draw worker, so the position is tracked separately. It
             // follows the trigger, which can move while the menu is open, so it's smoothed towards it.
@@ -203,9 +201,7 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
             menuY = clock.interpolateFloat(0.2f, menuY, targetY)
 
             x = menuX.px
-            y = menuY.px
-
-            scaleOrigin = if (expandUpwards) Anchor.BottomCenter else Anchor.TopCenter
+            y = (if (expandUpwards) menuY - menuHeight else menuY).px
         }
 
         super.onUpdate(clock)
