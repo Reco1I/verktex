@@ -4,19 +4,21 @@ import com.reco1l.verktex.ui.StateHighlight
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.*
 import com.reco1l.verktex.data.Background
+import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.math.FloatAnimation
-import com.reco1l.verktex.math.interpolateColor
-import com.reco1l.verktex.math.interpolateFloat
 import com.reco1l.verktex.ui.FAIcon
 import com.reco1l.verktex.ui.Icon
-import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.ui.animatableColor
+import com.reco1l.verktex.ui.animateColor
+import com.reco1l.verktex.ui.fadeTo
+import com.reco1l.verktex.ui.scaleTo
 import com.reco1l.verktex.ui.themed
+import com.reco1l.verktex.ui.transitionSlot
 
 class Checkbox(initialValue: Boolean = false) : Control<Boolean>(initialValue) {
 
@@ -31,7 +33,14 @@ class Checkbox(initialValue: Boolean = false) : Control<Boolean>(initialValue) {
         }
     }
 
-    private val checkScale = FloatAnimation(if (initialValue) 1f else 0f, 0.4f, Easing.OutBounce)
+    private val checkTransition = checkIcon.transitionSlot()
+
+    private val backgroundTransition = transitionSlot()
+
+    private val backgroundColor = animatableColor(
+        get = { (background as? Background.Color)?.color ?: Color4.Transparent },
+        set = { background = Background.Color(it) }
+    )
 
 
     private var isPressed = false
@@ -49,29 +58,44 @@ class Checkbox(initialValue: Boolean = false) : Control<Boolean>(initialValue) {
         highlight.draw(renderer, resolvedTheme.palette.accent)
     }
 
+    override val tracksInteractionState
+        get() = true
+
+    override fun onInteractionStateChanged(state: InteractionState) {
+        highlight.onStateChanged(state)
+    }
+
 
     init {
         width = themed { controlStyle.minimumHeight }
         height = themed { controlStyle.minimumHeight }
-        background = Background.Color(themed { if (value) palette.controlActiveBackground else palette.controlInactiveBackground })
+        background = themedBackground()
         radius = themed { CornerRadius(radius.lg) }
         +checkIcon
     }
 
 
-    override fun onUpdate(clock: FrameClock) {
+    private fun themedBackground() =
+        Background.Color(themed { if (value) palette.controlActiveBackground else palette.controlInactiveBackground })
 
-        val targetScaleAndAlpha = if (value) 1f else 0f
-        val targetBackgroundCOlor = if (value) resolvedTheme.palette.controlActiveBackground else resolvedTheme.palette.controlInactiveBackground
+    override fun onValueChanged() {
+        val target = if (value) 1f else 0f
 
-        checkScale.target = targetScaleAndAlpha
-        checkIcon.scale = checkScale.update(clock)
-        checkIcon.alpha = clock.interpolateFloat(0.2f, checkIcon.alpha, targetScaleAndAlpha)
-        val currentBackgroundColor = (background as? Background.Color)?.color ?: targetBackgroundCOlor
-        background = Background.Color(clock.interpolateColor(0.2f, currentBackgroundColor, targetBackgroundCOlor))
-        highlight.update(clock)
+        checkTransition.run {
+            scaleTo(target, 0.4f, Easing.OutBounce)
+            fadeTo(target, 0.2f, Easing.OutQuint)
+        }
 
-        super.onUpdate(clock)
+        val palette = resolvedTheme.palette
+        val targetBackground = if (value) palette.controlActiveBackground else palette.controlInactiveBackground
+
+        backgroundTransition.run {
+            animateColor(backgroundColor, targetBackground, 0.2f, Easing.OutQuint)
+                // Themed again once there, so it follows theme changes.
+                .after { background = themedBackground() }
+        }
+
+        super.onValueChanged()
     }
 
 

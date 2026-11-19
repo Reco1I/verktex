@@ -12,8 +12,7 @@ import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.horizontalPadding
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.data.wrap
-import com.reco1l.verktex.math.interpolateFloat
-import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.container.clickableContainer
 import com.reco1l.verktex.ui.container.linearContainer
@@ -54,6 +53,7 @@ open class Card : LinearContainer() {
                 titleBar.isVisible = false
                 isExpanded = true
             }
+            animateExpansion()
         }
 
     /**
@@ -64,6 +64,7 @@ open class Card : LinearContainer() {
         private set(value) {
             if (field == value) return
             field = value
+            animateExpansion()
             if (isCollapsible) {
                 onExpandStatusChange?.invoke(value)
             }
@@ -141,22 +142,20 @@ open class Card : LinearContainer() {
     }
 
 
-    override fun onUpdate(clock: FrameClock) {
+    private val expansion = transitionSlot()
 
-        content.height = wrap(percentage = clock.interpolateFloat(
-            duration = 0.2f,
-            start = (content.height as Dimension.ContentSizeFraction).factor,
-            end = if (isExpanded) 1f else 0f
-        ))
+    private val chevronRotation = chevron.transitionSlot()
 
-        val chevronTargetRotation = if (isExpanded) 0f else 180f
-        chevron.rotationZ = clock.interpolateFloat(
-            duration = 0.2f,
-            start = chevron.rotationZ,
-            end = chevronTargetRotation
-        )
+    private val contentHeightFraction = animatableFloat(
+        get = { (content.height as? Dimension.ContentSizeFraction)?.factor ?: 1f },
+        set = { content.height = wrap(percentage = it) }
+    )
 
-        super.onUpdate(clock)
+    private fun animateExpansion() {
+        val expanded = isExpanded
+
+        expansion.run { animate(contentHeightFraction, if (expanded) 1f else 0f, 0.2f, Easing.OutQuint) }
+        chevronRotation.run { rotateTo(if (expanded) 0f else 180f, 0.2f, Easing.OutQuint) }
     }
 
 

@@ -1286,13 +1286,33 @@ abstract class Component {
 
     /**
      * The transforms to run when [interactionState] changes, see [StateTransitions]. They replace
-     * the built-in feedback of the components that have one (e.g. [Button] scaling while pressed).
+     * the built-in feedback of the components that have one, their [defaultTransitions] (e.g.
+     * [Button] scaling while pressed).
      */
     var transitions: StateTransitions? = null
         set(value) {
             field = value
             lastInteractionState = null
         }
+
+    /**
+     * The built-in feedback of this component to [interactionState], run when no [transitions] are
+     * set. Unlike those, having them doesn't make the component [isHoverable].
+     */
+    protected open val defaultTransitions: StateTransitions?
+        get() = null
+
+    /**
+     * Whether [onInteractionStateChanged] is called even without [transitions], e.g. for a
+     * [StateHighlight].
+     */
+    protected open val tracksInteractionState: Boolean
+        get() = false
+
+    /**
+     * Called when [interactionState] changes, after the transitions ran and before [onStateChange].
+     */
+    protected open fun onInteractionStateChanged(state: InteractionState) {}
 
     /**
      * Called when [interactionState] changes, after [transitions] ran.
@@ -1307,10 +1327,11 @@ abstract class Component {
     private var lastInteractionState: InteractionState? = null
 
     // The transforms the transition of the current state started.
-    private var transitionTransforms: List<Transform> = emptyList()
+    private var stateTransition: TransitionSlot? = null
 
     private fun updateInteractionState() {
-        if (transitions == null && onStateChange == null) {
+        val transitions = transitions ?: defaultTransitions
+        if (transitions == null && onStateChange == null && !tracksInteractionState) {
             return
         }
 
@@ -1320,10 +1341,15 @@ abstract class Component {
         }
         lastInteractionState = state
 
-        val tracker = transformTracker()
-        tracker.cancel(transitionTransforms)
-        transitionTransforms = transitions?.blockFor(state)?.let { block -> tracker.recordAdded { block() } } ?: emptyList()
+        val block = transitions?.blockFor(state)
+        if (block != null) {
+            val slot = stateTransition ?: transitionSlot().also { stateTransition = it }
+            slot.run(block)
+        } else {
+            stateTransition?.cancel()
+        }
 
+        onInteractionStateChanged(state)
         onStateChange?.invoke(state)
     }
 

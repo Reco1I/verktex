@@ -18,8 +18,10 @@ import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.math.FloatAnimation
 import com.reco1l.verktex.math.interpolateFloat
+import com.reco1l.verktex.ui.fadeTo
+import com.reco1l.verktex.ui.scaleTo
+import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.ui.Button
 import com.reco1l.verktex.ui.container.LinearContainer.Orientation
@@ -58,10 +60,14 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
     @Volatile
     private var isRemovalScheduled = false
 
-    private val menuScale = FloatAnimation(0f, 0.2f)
+    // The expansion or collapse animation, either cancels the other.
+    private val expansion = transitionSlot()
 
     private var menuX = 0f
     private var menuY = 0f
+
+    // Whether the menu jumps to its position on the next update instead of moving there.
+    private var snapPosition = false
 
 
     private val optionsContainer: LinearContainer
@@ -135,7 +141,7 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
 
         scaleOrigin = Anchor.TopCenter
         alpha = 0f
-        scaleY = 0f
+        scale = 0f
 
         optionsContainer = linearContainer {
             width = fill()
@@ -180,8 +186,10 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
                 triggerBottomRightY
             }
 
-            // Bounds are only updated on the draw worker, so the position is tracked separately.
-            if (alpha == 0f) {
+            // Bounds are only updated on the draw worker, so the position is tracked separately. It
+            // follows the trigger, which can move while the menu is open, so it's smoothed towards it.
+            if (snapPosition) {
+                snapPosition = false
                 menuX = targetX
                 menuY = targetY
             }
@@ -191,32 +199,26 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
             x = menuX.px
             y = menuY.px
 
-            // Expansion animation
             scaleOrigin = if (expandUpwards) Anchor.BottomCenter else Anchor.TopCenter
-            alpha = clock.interpolateFloat(0.2f, alpha, 1f)
-            menuScale.animateTo(1f, 0.4f, Easing.OutBounce)
-            scale = menuScale.update(clock)
-
-        } else {
-            alpha = clock.interpolateFloat(0.2f, alpha, 0f)
-            menuScale.animateTo(0f, 0.2f, Easing.OutExpo)
-            scale = menuScale.update(clock)
-
-            // Scheduled once, the update worker runs more often than the draw worker.
-            if (alpha == 0f && !isRemovalScheduled) {
-                isRemovalScheduled = true
-
-                Verktex.scheduleOnDraw {
-                    // It might have been shown again meanwhile.
-                    if (!isExpanded) {
-                        wrapper.removeSelf()
-                    }
-                    isRemovalScheduled = false
-                }
-            }
         }
 
         super.onUpdate(clock)
+    }
+
+    private fun scheduleRemoval() {
+        // Scheduled once, the update worker runs more often than the draw worker.
+        if (isRemovalScheduled) {
+            return
+        }
+        isRemovalScheduled = true
+
+        Verktex.scheduleOnDraw {
+            // It might have been shown again meanwhile.
+            if (!isExpanded) {
+                wrapper.removeSelf()
+            }
+            isRemovalScheduled = false
+        }
     }
 
     //region Buttons
@@ -256,12 +258,28 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
         host += wrapper
 
         if (!wasExpanded) {
+            // Where the trigger is once laid out, if it wasn't still visible from a previous show.
+            snapPosition = alpha == 0f
+
+            expansion.run {
+                fadeTo(1f, 0.2f, Easing.OutQuint)
+                scaleTo(1f, 0.4f, Easing.OutBounce)
+            }
             onExpand?.invoke()
         }
     }
 
     fun hide() {
+        if (host == null) {
+            return
+        }
         host = null
+
+        expansion.run {
+            scaleTo(0f, 0.2f, Easing.OutExpo)
+            fadeTo(0f, 0.2f, Easing.OutQuint).after { scheduleRemoval() }
+        }
+        onCollapse?.invoke()
     }
 
     //endregion

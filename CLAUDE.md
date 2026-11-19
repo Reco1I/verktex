@@ -79,6 +79,12 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - Dependency and plugin versions go in `gradle/libs.versions.toml`.
 - UI is a tree of `Component`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.
+- Animations are started when a state changes, never computed in `onUpdate`: transforms
+  (`ui/Transforms.kt`; the latest to start on a property replaces the others, and
+  `animate`/`animateColor` reach any property through `AnimatableFloat`/`AnimatableColor`), a
+  `TransitionSlot` per animated state (expanded, checked, shown…), and `transitions`/
+  `defaultTransitions` for the interaction state. `FrameClock.interpolateFloat` is only for values
+  following a target that keeps moving (a dragged thumb, a menu following its trigger).
 - Textures and shader outputs are premultiplied, see `docs/plans/texture-blending.md`.
 - Shaders are GLSL ES 3.00 in `shared/assets/shaders/`, sharing code from `lib/*.glsl` with
   `#import "lib/x.glsl"`, expanded before any translation (`ShaderImports`). Built-in fragment

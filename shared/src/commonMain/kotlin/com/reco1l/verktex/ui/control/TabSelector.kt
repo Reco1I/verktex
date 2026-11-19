@@ -7,7 +7,9 @@ import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.math.FloatInterpolation
+import com.reco1l.verktex.math.interpolateFloat
+import com.reco1l.verktex.ui.fadeTo
+import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.Button
 import com.reco1l.verktex.ui.TextButton
@@ -37,9 +39,18 @@ class TabSelector : Container() {
     private val buttonsContainer: LinearContainer
 
     private var selectedButton: TextButton? = null
+        set(value) {
+            val wasSelected = field != null
+            field = value
+            if (wasSelected != (value != null)) {
+                onSelectionChanged(value != null)
+            }
+        }
 
     private var indicatorX = 0f
     private var indicatorWidth = 0f
+
+    private val indicatorFade by lazy { selectionIndicator.transitionSlot() }
 
 
     init {
@@ -81,23 +92,27 @@ class TabSelector : Container() {
 
 
     override fun onUpdate(clock: FrameClock) {
-        val deltaTimeSec = clock.elapsedFrameTime
         val button = selectedButton
 
-        selectionIndicator.apply {
-            if (button != null) {
-                alpha = FloatInterpolation.floatAt(deltaTimeSec.coerceIn(0f, 0.1f), alpha, 1f, 0f, 0.1f, Easing.None)
+        // The indicator follows the bounds of the selected button, which change with the layout, so
+        // it's smoothed towards them rather than animated to a fixed target.
+        if (button != null) {
+            indicatorWidth = clock.interpolateFloat(INDICATOR_SMOOTHING, indicatorWidth, button.bounds.width)
+            indicatorX = clock.interpolateFloat(INDICATOR_SMOOTHING * 2f, indicatorX, button.bounds.x)
 
-                indicatorWidth = FloatInterpolation.floatAt(deltaTimeSec.coerceIn(0f, 0.1f), indicatorWidth, button.bounds.width, 0f, 0.1f, Easing.None)
-                indicatorX = FloatInterpolation.floatAt(deltaTimeSec.coerceIn(0f, 0.2f), indicatorX, button.bounds.x, 0f, 0.2f, Easing.None)
-
-                width = indicatorWidth.px
-                x = indicatorX.px
-            } else {
-                alpha = FloatInterpolation.floatAt(deltaTimeSec.coerceIn(0f, 0.1f), alpha, 0f, 0f, 0.1f, Easing.None)
-            }
+            selectionIndicator.width = indicatorWidth.px
+            selectionIndicator.x = indicatorX.px
         }
 
         super.onUpdate(clock)
+    }
+
+    private fun onSelectionChanged(selected: Boolean) {
+        indicatorFade.run { fadeTo(if (selected) 1f else 0f, 0.1f, Easing.OutQuint) }
+    }
+
+    private companion object {
+        // As fast as it was smoothed before: a tenth of the distance left every 1/100 s.
+        const val INDICATOR_SMOOTHING = 0.5f
     }
 }

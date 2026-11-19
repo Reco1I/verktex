@@ -9,8 +9,7 @@ import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
-import com.reco1l.verktex.math.interpolateFloat
-import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.container.IgnoreParentPaddingContainer
 
@@ -65,6 +64,9 @@ open class Modal(
     // Whether onShown was called for the current show.
     private var isFullyShown = false
 
+    // The show or hide animation, either cancels the other with its callback.
+    private val visibility = transitionSlot()
+
 
     init {
         width = fill()
@@ -95,6 +97,7 @@ open class Modal(
         isVisible = true
         isFullyShown = false
         pressedPointers.clear()
+        startShowAnimation()
         onShow()
     }
 
@@ -106,6 +109,7 @@ open class Modal(
 
         isShown = false
         backdropPointerId = -1
+        startHideAnimation()
         onHide()
     }
 
@@ -134,37 +138,35 @@ open class Modal(
     }
 
     /**
-     * Advances the show animation by one frame and returns whether it finished. Override it to
-     * change how the modal appears.
+     * Starts the transforms showing the modal and returns the one ending last, once which it's
+     * shown. Override it to change how the modal appears.
      */
-    protected open fun onShowAnimation(clock: FrameClock): Boolean {
-        alpha = clock.interpolateFloat(0.2f, alpha, 1f)
-        card.scale = clock.interpolateFloat(0.2f, card.scale, 1f)
-        return alpha == 1f && card.scale == 1f
+    protected open fun animateShow(): Transform {
+        card.scaleTo(1f, ANIMATION_DURATION, Easing.OutQuint)
+        return fadeTo(1f, ANIMATION_DURATION, Easing.OutQuint)
     }
 
     /**
-     * Advances the hide animation by one frame and returns whether it finished. Override it to
-     * change how the modal disappears.
+     * Starts the transforms hiding the modal and returns the one ending last, once which it's
+     * hidden. Override it to change how the modal disappears.
      */
-    protected open fun onHideAnimation(clock: FrameClock): Boolean {
-        alpha = clock.interpolateFloat(0.2f, alpha, 0f)
-        card.scale = clock.interpolateFloat(0.2f, card.scale, HIDDEN_CARD_SCALE)
-        return alpha == 0f
+    protected open fun animateHide(): Transform {
+        card.scaleTo(HIDDEN_CARD_SCALE, ANIMATION_DURATION, Easing.OutQuint)
+        return fadeTo(0f, ANIMATION_DURATION, Easing.OutQuint)
     }
 
-    override fun onUpdate(clock: FrameClock) {
-        if (isShown) {
-            if (!isFullyShown && onShowAnimation(clock)) {
-                isFullyShown = true
-                onShown()
-            }
-        } else if (isVisible && onHideAnimation(clock)) {
+    private fun startShowAnimation() = visibility.run {
+        animateShow().after {
+            isFullyShown = true
+            onShown()
+        }
+    }
+
+    private fun startHideAnimation() = visibility.run {
+        animateHide().after {
             isVisible = false
             onHidden()
         }
-
-        super.onUpdate(clock)
     }
 
     //endregion
@@ -225,5 +227,6 @@ open class Modal(
     companion object {
         private val BACKDROP_COLOR = Color4.Black.alpha(0.5f)
         private const val HIDDEN_CARD_SCALE = 0.9f
+        private const val ANIMATION_DURATION = 0.2f
     }
 }

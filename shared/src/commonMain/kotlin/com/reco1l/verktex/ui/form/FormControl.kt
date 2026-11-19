@@ -8,8 +8,11 @@ import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.PointerEvent
-import com.reco1l.verktex.math.interpolateFloat
+import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.ui.fadeTo
+import com.reco1l.verktex.ui.moveToX
+import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.ui.FAIcon
 import com.reco1l.verktex.ui.Button
 import com.reco1l.verktex.ui.TextButton
@@ -65,6 +68,7 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
     }.apply {
         isVisible = false
         alpha = 0f
+        translationX = RESET_BUTTON_OFFSET.dip
         +resetButton
     }
 
@@ -102,6 +106,19 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
      * Whether the control can be used. A disabled form control is faded and ignores touches.
      */
     var isEnabled = true
+        set(value) {
+            if (field != value) {
+                field = value
+                enabledTransition.run { fadeTo(if (value) 1f else DISABLED_ALPHA, 0.2f, Easing.OutQuint) }
+            }
+        }
+
+    private val enabledTransition = transitionSlot()
+
+    private val resetTransition = resetButtonHolder.transitionSlot()
+
+    // Whether the reset button is shown or being shown.
+    private var isResetShown = false
 
     override val interactionState
         get() = if (!isEnabled) InteractionState.Disabled else super.interactionState
@@ -163,15 +180,30 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
     }
 
     override fun onUpdate(clock: FrameClock) {
-        alpha = clock.interpolateFloat(0.2f, alpha, if (isEnabled) 1f else DISABLED_ALPHA)
-
-        // The reset button slides in from the left while the value differs from the default.
+        // Checked every update as subclasses decide what the default is (isDefault is open).
         val showReset = showResetButton && !isDefault
-        resetButtonHolder.alpha = clock.interpolateFloat(0.1f, resetButtonHolder.alpha, if (showReset) 1f else 0f)
-        resetButtonHolder.translationX = (RESET_BUTTON_OFFSET * (1f - resetButtonHolder.alpha)).dip
-        resetButtonHolder.isVisible = showReset || resetButtonHolder.alpha > 0f
+        if (showReset != isResetShown) {
+            isResetShown = showReset
+            animateResetButton(showReset)
+        }
 
         super.onUpdate(clock)
+    }
+
+    // The reset button slides in from the left while the value differs from the default.
+    private fun animateResetButton(show: Boolean) {
+        val holder = resetButtonHolder
+
+        if (show) {
+            holder.isVisible = true
+        }
+
+        resetTransition.run {
+            moveToX(if (show) 0f else RESET_BUTTON_OFFSET.dip.toPixels(), 0.1f, Easing.OutQuint)
+            fadeTo(if (show) 1f else 0f, 0.1f, Easing.OutQuint).after {
+                if (!show) holder.isVisible = false
+            }
+        }
     }
 
     override fun onInputEvent(event: InputEvent): Boolean {

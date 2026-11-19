@@ -12,7 +12,10 @@ import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.math.FloatAnimation
+import com.reco1l.verktex.ui.animatableFloat
+import com.reco1l.verktex.ui.animate
+import com.reco1l.verktex.ui.scaleTo
+import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.math.interpolateFloat
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.container.Container
@@ -98,10 +101,19 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
 
     private var thumbX = 0f
 
-    private val thumbScale = FloatAnimation(1f, 0.3f)
+    private val thumbScale = thumb.transitionSlot()
 
     // How far the slider is stretched by dragging past its ends, from 0 to 1.
-    private val stretch = FloatAnimation(0f, 0.4f, Easing.OutElastic)
+    private var stretch = 0f
+        set(value) {
+            field = value
+            scaleX = 1f + value * 0.15f
+            scaleY = 1f - value * 0.3f
+        }
+
+    private val stretchProperty = animatableFloat({ stretch }, { stretch = it })
+
+    private val stretchTransition = transitionSlot()
 
     // The finger dragging the slider, others are ignored.
     private var pressPointerId = -1
@@ -119,6 +131,13 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
 
     override fun drawOverBackground(renderer: Renderer) {
         highlight.draw(renderer, resolvedTheme.palette.accent)
+    }
+
+    override val tracksInteractionState
+        get() = true
+
+    override fun onInteractionStateChanged(state: InteractionState) {
+        highlight.onStateChanged(state)
     }
 
 
@@ -178,13 +197,6 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
         progressBar.x = minOf(zeroX, thumbX).px
         progressBar.width = abs(thumbX - zeroX).px
 
-        thumb.scale = thumbScale.update(clock)
-        highlight.update(clock)
-
-        val stretch = stretch.update(clock)
-        scaleX = 1f + stretch * 0.15f
-        scaleY = 1f - stretch * 0.3f
-
         super.onUpdate(clock)
     }
 
@@ -209,7 +221,7 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
                 // Dragging the slider must not scroll its parents.
                 setHierarchyScrollPrevention(true)
                 onStartDragging()
-                thumbScale.animateTo(1.25f, 0.1f, Easing.InExpo)
+                thumbScale.run { scaleTo(1.25f, 0.1f, Easing.InExpo) }
                 updateValueFromPointer(event.x, event.y)
             }
 
@@ -219,9 +231,9 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
                 pressPointerId = -1
                 setHierarchyScrollPrevention(false)
                 onStopDragging()
-                thumbScale.animateTo(1f, 0.3f, Easing.OutBounce)
+                thumbScale.run { scaleTo(1f, 0.3f, Easing.OutBounce) }
                 // Springs back from the stretch.
-                stretch.target = 0f
+                stretchTransition.run { animate(stretchProperty, 0f, 0.4f, Easing.OutElastic) }
                 return event.action == PointerEvent.Action.Up
             }
         }
@@ -235,7 +247,8 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
         // Dragging past an end stretches the slider towards the finger, anchored at the other end.
         val overflow = maxOf(-localX, localX - width, 0f)
         scaleOrigin = if (localX < 0f) Anchor.CenterRight else Anchor.CenterLeft
-        stretch.jumpTo(if (width > 0f) minOf(overflow / width, 1f) else 0f)
+        stretchTransition.cancel()
+        stretch = if (width > 0f) minOf(overflow / width, 1f) else 0f
 
         val progress = if (width > 0f) (localX / width).coerceIn(0f, 1f) else 0f
         value = min + progress * (max - min)

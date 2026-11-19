@@ -14,10 +14,9 @@ import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Shadow
 import com.reco1l.verktex.data.horizontalPadding
-import com.reco1l.verktex.math.interpolateFloat
+import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.text.text
-import com.reco1l.verktex.time.FrameClock
 
 fun Container.button(builder: Button.() -> Unit) = Button().apply(builder).also { +it }
 
@@ -104,19 +103,15 @@ open class Button : ClickableContainer() {
      */
     val highlight = StateHighlight(this)
 
-    override fun onUpdate(clock: FrameClock) {
-        highlight.update(clock)
+    // Declared transitions replace the built-in scale and fade, the highlight stays.
+    override val defaultTransitions
+        get() = builtInTransitions
 
-        // Declared transitions replace the built-in scale and fade, the highlight stays.
-        if (transitions == null) {
-            val targetScale = if (isPressed) 0.95f else 1f
-            val targetAlpha = if (isEnabled) 1f else 0.5f
+    override val tracksInteractionState
+        get() = true
 
-            alpha = clock.interpolateFloat(0.2f, alpha, targetAlpha)
-            scale = clock.interpolateFloat(0.2f, scale, targetScale)
-        }
-
-        super.onUpdate(clock)
+    override fun onInteractionStateChanged(state: InteractionState) {
+        highlight.onStateChanged(state)
     }
 
     override fun drawOverBackground(renderer: Renderer) {
@@ -133,6 +128,26 @@ open class Button : ClickableContainer() {
             return event is PointerEvent && event.action == PointerEvent.Action.Down
         }
         return super.onInputEvent(event)
+    }
+
+
+    private companion object {
+        const val FEEDBACK_DURATION = 0.2f
+
+        val builtInTransitions = StateTransitions().apply {
+            idle {
+                scaleTo(1f, FEEDBACK_DURATION, Easing.OutQuint)
+                fadeTo(1f, FEEDBACK_DURATION, Easing.OutQuint)
+            }
+            pressed {
+                scaleTo(0.95f, FEEDBACK_DURATION, Easing.OutQuint)
+                fadeTo(1f, FEEDBACK_DURATION, Easing.OutQuint)
+            }
+            disabled {
+                scaleTo(1f, FEEDBACK_DURATION, Easing.OutQuint)
+                fadeTo(0.5f, FEEDBACK_DURATION, Easing.OutQuint)
+            }
+        }
     }
 
 

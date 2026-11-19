@@ -10,8 +10,8 @@ import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.math.FloatAnimation
-import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.ui.rotateTo
+import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.ui.text.Text
 import com.reco1l.verktex.ui.textButton
 
@@ -77,7 +77,7 @@ open class Select<T : Any>(initialValues: List<T> = emptyList()) : Control<List<
         }
 
 
-    private val chevronRotation = FloatAnimation(0f, 0.6f, Easing.OutBounce)
+    private val chevronRotation = chevronIcon.transitionSlot()
 
     private var buttons = mapOf<Option<T>, TextButton>()
 
@@ -88,15 +88,13 @@ open class Select<T : Any>(initialValues: List<T> = emptyList()) : Control<List<
         // The button is already attached by its builder.
         updateTrigger()
         +chevronIcon
+
+        dropdown.onExpand = { rotateChevron(180f) }
+        dropdown.onCollapse = { rotateChevron(0f) }
     }
 
-    override fun onUpdate(clock: FrameClock) {
-
-        val targetChevronRotation = if (dropdown.isExpanded) 180f else 0f
-        chevronRotation.target = targetChevronRotation
-        chevronIcon.rotationZ = chevronRotation.update(clock)
-
-        super.onUpdate(clock)
+    private fun rotateChevron(rotation: Float) {
+        chevronRotation.run { rotateTo(rotation, 0.6f, Easing.OutBounce) }
     }
 
     override fun onDraw(renderer: Renderer) {

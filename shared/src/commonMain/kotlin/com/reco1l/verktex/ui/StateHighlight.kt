@@ -2,8 +2,7 @@ package com.reco1l.verktex.ui
 
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.graphics.Renderer
-import com.reco1l.verktex.math.interpolateFloat
-import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.math.Easing
 
 /**
  * The default feedback of controls while hovered or pressed: a translucent layer of the content
@@ -11,8 +10,9 @@ import com.reco1l.verktex.time.FrameClock
  * hovered, more when pressed, and out otherwise (also when disabled). Its opacities and speed come
  * from [Theme.highlightStyle].
  *
- * The component updates it from [Component.onUpdate] and draws it from
- * [Component.drawOverBackground].
+ * The component tells it its state from [Component.onInteractionStateChanged] (with
+ * [Component.tracksInteractionState]) and draws it from [Component.drawOverBackground]. The fades
+ * are transforms of the component.
  */
 class StateHighlight(private val component: Component) {
 
@@ -20,6 +20,12 @@ class StateHighlight(private val component: Component) {
      * Whether the component highlights. When false the highlight fades out and stays hidden.
      */
     var isEnabled = true
+        set(value) {
+            if (field != value) {
+                field = value
+                fade()
+            }
+        }
 
     /**
      * The current opacity of the highlight.
@@ -27,17 +33,29 @@ class StateHighlight(private val component: Component) {
     var opacity = 0f
         private set
 
+    private var state = InteractionState.Idle
 
-    fun update(clock: FrameClock) {
+    private val opacityProperty = animatableFloat({ opacity }, { opacity = it })
+
+
+    /**
+     * Fades to the opacity of [state], the new state of the component.
+     */
+    fun onStateChanged(state: InteractionState) {
+        this.state = state
+        fade()
+    }
+
+    private fun fade() {
         val style = component.resolvedTheme.highlightStyle
 
-        val target = if (!isEnabled) 0f else when (component.interactionState) {
+        val target = if (!isEnabled) 0f else when (state) {
             InteractionState.Hovered -> style.hoveredAlpha
             InteractionState.Pressed -> style.pressedAlpha
             InteractionState.Idle, InteractionState.Disabled -> 0f
         }
 
-        opacity = clock.interpolateFloat(style.duration, opacity, target)
+        component.animate(opacityProperty, target, style.duration, Easing.OutQuint)
     }
 
     /**

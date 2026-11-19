@@ -17,8 +17,11 @@ import com.reco1l.verktex.data.horizontalPadding
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
-import com.reco1l.verktex.math.interpolateColor
+import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.ui.animatableColor
+import com.reco1l.verktex.ui.animateColor
+import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.ui.IFocusable
 import com.reco1l.verktex.ui.ITextInput
 import com.reco1l.verktex.ui.Theme
@@ -150,7 +153,6 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
     override val interactionState
         get() = if (isPressed) InteractionState.Pressed else super.interactionState
     private var caretTime = 0f
-    private var errorColor: Color4? = null
 
 
     // A separate object since the value property is inherited from Control.
@@ -186,7 +188,7 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
         padding = themed { horizontalPadding(gap.md) }
         radius = themed { CornerRadius(radius.md) }
         background = Background.Color(themed { palette.controlInactiveBackground })
-        // Its color is animated towards the target one on update.
+        // Its color is animated when the focus changes.
         border = Border(1.5f.dip, borderTargetColor(resolvedTheme))
 
         placeholderText.color = themed { palette.accent.alpha(0.5f) }
@@ -225,10 +227,12 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
     override fun onFocusGained() {
         caretTime = 0f
         Verktex.host.attachTextInput(imeTarget)
+        animateBorder()
     }
 
     override fun onFocusLost() {
         Verktex.host.detachTextInput()
+        animateBorder()
     }
 
     //endregion
@@ -247,18 +251,27 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
         highlight.draw(renderer, resolvedTheme.palette.accent)
     }
 
+    override val tracksInteractionState
+        get() = true
+
+    override fun onInteractionStateChanged(state: InteractionState) {
+        highlight.onStateChanged(state)
+    }
+
+    private val borderTransition = transitionSlot()
+
+    private val borderColor = animatableColor(
+        get = { border.color },
+        set = { border = border.withColor(it) }
+    )
+
+    // Towards the color of the focus, from wherever it is (e.g. the red of an error).
+    private fun animateBorder() {
+        val target = borderTargetColor(resolvedTheme)
+        borderTransition.run { animateColor(borderColor, target, 0.2f, Easing.OutQuint) }
+    }
+
     override fun onUpdate(clock: FrameClock) {
-        highlight.update(clock)
-
-        // Errors flash the border red, then it goes back to its normal color.
-        val targetBorderColor = errorColor ?: borderTargetColor(resolvedTheme)
-        errorColor = null
-        val border = border
-        if (border != null) {
-            val color = clock.interpolateColor(0.2f, border.color, targetBorderColor)
-            this.border = border.withColor(color)
-        }
-
         val contentWidth = textArea.bounds.width
         val textWidth = if (value.isEmpty()) 0f else textComponent.measuredSize.x
         val caretWidth = caret.measuredSize.x
@@ -323,8 +336,9 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
      * Called when the last typed text was rejected.
      */
     open fun notifyInputError() {
-        errorColor = ERROR_COLOR
+        // Flashes the border red, then it goes back to its normal color.
         border = border.withColor(ERROR_COLOR)
+        animateBorder()
     }
 
     //endregion

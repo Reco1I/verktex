@@ -220,6 +220,28 @@ class HoverTest {
     }
 
     @Test
+    fun buttonsHaveBuiltInFeedbackWithoutTransitions() {
+        val button = Button().apply {
+            width = 100f.px
+            height = 100f.px
+            padding = Padding.Zero
+        }
+        val root = Container().apply { this += button }
+        frames(root)
+
+        button.onInputEvent(PointerEvent(Action.Down, PointerButton.Left, 0, 50f, 50f))
+        frames(root, 30)
+        // The scale ignores changes smaller than 1e-3, the end of an eased transform can be one.
+        assertEquals(0.95f, button.scaleX, 1e-3f)
+
+        button.onInputEvent(PointerEvent(Action.Up, PointerButton.Left, 0, 50f, 50f))
+        button.isEnabled = false
+        frames(root, 30)
+        assertEquals(1f, button.scaleX, 1e-3f)
+        assertEquals(0.5f, button.alpha, 1e-3f)
+    }
+
+    @Test
     fun controlsHighlightWhileHoveredAndPressed() {
         val button = Button().apply { width = 100f.px; height = 100f.px; padding = Padding.Zero }
         val root = Container().apply { this += button }
