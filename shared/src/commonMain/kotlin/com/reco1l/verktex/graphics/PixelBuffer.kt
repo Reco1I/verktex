@@ -8,6 +8,12 @@ package com.reco1l.verktex.graphics
 expect abstract class PixelBuffer
 
 /**
+ * A buffer holding a copy of [bytes], from its position to its limit, e.g. pixels made in code for a
+ * [PixelsSource].
+ */
+expect fun pixelBufferOf(bytes: ByteArray): PixelBuffer
+
+/**
  * Returns the [width] x [height] RGBA8 [pixels], tightly packed, surrounded by [padding] pixels on
  * every side that repeat the closest edge pixel, as a new buffer of (width + 2 padding) x
  * (height + 2 padding) pixels. [pixels] is left as it was.

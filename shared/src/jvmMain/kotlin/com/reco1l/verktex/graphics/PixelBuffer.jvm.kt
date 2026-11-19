@@ -5,6 +5,13 @@ import java.nio.ByteOrder
 
 actual typealias PixelBuffer = java.nio.ByteBuffer
 
+actual fun pixelBufferOf(bytes: ByteArray): PixelBuffer {
+    val buffer = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder())
+    buffer.put(bytes)
+    buffer.flip()
+    return buffer
+}
+
 internal actual fun extrudePixels(pixels: PixelBuffer, width: Int, height: Int, padding: Int): PixelBuffer {
     val paddedWidth = width + 2 * padding
     val paddedHeight = height + 2 * padding
