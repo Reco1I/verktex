@@ -85,6 +85,9 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   `TransitionSlot` per animated state (expanded, checked, shown…), and `transitions`/
   `defaultTransitions` for the interaction state. `FrameClock.interpolateFloat` is only for values
   following a target that keeps moving (a dragged thumb, a menu following its trigger).
+- On a clock that can jump (gameplay), reactions to a state or result are `ChoreographyTransitions`
+  played into the choreography at a time (`docs/choreography.md`). A component drawn in another layer
+  than its parent's is drawn through a `Proxy` (`docs/proxies.md`).
 - Textures and shader outputs are premultiplied, see `docs/plans/texture-blending.md`.
 - Shaders are GLSL ES 3.00 in `shared/assets/shaders/`, sharing code from `lib/*.glsl` with
   `#import "lib/x.glsl"`, expanded before any translation (`ShaderImports`). Built-in fragment

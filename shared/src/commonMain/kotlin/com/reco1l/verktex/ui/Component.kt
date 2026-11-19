@@ -776,6 +776,27 @@ abstract class Component {
         transformationsInvalid = true
     }
 
+    /**
+     * Brings the transformations of this component up to date along with its ancestors', for drawing it outside
+     * its parent's pass, see [Proxy]. Recalculating the topmost invalid one recalculates its descendants too.
+     */
+    internal fun validateTransformationChain() {
+        var topmostInvalid: Component? = null
+        var current: Component? = this
+
+        while (current != null) {
+            if (current.transformationsInvalid) {
+                topmostInvalid = current
+            }
+            current = current.parent
+        }
+
+        if (topmostInvalid != null) {
+            topmostInvalid.transformationsInvalid = false
+            topmostInvalid.calculateTransformations()
+        }
+    }
+
     //endregion
 
     //region Attachment
@@ -836,6 +857,14 @@ abstract class Component {
             field = value
             invalidateMeasure()
         }
+
+    /**
+     * The proxy drawing this component instead of its parent, see [Proxy]: its parent skips it while it's set.
+     */
+    internal var proxy: Proxy? = null
+
+    // Whether the proxy is drawing this component, the only time it draws while it has one.
+    internal var isDrawingThroughProxy = false
 
     /**
      * Whether the bounds of this component, transformed to scene space, overlap the given scene
@@ -932,6 +961,11 @@ abstract class Component {
         if (transformationsInvalid) {
             transformationsInvalid = false
             calculateTransformations()
+        }
+
+        // A proxied component is drawn by its proxy, at another point of the draw order.
+        if (proxy != null && !isDrawingThroughProxy) {
+            return
         }
 
         // The alpha is multiplied into everything drawn below, so a transparent component and its

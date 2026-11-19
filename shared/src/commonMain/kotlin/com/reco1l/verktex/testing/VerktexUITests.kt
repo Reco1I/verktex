@@ -20,6 +20,9 @@ import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.ui.FAIcon
+import com.reco1l.verktex.ui.Component
+import com.reco1l.verktex.ui.Proxy
+import com.reco1l.verktex.ui.proxy
 import com.reco1l.verktex.ui.Badge
 import com.reco1l.verktex.ui.Button
 import com.reco1l.verktex.ui.Scene
@@ -752,6 +755,65 @@ object VerktexUITests : UITestSuite("Verktex") {
                             moveToX(0f, 0.3f, Easing.InQuad)
                         }
                     }
+                }
+            }
+        }
+
+        test("Proxies") {
+            // Each card owns a dot overlapping the next card, which draws over it unless the dot is proxied into
+            // the layer above every card.
+            val colors = listOf(Color4.Pink400, Color4(0.4f, 0.6f, 1f), Color4(0.4f, 0.85f, 0.6f), Color4(1f, 0.75f, 0.3f))
+            val dots = mutableListOf<Component>()
+
+            val cards = container {
+                anchor = Anchor.Center
+                origin = Anchor.Center
+
+                colors.forEachIndexed { i, cardColor ->
+                    container {
+                        x = (i * 100f).dip
+                        width = 120f.dip
+                        height = 120f.dip
+                        radius = CornerRadius(12f.dip)
+                        background = Background.Color(cardColor)
+
+                        dots += circle {
+                            anchor = Anchor.CenterRight
+                            origin = Anchor.Center
+                            width = 36f.dip
+                            height = 36f.dip
+                            color = Color4.White
+                        }
+                    }
+                }
+            }
+
+            val above = container {
+                width = fill()
+                height = fill()
+            }
+            var proxies = emptyList<Proxy>()
+
+            fun setProxied(proxied: Boolean) {
+                proxies.forEach { above -= it }
+                proxies = if (proxied) dots.map { above.proxy(it) } else emptyList()
+                log(if (proxied) "Dots drawn above every card" else "Dots drawn in their card")
+            }
+            setProxied(true)
+
+            linearContainer {
+                anchor = Anchor.BottomCenter
+                origin = Anchor.BottomCenter
+                y = (-16f).dip
+                spacing = 8f.dip
+
+                textButton {
+                    text = "Toggle proxies"
+                    onActionUp = { setProxied(proxies.isEmpty()) }
+                }
+                textButton {
+                    text = "Fade cards"
+                    onActionUp = { cards.fadeTo(if (cards.alpha > 0.5f) 0.3f else 1f, 0.3f) }
                 }
             }
         }

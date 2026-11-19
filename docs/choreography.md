@@ -10,8 +10,9 @@ For UI animations that only move forward, use [transforms](transforms.md).
 
 Sources:
 
-- `shared/src/commonMain/kotlin/com/reco1l/verktex/ui/Choreography.kt`.
-- `ChoreographyTest` (`shared/src/desktopTest/.../ui/`) covers the behavior described here.
+- `shared/src/commonMain/kotlin/com/reco1l/verktex/ui/Choreography.kt` and `ChoreographyTransitions.kt`.
+- `ChoreographyTest` and `ChoreographyTransitionsTest` (`shared/src/desktopTest/.../ui/`) cover the behavior
+  described here.
 
 ## Quick start
 
@@ -139,6 +140,32 @@ going back restores the earlier state.
   without allocating: call `choreography?.clear()` and set the properties' starting values before
   building again.
 - `clearAnimations()` on the component clears both its transforms and its choreography.
+
+## Transitions keyed by a state
+
+`ChoreographyTransitions<S>` (`ui/ChoreographyTransitions.kt`) holds a block of steps per state, of
+any type, and plays one into a component's choreography at a given time. It's the counterpart of
+[transitions](transitions.md) for a clock that can jump, e.g. the judgement of a hit object keyed by
+its result:
+
+```kotlin
+val judgement = choreographyTransitions<HitResult> {
+    this[HitResult.Miss] = { fadeInFromZero(0.15f).moveToY(40f, 0.5f, Easing.InQuad).then().fadeOut(0.2f) }
+    otherwise { scaleTo(1.4f, 0.1f).then().scaleTo(1f, 0.1f).delay(0.6f).fadeOut(0.2f) }
+}
+
+val endTime = judgement.play(piece, result, hitTime)
+```
+
+- `this[state] = { … }` sets the block of a state, and `otherwise { … }` the one of every state
+  without its own. A state with neither plays nothing.
+- `play(target, state, time)` builds the block into `target`'s choreography with the cursor at
+  `time`, as `choreographAt` does. It returns the choreography's `endTime` (or `time` when nothing
+  played), to extend a lifetime with.
+- Unlike `StateTransitions`, nothing is polled nor cancelled: playing is an event at a time, and its
+  steps stay in the choreography, so seeking back before `time` shows the earlier state again. Clear
+  the choreography to play it anew, e.g. when the component is pooled.
+- It keeps no state, so one instance can be shared by every component it animates.
 
 ## Interaction with other animations
 
