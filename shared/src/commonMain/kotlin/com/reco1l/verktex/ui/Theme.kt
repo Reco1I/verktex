@@ -44,17 +44,17 @@ open class Theme(
     val typography: Typography = Typography(
         h1 = FontSettings(
             size = 24f.dip,
-            family = "torus",
+            family = "fredoka",
             weight = Font.Weight.Bold,
         ),
         h2 = FontSettings(
             size = 20f.dip,
-            family = "torus",
+            family = "fredoka",
             weight = Font.Weight.SemiBold
         ),
         h3 = FontSettings(
             size = 18f.dip,
-            family = "torus",
+            family = "fredoka",
             weight = Font.Weight.SemiBold
         ),
         body = FontSettings(
