@@ -133,7 +133,8 @@ kotlin {
                 // The native library of the Vulkan backend and the SPIR-V of the built-in shaders.
                 implementation(project(":desktop-natives"))
 
-                for (module in listOf("lwjgl", "lwjgl-glfw", "lwjgl-opengl", "lwjgl-stb")) {
+                // lwjgl-freetype rasterises fonts, variable ones on their axes; lwjgl-stb decodes and encodes images.
+                for (module in listOf("lwjgl", "lwjgl-glfw", "lwjgl-opengl", "lwjgl-stb", "lwjgl-freetype")) {
                     implementation("org.lwjgl:$module")
                     for (natives in lwjglNatives) {
                         runtimeOnly("org.lwjgl:$module::$natives")

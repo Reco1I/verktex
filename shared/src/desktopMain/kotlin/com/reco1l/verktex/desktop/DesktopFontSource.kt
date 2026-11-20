@@ -7,21 +7,24 @@ import com.reco1l.verktex.fonts.FontFamily
 import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
-import org.lwjgl.stb.STBTTFontinfo
-import org.lwjgl.stb.STBTruetype.*
+import kotlin.math.roundToLong
 import org.lwjgl.system.MemoryStack
+import org.lwjgl.util.freetype.FT_Face
+import org.lwjgl.util.freetype.FT_MM_Var
+import org.lwjgl.util.freetype.FreeType.*
 
 /**
- * A [FontFamily.Source] over a TrueType or OpenType (CFF included) file, rasterised with stb_truetype.
- * Of a collection (.ttc), the first font is used.
+ * A [FontFamily.Source] over a TrueType or OpenType (CFF and CFF2 included) file, rasterised with
+ * FreeType. Of a collection (.ttc), the first font is used.
  *
- * stb_truetype can't synthesise weights or italics: a family made of one file always draws with its
- * own weight. Nor does it apply font variations: a variable font draws its default instance,
- * whatever the weight. [Font.Style.Oblique] is a skew, as on Android.
+ * A variable font with a `wght` axis draws every [Font.Weight] on it, its other axes at their
+ * defaults, as on Android. Weights and italics aren't synthesised: a static font always draws with
+ * its own weight. [Font.Style.Oblique] is a skew, as on Android.
  */
 class DesktopFontSource(
     data: ByteArray,
@@ -29,47 +32,93 @@ class DesktopFontSource(
     private val warnsSynthesis: Boolean = true,
 ) : FontFamily.Source {
 
-    // stb_truetype reads the file in place, it must live as long as the font info.
+    // FreeType reads the file in place, it must live as long as the face.
     private val fontData: ByteBuffer = ByteBuffer.allocateDirect(data.size).put(data).flip()
 
-    internal val info: STBTTFontinfo = STBTTFontinfo.create()
+    // A library of its own: FreeType's objects aren't thread safe, and a source is used under its lock.
+    private val library: Long
+
+    internal val face: FT_Face
 
     // In font units, scaled per font.
-    internal val ascent: Int
-    internal val descent: Int
-    internal val lineGap: Int
+    private val unitsPerEm: Int
+    private val ascent: Int
+    private val descent: Int
+    private val lineGap: Int
+
+    /**
+     * The default design coordinates of every axis of a variable font, in 16.16 fixed point, or
+     * null for a font without a `wght` axis.
+     */
+    private val defaultCoordinates: LongArray?
+
+    // The index of the wght axis among them, -1 without one, and its range.
+    private val weightAxis: Int
+    private val weightRange: ClosedFloatingPointRange<Float>
 
     private var warnedSynthesis = false
 
 
     init {
-        // The first font of a collection (.ttc), common among system fonts, or 0 for a single font.
-        val offset = stbtt_GetFontOffsetForIndex(fontData, 0)
-        if (offset < 0 || !stbtt_InitFont(info, fontData, offset)) {
-            throw IllegalArgumentException("Not a TrueType or OpenType font.")
+        MemoryStack.stackPush().use { stack ->
+            val pointer = stack.mallocPointer(1)
+            check(FT_Init_FreeType(pointer) == FT_Err_Ok) { "FreeType couldn't start." }
+            library = pointer[0]
+
+            if (FT_New_Memory_Face(library, fontData, 0, pointer) != FT_Err_Ok) {
+                FT_Done_FreeType(library)
+                throw IllegalArgumentException("Not a TrueType or OpenType font.")
+            }
+            face = FT_Face.create(pointer[0])
+
+            var coordinates: LongArray? = null
+            var axis = -1
+            var range = 0f..0f
+
+            val hasVariations = face.face_flags() and FT_FACE_FLAG_MULTIPLE_MASTERS.toLong() != 0L
+            if (hasVariations && FT_Get_MM_Var(face, pointer) == FT_Err_Ok) {
+                val variations = FT_MM_Var.create(pointer[0])
+                val axes = variations.axis()
+                coordinates = LongArray(variations.num_axis()) { axes[it].def() }
+                for (i in coordinates.indices) {
+                    if (axes[i].tag() == WGHT_TAG) {
+                        axis = i
+                        range = axes[i].minimum() / FIXED_ONE..axes[i].maximum() / FIXED_ONE
+                    }
+                }
+                FT_Done_MM_Var(library, variations)
+            }
+
+            // Only the weight is applied: a font with other axes alone draws as a static one.
+            defaultCoordinates = coordinates.takeIf { axis >= 0 }
+            weightAxis = axis
+            weightRange = range
         }
 
-        MemoryStack.stackPush().use { stack ->
-            val a = stack.mallocInt(1)
-            val d = stack.mallocInt(1)
-            val g = stack.mallocInt(1)
-            stbtt_GetFontVMetrics(info, a, d, g)
-            ascent = a[0]
-            descent = d[0]
-            lineGap = g[0]
-        }
+        // The hhea metrics, unscaled and unrounded, as Android's.
+        unitsPerEm = face.units_per_EM().toInt()
+        ascent = face.ascender().toInt()
+        descent = face.descender().toInt()
+        lineGap = face.height() - (ascent - descent)
     }
 
 
+    /**
+     * Whether the font has a `wght` axis, every weight drawn on it.
+     */
+    val isVariable
+        get() = weightAxis >= 0
+
+
     override fun onCreateFont(descriptor: Font.Descriptor): Font {
-        if (warnsSynthesis && !warnedSynthesis && (descriptor.weight != Font.Weight.Normal || descriptor.style == Font.Style.Italic)) {
+        val isSynthesised = (!isVariable && descriptor.weight != Font.Weight.Normal) || descriptor.style == Font.Style.Italic
+        if (warnsSynthesis && !warnedSynthesis && isSynthesised) {
             warnedSynthesis = true
-            Logger.w("DesktopFontSource", "Font weights and italics aren't synthesised on desktop, nor variable fonts' axes applied: the font's own weight, or its default instance, is used.")
+            Logger.w("DesktopFontSource", "Font weights and italics aren't synthesised on desktop, the font's own are used.")
         }
 
-        val size = descriptor.size.toPixels()
         // Like Paint.textSize on Android, the size is the em, not the line height.
-        val scale = stbtt_ScaleForMappingEmToPixels(info, size)
+        val scale = descriptor.size.toPixels() / unitsPerEm
 
         val metrics = Font.Metrics(
             // Above the baseline is negative, as on Android.
@@ -80,24 +129,47 @@ class DesktopFontSource(
 
         val pageSize = min(PAGE_SIZE, Verktex.graphics.device.capabilities.maxTextureSize)
 
-        return DesktopFont(this, descriptor, metrics, scale, pageSize)
+        return DesktopFont(this, descriptor, metrics, pageSize)
+    }
+
+
+    /**
+     * Sets the face up for the glyphs of [descriptor]: its size and, of a variable font, its weight.
+     * Called under the source's lock, as every font of the source shares the face.
+     */
+    internal fun prepare(descriptor: Font.Descriptor, stack: MemoryStack) {
+        // In 26.6 fixed point at 72 dpi, so that a point is a pixel.
+        FT_Set_Char_Size(face, 0, (descriptor.size.toPixels() * 64).roundToLong(), 72, 72)
+
+        val defaults = defaultCoordinates ?: return
+        val coordinates = stack.mallocCLong(defaults.size)
+        for (i in defaults.indices) {
+            coordinates.put(i, defaults[i])
+        }
+        val weight = descriptor.weight.value.toFloat().coerceIn(weightRange)
+        coordinates.put(weightAxis, (weight * FIXED_ONE).roundToLong())
+        FT_Set_Var_Design_Coordinates(face, coordinates)
     }
 
 
     private companion object {
         // See AndroidFontSource.PAGE_SIZE.
         const val PAGE_SIZE = 1024f
+
+        // 1.0 in FreeType's 16.16 fixed point.
+        const val FIXED_ONE = 65536f
+
+        val WGHT_TAG = ('w'.code.toLong() shl 24) or ('g'.code.toLong() shl 16) or ('h'.code.toLong() shl 8) or 't'.code.toLong()
     }
 }
 
 /**
- * A font of a [DesktopFontSource] at one size and style.
+ * A font of a [DesktopFontSource] at one size, weight and style.
  */
 class DesktopFont(
     private val source: DesktopFontSource,
     override val descriptor: Descriptor,
     override val metrics: Metrics,
-    private val scale: Float,
     private val pageSize: Float,
 ) : Font() {
 
@@ -113,34 +185,46 @@ class DesktopFont(
 
     override fun onCreateGlyph(codePoint: Int): Glyph = synchronized(source) {
         MemoryStack.stackPush().use { stack ->
-            val info = source.info
+            source.prepare(descriptor, stack)
 
-            val advanceWidth = stack.mallocInt(1)
-            val leftSideBearing = stack.mallocInt(1)
-            stbtt_GetCodepointHMetrics(info, codePoint, advanceWidth, leftSideBearing)
-            val advance = advanceWidth[0] * scale
+            val face = source.face
+            // Light hinting, as Android's slight: snapped vertically only, advances keep their widths.
+            if (FT_Load_Char(face, codePoint.toLong(), FT_LOAD_RENDER or FT_LOAD_TARGET_LIGHT) != FT_Err_Ok) {
+                return Glyph(codePoint = codePoint, advance = 0f)
+            }
 
-            val x0 = stack.mallocInt(1)
-            val y0 = stack.mallocInt(1)
-            val x1 = stack.mallocInt(1)
-            val y1 = stack.mallocInt(1)
-            stbtt_GetCodepointBitmapBox(info, codePoint, scale, scale, x0, y0, x1, y1)
+            val slot = face.glyph()!!
+            // Unhinted and fractional, in 16.16 fixed point, as Paint.measureText's.
+            val advance = slot.linearHoriAdvance() / 65536f
 
-            val width = x1[0] - x0[0]
-            val height = y1[0] - y0[0]
+            val bitmap = slot.bitmap()
+            val width = bitmap.width()
+            val height = bitmap.rows()
 
-            if (width <= 0 || height <= 0) {
+            if (width <= 0 || height <= 0 || bitmap.pixel_mode().toInt() != FT_PIXEL_MODE_GRAY) {
                 // No visible representation (e.g. a space), only its advance.
                 return Glyph(codePoint = codePoint, advance = advance)
             }
 
+            // FreeType's rows may be padded, or go upwards with a negative pitch.
+            val pitch = bitmap.pitch()
+            val rows = bitmap.buffer(abs(pitch) * height)!!
             val coverage = ByteBuffer.allocateDirect(width * height)
-            stbtt_MakeCodepointBitmap(info, coverage, width, height, width, scale, scale, codePoint)
+            for (y in 0 until height) {
+                val row = if (pitch >= 0) y * pitch else (height - 1 - y) * -pitch
+                for (x in 0 until width) {
+                    coverage.put(y * width + x, rows.get(row + x))
+                }
+            }
+
+            // Above the baseline is negative, like Rect.top of Paint.getTextBounds.
+            val top = -slot.bitmap_top()
+            val left = slot.bitmap_left()
 
             val glyph = if (skew == 0f) {
-                GlyphBitmap(coverage, width, height, x0[0])
+                GlyphBitmap(coverage, width, height, left)
             } else {
-                skewed(coverage, width, height, x0[0], y0[0])
+                skewed(coverage, width, height, left, top)
             }
 
             // The atlas packs glyphs edge to edge, and text is drawn at fractional positions, where
@@ -152,9 +236,7 @@ class DesktopFont(
                 width = (glyph.width + 2 * BORDER).toFloat(),
                 height = (height + 2 * BORDER).toFloat(),
                 bearingX = (glyph.left - BORDER).toFloat(),
-                // y0 is the top of the box relative to the baseline, negative above it, like Rect.top
-                // of Paint.getTextBounds.
-                bearingY = (y0[0] - BORDER).toFloat(),
+                bearingY = (top - BORDER).toFloat(),
                 region = addGlyphSource(glyph.toTextureSource()),
             )
         }

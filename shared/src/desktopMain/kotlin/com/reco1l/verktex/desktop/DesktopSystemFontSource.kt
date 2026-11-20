@@ -9,9 +9,10 @@ import java.util.concurrent.TimeUnit
 /**
  * A [FontFamily.Source] over a font installed on the system.
  *
- * stb_truetype can't synthesise weights or italics, so every weight and style is looked up as a file
- * of its own: through fontconfig on Linux, and among the files of the system's UI font on Windows
- * and macOS. A weight or style without a file uses the regular one.
+ * FreeType can't synthesise weights or italics, so every weight and style is looked up as a file of
+ * its own: through fontconfig on Linux, and among the files of the system's UI font on Windows and
+ * macOS. A weight or style without a file uses the regular one, which draws it on its `wght` axis
+ * when it's a variable font (e.g. macOS's SF Pro).
  */
 class DesktopSystemFontSource private constructor(
     private val family: String?,
@@ -33,7 +34,7 @@ class DesktopSystemFontSource private constructor(
         val file = files.getOrPut(descriptor.weight to isItalic) { find(family, descriptor.weight, isItalic) }
         val source = file?.let { sources.getOrPut(it) { load(it) ?: regular } } ?: regular
 
-        if (source === regular && (descriptor.weight != Font.Weight.Normal || isItalic) && !warnedFallback) {
+        if (source === regular && ((!regular.isVariable && descriptor.weight != Font.Weight.Normal) || isItalic) && !warnedFallback) {
             warnedFallback = true
             Logger.w(TAG, "No system font file for ${descriptor.weight}${if (isItalic) " italic" else ""}, the regular one is used.")
         }
