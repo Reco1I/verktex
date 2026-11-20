@@ -9,10 +9,10 @@ import java.util.concurrent.TimeUnit
 /**
  * A [FontFamily.Source] over a font installed on the system.
  *
- * FreeType can't synthesise weights or italics, so every weight and style is looked up as a file of
- * its own: through fontconfig on Linux, and among the files of the system's UI font on Windows and
- * macOS. A weight or style without a file uses the regular one, which draws it on its `wght` axis
- * when it's a variable font (e.g. macOS's SF Pro).
+ * Each weight and style is looked up as a file of its own, as the system's own are better than
+ * synthesised ones: through fontconfig on Linux, and among the files of the system's UI font on
+ * Windows and macOS. A weight or style without a file is drawn from the regular one: on its `wght`
+ * axis when it's a variable font (e.g. macOS's SF Pro), otherwise synthesised, see [DesktopFontSource].
  */
 class DesktopSystemFontSource private constructor(
     private val family: String?,
@@ -25,19 +25,12 @@ class DesktopSystemFontSource private constructor(
 
     private val files = mutableMapOf<Pair<Font.Weight, Boolean>, File?>()
 
-    private var warnedFallback = false
-
 
     override fun onCreateFont(descriptor: Font.Descriptor): Font {
         val isItalic = descriptor.style == Font.Style.Italic
 
         val file = files.getOrPut(descriptor.weight to isItalic) { find(family, descriptor.weight, isItalic) }
         val source = file?.let { sources.getOrPut(it) { load(it) ?: regular } } ?: regular
-
-        if (source === regular && ((!regular.isVariable && descriptor.weight != Font.Weight.Normal) || isItalic) && !warnedFallback) {
-            warnedFallback = true
-            Logger.w(TAG, "No system font file for ${descriptor.weight}${if (isItalic) " italic" else ""}, the regular one is used.")
-        }
 
         return source.onCreateFont(descriptor)
     }
@@ -61,7 +54,7 @@ class DesktopSystemFontSource private constructor(
 
 
         private fun load(file: File): DesktopFontSource? = try {
-            DesktopFontSource(file.readBytes(), warnsSynthesis = false)
+            DesktopFontSource(file.readBytes())
         } catch (e: Exception) {
             Logger.e(TAG, "Couldn't load the font ${file.path}", e)
             null

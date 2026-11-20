@@ -133,6 +133,30 @@ object VerktexUITests : UITestSuite("Verktex") {
                     }
                 }
 
+                // Anta has a single upright weight and Nunito no italics: what they lack is synthesised.
+                section("Synthesised bold and italic") {
+                    for ((name, family) in listOf("Anta" to BuiltIn.Fonts.Anta, "Nunito" to BuiltIn.Fonts.Default)) {
+                        linearContainer {
+                            orientation = Orientation.Vertical
+                            spacing = 4f.dip
+                            text { text = name; color = Color4(1f, 1f, 1f, 0.6f) }
+                            for ((label, weight, style) in listOf(
+                                Triple("Regular", Font.Weight.Normal, Font.Style.Normal),
+                                Triple("Bold", Font.Weight.Bold, Font.Style.Normal),
+                                Triple("Italic", Font.Weight.Normal, Font.Style.Italic),
+                                Triple("Bold italic", Font.Weight.Bold, Font.Style.Italic),
+                            )) {
+                                text {
+                                    text = label
+                                    fontFamily = family
+                                    fontWeight = weight
+                                    fontStyle = style
+                                }
+                            }
+                        }
+                    }
+                }
+
                 section("Any weight") {
                     orientation = Orientation.Vertical
                     val sample = text {

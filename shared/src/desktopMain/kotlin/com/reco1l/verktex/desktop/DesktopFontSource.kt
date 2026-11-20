@@ -1,6 +1,5 @@
 package com.reco1l.verktex.desktop
 
-import com.reco1l.verktex.Logger
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.fonts.FontFamily
@@ -16,6 +15,7 @@ import kotlin.math.roundToLong
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.util.freetype.FT_Face
 import org.lwjgl.util.freetype.FT_MM_Var
+import org.lwjgl.util.freetype.TT_OS2
 import org.lwjgl.util.freetype.FreeType.*
 
 /**
@@ -23,14 +23,11 @@ import org.lwjgl.util.freetype.FreeType.*
  * FreeType. Of a collection (.ttc), the first font is used.
  *
  * A variable font with a `wght` axis draws every [Font.Weight] on it, its other axes at their
- * defaults, as on Android. Weights and italics aren't synthesised: a static font always draws with
- * its own weight. [Font.Style.Oblique] is a skew, as on Android.
+ * defaults, as on Android. Other fonts synthesise what they don't have as Android does (minikin's
+ * font fakery): a bold when the weight is at least semibold and two grades above the font's own, and
+ * an italic, a skew as [Font.Style.Oblique] always is, when the font is upright.
  */
-class DesktopFontSource(
-    data: ByteArray,
-    // Off when weights are looked up as files of their own, see DesktopSystemFontSource.
-    private val warnsSynthesis: Boolean = true,
-) : FontFamily.Source {
+class DesktopFontSource(data: ByteArray) : FontFamily.Source {
 
     // FreeType reads the file in place, it must live as long as the face.
     private val fontData: ByteBuffer = ByteBuffer.allocateDirect(data.size).put(data).flip()
@@ -56,7 +53,9 @@ class DesktopFontSource(
     private val weightAxis: Int
     private val weightRange: ClosedFloatingPointRange<Float>
 
-    private var warnedSynthesis = false
+    // The font's own weight (OS/2's usWeightClass) and slant, which the synthesis starts from.
+    private val ownWeight: Int
+    private val isOwnItalic: Boolean
 
 
     init {
@@ -100,6 +99,10 @@ class DesktopFontSource(
         ascent = face.ascender().toInt()
         descent = face.descender().toInt()
         lineGap = face.height() - (ascent - descent)
+
+        val os2 = FT_Get_Sfnt_Table(face, FT_SFNT_OS2)
+        ownWeight = if (os2 != 0L) TT_OS2.create(os2).usWeightClass().toInt() and 0xFFFF else Font.Weight.Normal.value
+        isOwnItalic = face.style_flags() and FT_STYLE_FLAG_ITALIC.toLong() != 0L
     }
 
 
@@ -110,13 +113,21 @@ class DesktopFontSource(
         get() = weightAxis >= 0
 
 
-    override fun onCreateFont(descriptor: Font.Descriptor): Font {
-        val isSynthesised = (!isVariable && descriptor.weight != Font.Weight.Normal) || descriptor.style == Font.Style.Italic
-        if (warnsSynthesis && !warnedSynthesis && isSynthesised) {
-            warnedSynthesis = true
-            Logger.w("DesktopFontSource", "Font weights and italics aren't synthesised on desktop, the font's own are used.")
-        }
+    /**
+     * Whether [descriptor] is drawn emboldened: as minikin, when its weight is at least semibold and
+     * two grades (200) above the font's own. A variable font draws its weight on its axis instead.
+     */
+    internal fun isFakeBold(descriptor: Font.Descriptor) =
+        !isVariable && descriptor.weight >= Font.Weight.SemiBold && descriptor.weight.value - ownWeight >= 200
 
+    /**
+     * Whether [descriptor] is drawn slanted: oblique always is, italic when the font is upright.
+     */
+    internal fun isSlanted(descriptor: Font.Descriptor) =
+        descriptor.style == Font.Style.Oblique || (descriptor.style == Font.Style.Italic && !isOwnItalic)
+
+
+    override fun onCreateFont(descriptor: Font.Descriptor): Font {
         // Like Paint.textSize on Android, the size is the em, not the line height.
         val scale = descriptor.size.toPixels() / unitsPerEm
 
@@ -175,8 +186,13 @@ class DesktopFont(
 
     override val isKerningSupported = false
 
-    // The horizontal shift per pixel above the baseline, Android's textSkewX of -0.25.
-    private val skew = if (descriptor.style == Style.Oblique) OBLIQUE_SKEW else 0f
+    // The horizontal shift per pixel above the baseline, Android's textSkewX of -0.25, for oblique
+    // and synthesised italics.
+    private val skew = if (source.isSlanted(descriptor)) OBLIQUE_SKEW else 0f
+
+    // How much a synthesised bold widens the outlines, in 26.6 fixed point, 0 without one. Skia's,
+    // which Android uses: an em over 24.
+    private val emboldenStrength = if (source.isFakeBold(descriptor)) (descriptor.size.toPixels() * 64 / EMBOLDEN_DIVISOR).roundToLong() else 0L
 
 
     override fun onCreatePage(): Texture {
@@ -189,13 +205,23 @@ class DesktopFont(
 
             val face = source.face
             // Light hinting, as Android's slight: snapped vertically only, advances keep their widths.
-            if (FT_Load_Char(face, codePoint.toLong(), FT_LOAD_RENDER or FT_LOAD_TARGET_LIGHT) != FT_Err_Ok) {
+            if (FT_Load_Char(face, codePoint.toLong(), FT_LOAD_TARGET_LIGHT) != FT_Err_Ok) {
                 return Glyph(codePoint = codePoint, advance = 0f)
             }
 
             val slot = face.glyph()!!
-            // Unhinted and fractional, in 16.16 fixed point, as Paint.measureText's.
+            // Unhinted and fractional, in 16.16 fixed point, as Paint.measureText's. A synthesised bold
+            // keeps it, as on Android.
             val advance = slot.linearHoriAdvance() / 65536f
+
+            if (slot.format() == FT_GLYPH_FORMAT_OUTLINE) {
+                if (emboldenStrength > 0) {
+                    FT_Outline_Embolden(slot.outline(), emboldenStrength)
+                }
+                if (FT_Render_Glyph(slot, FT_RENDER_MODE_LIGHT) != FT_Err_Ok) {
+                    return Glyph(codePoint = codePoint, advance = advance)
+                }
+            }
 
             val bitmap = slot.bitmap()
             val width = bitmap.width()
@@ -311,6 +337,9 @@ class DesktopFont(
 
     private companion object {
         const val OBLIQUE_SKEW = -0.25f
+
+        // Skia's SK_OUTLINE_EMBOLDEN_DIVISOR: a synthesised bold widens outlines by the em over it.
+        const val EMBOLDEN_DIVISOR = 24f
 
         // The transparent pixels around every glyph, see onCreateGlyph.
         const val BORDER = 1
