@@ -77,16 +77,17 @@ class DesktopSystemFontSource private constructor(
         }
 
         private fun findFontconfig(family: String?, weight: Font.Weight, isItalic: Boolean): File? {
-            val fcWeight = when (weight) {
-                Font.Weight.Thin -> 0
-                Font.Weight.ExtraLight -> 40
-                Font.Weight.Light -> 50
-                Font.Weight.Normal -> 80
-                Font.Weight.Medium -> 100
-                Font.Weight.SemiBold -> 180
-                Font.Weight.Bold -> 200
-                Font.Weight.ExtraBold -> 205
-                Font.Weight.Black -> 210
+            // fontconfig's weights for the nearest named weight.
+            val fcWeight = when (weight.value) {
+                in 0..150 -> 0
+                in 151..250 -> 40
+                in 251..350 -> 50
+                in 351..450 -> 80
+                in 451..550 -> 100
+                in 551..650 -> 180
+                in 651..750 -> 200
+                in 751..850 -> 205
+                else -> 210
             }
             val pattern = "${family ?: "sans-serif"}:weight=$fcWeight:slant=${if (isItalic) 100 else 0}"
 
@@ -114,12 +115,12 @@ class DesktopSystemFontSource private constructor(
                 return File(fonts, family.replace(" ", "").lowercase() + ".ttf")
             }
 
-            val name = when (weight) {
-                Font.Weight.Thin, Font.Weight.ExtraLight, Font.Weight.Light -> if (isItalic) "seguili" else "segoeuil"
-                Font.Weight.Normal, Font.Weight.Medium -> if (isItalic) "segoeuii" else "segoeui"
-                Font.Weight.SemiBold -> if (isItalic) "seguisbi" else "seguisb"
-                Font.Weight.Bold -> if (isItalic) "segoeuiz" else "segoeuib"
-                Font.Weight.ExtraBold, Font.Weight.Black -> if (isItalic) "seguibli" else "seguibl"
+            val name = when (weight.value) {
+                in 0..350 -> if (isItalic) "seguili" else "segoeuil"
+                in 351..550 -> if (isItalic) "segoeuii" else "segoeui"
+                in 551..650 -> if (isItalic) "seguisbi" else "seguisb"
+                in 651..750 -> if (isItalic) "segoeuiz" else "segoeuib"
+                else -> if (isItalic) "seguibli" else "seguibl"
             }
             return File(fonts, "$name.ttf")
         }

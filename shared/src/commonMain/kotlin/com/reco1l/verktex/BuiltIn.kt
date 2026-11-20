@@ -86,11 +86,22 @@ object BuiltIn {
     object Fonts {
 
         /**
-         * The default font family used by the engine which is [Nunito Sans](https://fonts.google.com/specimen/Nunito+Sans).
+         * The default font family used by the engine, [Nunito](https://fonts.google.com/specimen/Nunito):
+         * a variable font with a `wght` axis, so every [com.reco1l.verktex.fonts.Font.Weight] is drawn
+         * where the platform applies it.
          */
         lateinit var Default: FontFamily
 
-        lateinit var Torus: FontFamily
+        /**
+         * [Fredoka](https://fonts.google.com/specimen/Fredoka), a rounded display font: variable, with
+         * `wght` and `wdth` axes, of which only the weight is applied.
+         */
+        lateinit var Fredoka: FontFamily
+
+        /**
+         * [Anta](https://fonts.google.com/specimen/Anta), a static font of a single weight.
+         */
+        lateinit var Anta: FontFamily
 
         /**
          * The platform's own UI font, e.g. Roboto on Android. It looks different on every platform,

@@ -189,16 +189,5 @@ fun Font.Style.toAndroidTypefaceStyle(weight: Font.Weight): Int {
     }
 }
 
-fun Font.Weight.toAndroidTypefaceWeight(): Int {
-    return when (this) {
-        Font.Weight.Thin -> 100
-        Font.Weight.ExtraLight -> 200
-        Font.Weight.Light -> 300
-        Font.Weight.Normal -> 400
-        Font.Weight.Medium -> 500
-        Font.Weight.SemiBold -> 600
-        Font.Weight.Bold -> 700
-        Font.Weight.ExtraBold -> 800
-        Font.Weight.Black -> 900
-    }
-}
+// Typeface weights are the same 1..1000 scale.
+fun Font.Weight.toAndroidTypefaceWeight(): Int = value

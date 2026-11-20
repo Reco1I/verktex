@@ -1,6 +1,8 @@
 package com.reco1l.verktex.testing
 
+import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.data.Padding
+import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.data.Background
 import kotlin.math.max
 import kotlin.math.min
@@ -106,6 +108,49 @@ object VerktexUITests : UITestSuite("Verktex") {
                         width = 300f.dip
                         maxLines = 1
                         text = "A single line that is cut once it reaches the end of its width."
+                    }
+                }
+            }
+        }
+
+        test("Variable fonts") {
+            column {
+                // Nunito and Fredoka are variable on their weight, Anta is static and keeps its own.
+                section("Weights") {
+                    for ((name, family) in listOf("Nunito" to BuiltIn.Fonts.Default, "Fredoka" to BuiltIn.Fonts.Fredoka, "Anta" to BuiltIn.Fonts.Anta)) {
+                        linearContainer {
+                            orientation = Orientation.Vertical
+                            spacing = 4f.dip
+                            text { text = name; color = Color4(1f, 1f, 1f, 0.6f) }
+                            for (weight in 100..900 step 100) {
+                                text {
+                                    text = "Weight $weight"
+                                    fontFamily = family
+                                    fontWeight = Font.Weight(weight)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                section("Any weight") {
+                    orientation = Orientation.Vertical
+                    val sample = text {
+                        text = "The quick brown fox (400)"
+                        fontSize = 24f.dip
+                        fontWeight = Font.Weight.Normal
+                    }
+                    seekBar {
+                        width = 300f.dip
+                        min = Font.Weight.MIN.toFloat()
+                        max = Font.Weight.MAX.toFloat()
+                        step = 50f
+                        value = Font.Weight.Normal.value.toFloat()
+                        onValueChange = {
+                            val weight = Font.Weight(it.roundToInt())
+                            sample.fontWeight = weight
+                            sample.text = "The quick brown fox (${weight.value})"
+                        }
                     }
                 }
             }

@@ -3,6 +3,7 @@ package com.reco1l.verktex.android
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.os.Build
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.graphics.Texture
@@ -15,7 +16,12 @@ class AndroidFont(
     /**
      * The width and height of every atlas page of this font, in pixels.
      */
-    private val pageSize: Float
+    private val pageSize: Float,
+    /**
+     * The font variation settings the glyphs are drawn with, e.g. `'wght' 550` for a variable font,
+     * or null for a static one.
+     */
+    private val variationSettings: String? = null,
 ) : Font() {
 
     override val isKerningSupported = false
@@ -30,7 +36,11 @@ class AndroidFont(
         // Oblique style is not directly supported by Android's Typeface, so we apply a skew to
         // simulate it.
         if (descriptor.style == Style.Oblique) {
-            paint.textSkewX = -0.25f
+            paint.textSkewX = AndroidFontSource.OBLIQUE_SKEW
+        }
+
+        if (variationSettings != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            paint.fontVariationSettings = variationSettings
         }
     }
 

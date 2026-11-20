@@ -2,6 +2,7 @@ package com.reco1l.verktex.fonts
 
 import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.graphics.Texture
+import kotlin.jvm.JvmInline
 
 /**
  * Represents a specific font with its associated metrics, atlas pages, and glyphs.
@@ -136,18 +137,41 @@ abstract class Font {
     }
 
     /**
-     * Represents the weight of a font, which indicates the thickness of the characters.
+     * The weight of a font, the thickness of its characters: the value of the OpenType `wght` axis,
+     * from 1 to 1000 as CSS's `font-weight`, with the usual names as constants ([Normal] is 400,
+     * [Bold] 700).
+     *
+     * A variable font draws any weight on its `wght` axis, where the platform applies it. Every
+     * distinct weight is a font of its own, with its own atlas pages, so an animated weight should
+     * step through a few values rather than every one.
      */
-    enum class Weight {
-        Thin,
-        ExtraLight,
-        Light,
-        Normal,
-        Medium,
-        SemiBold,
-        Bold,
-        ExtraBold,
-        Black
+    @JvmInline
+    value class Weight private constructor(val value: Int) : Comparable<Weight> {
+
+        override fun compareTo(other: Weight) = value.compareTo(other.value)
+
+        override fun toString() = "Weight($value)"
+
+        companion object {
+
+            /**
+             * The weight of [value], clamped to 1..1000.
+             */
+            operator fun invoke(value: Int) = Weight(value.coerceIn(MIN, MAX))
+
+            const val MIN = 1
+            const val MAX = 1000
+
+            val Thin = Weight(100)
+            val ExtraLight = Weight(200)
+            val Light = Weight(300)
+            val Normal = Weight(400)
+            val Medium = Weight(500)
+            val SemiBold = Weight(600)
+            val Bold = Weight(700)
+            val ExtraBold = Weight(800)
+            val Black = Weight(900)
+        }
     }
 
     /**

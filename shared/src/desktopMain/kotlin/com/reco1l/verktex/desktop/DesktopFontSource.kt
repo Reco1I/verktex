@@ -20,7 +20,8 @@ import org.lwjgl.system.MemoryStack
  * Of a collection (.ttc), the first font is used.
  *
  * stb_truetype can't synthesise weights or italics: a family made of one file always draws with its
- * own weight. [Font.Style.Oblique] is a skew, as on Android.
+ * own weight. Nor does it apply font variations: a variable font draws its default instance,
+ * whatever the weight. [Font.Style.Oblique] is a skew, as on Android.
  */
 class DesktopFontSource(
     data: ByteArray,
@@ -63,7 +64,7 @@ class DesktopFontSource(
     override fun onCreateFont(descriptor: Font.Descriptor): Font {
         if (warnsSynthesis && !warnedSynthesis && (descriptor.weight != Font.Weight.Normal || descriptor.style == Font.Style.Italic)) {
             warnedSynthesis = true
-            Logger.w("DesktopFontSource", "Font weights and italics aren't synthesised on desktop, the font's own are used.")
+            Logger.w("DesktopFontSource", "Font weights and italics aren't synthesised on desktop, nor variable fonts' axes applied: the font's own weight, or its default instance, is used.")
         }
 
         val size = descriptor.size.toPixels()

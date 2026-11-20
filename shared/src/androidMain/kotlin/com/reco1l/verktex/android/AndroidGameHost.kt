@@ -332,8 +332,9 @@ abstract class AndroidGameHost : AppCompatActivity(), GameHost {
             Fonts.load(key, "fonts/$file", isInternal = true)
                 ?: throw IllegalStateException("Failed to load built-in font: $file")
 
-        BuiltIn.Fonts.Default = load("nunito", "nunito-medium.ttf")
-        BuiltIn.Fonts.Torus = load("torus", "torus-bold.otf")
+        BuiltIn.Fonts.Default = load("nunito", "nunito-variable-wght.ttf")
+        BuiltIn.Fonts.Fredoka = load("fredoka", "fredoka-variable-wdth-wght.ttf")
+        BuiltIn.Fonts.Anta = load("anta", "anta-regular-static.ttf")
         BuiltIn.Fonts.System = Fonts.loadSystem("system") ?: run {
             Logger.w("Verktex", "The system font isn't available, using the default font instead.")
             BuiltIn.Fonts.Default
