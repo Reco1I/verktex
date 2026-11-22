@@ -6,6 +6,7 @@ import com.reco1l.verktex.ui.Component
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Axis
+import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.data.dip
@@ -153,6 +154,19 @@ open class ScrollableContainer : Container() {
      * scrolling the container.
      */
     var minimumTravel = Vec2(DEFAULT_MINIMUM_TRAVEL)
+
+    /**
+     * Called once the content is scrolled within [endThreshold] of its end along the scroll axis (the
+     * vertical one when it scrolls on both), or when it's shorter than the container. It isn't called
+     * again until the content's size changes or it's scrolled away from the end, e.g. to load more
+     * content.
+     */
+    var onScrolledToEnd: (() -> Unit)? = null
+
+    /**
+     * How far from the end of the content [onScrolledToEnd] is called.
+     */
+    var endThreshold: Dimension.Fixed = 0f.dip
 
     //endregion
 
@@ -404,6 +418,31 @@ open class ScrollableContainer : Container() {
         }
 
         updateIndicators(clock.elapsedFrameTime)
+        notifyScrolledToEnd()
+    }
+
+    // The content's size the last time onScrolledToEnd was called, so it's called again once it grows.
+    private var scrolledToEndContentSize = -1f
+
+    private fun notifyScrolledToEnd() {
+        val callback = onScrolledToEnd ?: return
+
+        val isVertical = scrollAxes.isVertical
+        val contentLength = if (isVertical) scrollableContentHeight else scrollableContentWidth
+        val remaining = if (isVertical) maxScrollY - scrollY else maxScrollX - scrollX
+
+        if (contentLength <= 0f) {
+            return
+        }
+
+        if (remaining <= endThreshold.toPixels()) {
+            if (contentLength != scrolledToEndContentSize) {
+                scrolledToEndContentSize = contentLength
+                callback()
+            }
+        } else {
+            scrolledToEndContentSize = -1f
+        }
     }
 
     override fun onDraw(renderer: Renderer) {
@@ -435,11 +474,6 @@ open class ScrollableContainer : Container() {
             )
         }
     }
-
-    /**
-     * Called when the scroll position has changed.
-     */
-    protected open fun onScrollChanged() {}
 
     /**
      * Called to update the scroll indicators based on the current scroll position.

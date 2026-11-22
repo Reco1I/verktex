@@ -23,6 +23,7 @@ import com.reco1l.verktex.ui.container.RecyclableComponent
 import com.reco1l.verktex.ui.container.clipContainer
 import com.reco1l.verktex.ui.container.constraintContainer
 import com.reco1l.verktex.ui.container.container
+import com.reco1l.verktex.ui.container.gridContainer
 import com.reco1l.verktex.ui.container.linearContainer
 import com.reco1l.verktex.ui.container.scrollableContainer
 import com.reco1l.verktex.ui.text.Text
@@ -575,6 +576,116 @@ fun UITestSuite.addContainerTests() {
         }
 
         log("${items.size} items, only the visible ones have a component")
+    }
+
+    test("Grid: columns") {
+        column {
+            section("3 columns share the width, a row is as tall as its tallest child") {
+                gridContainer {
+                    width = 560f.dip
+                    columns = 3
+                    columnSpacing = 4f.dip
+                    rowSpacing = 4f.dip
+                    padding = Padding(4f.dip)
+                    background = Background.Color(FAINT)
+
+                    block("fill()", colorAt(0)) { width = fill() }
+                    block("60 tall", colorAt(1)) { width = fill(); height = 60f.dip }
+                    block("fill() x fill()", colorAt(2)) { width = fill(); height = fill() }
+                    block("Wrap, centered", colorAt(3)) { anchor = Anchor.Center; origin = Anchor.Center }
+                    block("fill()", colorAt(4)) { width = fill() }
+                }
+            }
+
+            section("Hidden children take no cell") {
+                orientation = LinearContainer.Orientation.Vertical
+
+                lateinit var hidden: Container
+
+                gridContainer {
+                    width = 560f.dip
+                    columns = 4
+                    columnSpacing = 4f.dip
+                    rowSpacing = 4f.dip
+                    padding = Padding(4f.dip)
+                    background = Background.Color(FAINT)
+
+                    repeat(6) { index ->
+                        val cell = block("$index", colorAt(index)) { width = fill() }
+                        if (index == 1) hidden = cell
+                    }
+                }
+
+                textButton {
+                    text = "Toggle"
+                    onActionUp = {
+                        hidden.isVisible = !hidden.isVisible
+                        log("Cell 1 visible: ${hidden.isVisible}")
+                    }
+                }
+            }
+        }
+    }
+
+    test("Grid: min column width") {
+        scrollableContainer {
+            width = fill()
+            height = fill()
+            scrollAxes = Axis.Y
+
+            gridContainer {
+                width = fill()
+                minColumnWidth = 160f.dip
+                columnSpacing = 8f.dip
+                rowSpacing = 8f.dip
+                padding = Padding(8f.dip)
+
+                repeat(30) { index -> block("${index + 1}", colorAt(index)) { width = fill(); height = 80f.dip } }
+            }
+        }
+
+        log("Columns of at least 160dip: resize the window to change their count")
+    }
+
+    test("Recycler: grid") {
+        val items = (1..10_000).toList()
+
+        +RecyclerContainer<Int, RecyclerRow>().apply {
+            width = fill()
+            height = fill()
+            minColumnWidth = 160f.dip
+            columnSpacing = 4f.dip
+            spacing = 4f.dip
+            padding = Padding(8f.dip)
+
+            onCreateComponent = { RecyclerRow() }
+            data = items
+        }
+
+        log("${items.size} items in columns of at least 160dip, only the visible rows have components")
+    }
+
+    test("Recycler: append") {
+        val pageSize = 50
+
+        +RecyclerContainer<Int, RecyclerRow>().apply {
+            width = fill()
+            height = fill()
+            columns = 2
+            columnSpacing = 4f.dip
+            spacing = 4f.dip
+            padding = Padding(8f.dip)
+            endThreshold = 200f.dip
+
+            onCreateComponent = { RecyclerRow() }
+            data = (1..pageSize).toList()
+
+            onScrolledToEnd = {
+                val start = data.size + 1
+                addData((start until start + pageSize).toList())
+                log("Near the end, appended items $start to ${start + pageSize - 1}")
+            }
+        }
     }
 }
 

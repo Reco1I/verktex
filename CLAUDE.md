@@ -79,6 +79,10 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - Dependency and plugin versions go in `gradle/libs.versions.toml`.
 - UI is a tree of `Component`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.
+  Children are placed by containers: `LinearContainer` (a row or a column), `GridContainer` (cells
+  of `columns`, or of at least `minColumnWidth`), and `RecyclerContainer`, which only keeps
+  components for the visible items of its `data`, in one column or a grid, appends with `addData`
+  and, as any `ScrollableContainer`, calls `onScrolledToEnd` near the end of its content.
 - Animations are started when a state changes, never computed in `onUpdate`: transforms
   (`ui/Transforms.kt`; the latest to start on a property replaces the others, and
   `animate`/`animateColor` reach any property through `AnimatableFloat`/`AnimatableColor`), a
