@@ -70,10 +70,12 @@ open class CrossfadeSprite : Container() {
         back.textureRegion = region
 
         // The second sprite is drawn above the first one, so it fades in over it or out from it.
+        // Once it's covered, the old one is hidden: an alpha given to this container is multiplied into each
+        // sprite, so it would show through the new one, and it would be drawn for nothing.
         if (backIndex == 1) {
             front.alpha = 1f
             back.alpha = 0f
-            back.fadeIn(duration)
+            back.fadeIn(duration).after { front.alpha = 0f }
         } else {
             back.alpha = 1f
             front.alpha = 1f

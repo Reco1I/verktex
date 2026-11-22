@@ -7,6 +7,7 @@ import com.reco1l.verktex.ui.Component
 import com.reco1l.verktex.ui.container.CaptureContainer
 import kotlinx.atomicfu.locks.withLock
 import com.reco1l.verktex.audio.AudioDriver
+import com.reco1l.verktex.data.Background
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.math.interpolateFloat
 import kotlin.math.max
@@ -153,6 +154,9 @@ object Verktex {
     //endregion
 
     private val sceneStack = ArrayDeque<Scene>().apply { addLast(Scene.EmptyScene) }
+
+    // A scene of its own, so the background is laid out over the whole window, see [background].
+    private val backgroundContainer = Scene()
     // A scene of its own, so overlays are measured and laid out over the whole window.
     private val overlayContainer = object : Scene() {
 
@@ -240,7 +244,12 @@ object Verktex {
             // An overlay showing a capture of what is behind it stands for the scene and the
             // overlays below it, those aren't drawn.
             val capture = topmostCapture()
-            if (capture != null) capture.drawCapture(graphics) else rootScene.draw(graphics)
+            if (capture != null) {
+                capture.drawCapture(graphics)
+            } else {
+                backgroundContainer.draw(graphics)
+                rootScene.draw(graphics)
+            }
 
             overlayContainer.draw(graphics)
 
@@ -271,6 +280,7 @@ object Verktex {
             // Before updating, so the components see their hover (and their state transitions run) this frame.
             updateHover()
 
+            backgroundContainer.update(clock)
             rootScene.update(clock)
             overlayContainer.update(clock)
             diagnosticsContainer.update(clock)
@@ -448,6 +458,7 @@ object Verktex {
 
         treeLock.withLock {
             focusedComponent = null
+            backgroundContainer.background = Background.None
             overlayContainer.clearChildren()
             diagnosticsContainer.clearChildren()
             while (sceneStack.size > 1) {
@@ -530,6 +541,20 @@ object Verktex {
         previousScene.onLeave()
         scene.onEnter()
     }
+
+    /**
+     * What is drawn behind the scenes, over the whole window: a background every scene shares,
+     * which goes on as scenes are pushed and popped instead of each scene drawing its own. A
+     * scene's own background ([Scene.backgroundComponent]) and content are drawn over it, so an
+     * opaque one covers it. A [Background.Component] is updated with the engine's [clock] before
+     * the scene, and doesn't receive input. None by default.
+     *
+     * Scenes shown through a [sceneHost] are drawn inside the scene of the host, over this.
+     */
+    @JvmStatic
+    var background: Background
+        get() = backgroundContainer.background
+        set(value) = treeLock.withLock { backgroundContainer.background = value }
 
     private fun topmostCapture(): CaptureContainer? {
         for (index in overlayContainer.childCount - 1 downTo 0) {
@@ -687,7 +712,7 @@ object Verktex {
      */
     @VerktexPlatformApi
     fun onThemeChange() = treeLock.withLock {
-        for (root in sceneStack + listOf(overlayContainer, diagnosticsContainer)) {
+        for (root in sceneStack + listOf(backgroundContainer, overlayContainer, diagnosticsContainer)) {
             root.applyTheme()
         }
     }
