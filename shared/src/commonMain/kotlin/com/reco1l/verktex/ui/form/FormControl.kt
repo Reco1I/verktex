@@ -44,7 +44,9 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
      * The text that is displayed as the label of the control.
      */
     val labelText = Text().apply {
-        // Stretched to the header row so the label is centered next to the reset button.
+        // Takes what the header's row leaves, wrapping when it's short, and pushes what follows to
+        // the right. Stretched to its height, so it's centered next to the reset button.
+        width = fill()
         height = fill()
         alignment = Anchor.CenterLeft
         fontSettings = themed { typography.caption }
@@ -61,12 +63,12 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
         onActionUp = { value = defaultValue }
     }
 
-    // Buttons animate their own alpha, so the reset button is faded through a holder. Hidden
-    // components still receive input, so the holder ignores it while hidden.
+    // Buttons animate their own alpha, so the reset button is faded through a holder. It always
+    // takes its space, so a form as wide as its content (e.g. in a wrapped panel) doesn't widen
+    // when it's shown, and it ignores input while hidden.
     private val resetButtonHolder = object : Container() {
-        override fun onInputEvent(event: InputEvent) = isVisible && super.onInputEvent(event)
+        override fun onInputEvent(event: InputEvent) = isResetShown && super.onInputEvent(event)
     }.apply {
-        isVisible = false
         alpha = 0f
         translationX = RESET_BUTTON_OFFSET.dip
         +resetButton
@@ -153,19 +155,15 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
 
     /**
      * Creates the header of the form control: the label and the reset button on the left, and
-     * [trailing] on the right.
+     * [trailing] on the right. They're laid out in a row, so a header as wide as its content fits
+     * all of them instead of overlapping them.
      */
-    protected fun createHeader(trailing: Container.() -> Unit = {}) = Container().apply {
+    protected fun createHeader(trailing: Container.() -> Unit = {}) = LinearContainer().apply {
         width = fill()
+        spacing = themed { gap.sm }
 
-        +LinearContainer().apply {
-            anchor = Anchor.CenterLeft
-            origin = Anchor.CenterLeft
-            spacing = themed { gap.sm }
-
-            +labelText
-            +resetButtonHolder
-        }
+        +labelText
+        +resetButtonHolder
 
         trailing()
     }
@@ -192,17 +190,9 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
 
     // The reset button slides in from the left while the value differs from the default.
     private fun animateResetButton(show: Boolean) {
-        val holder = resetButtonHolder
-
-        if (show) {
-            holder.isVisible = true
-        }
-
         resetTransition.run {
             moveToX(if (show) 0f else RESET_BUTTON_OFFSET.dip.toPixels(), 0.1f, Easing.OutQuint)
-            fadeTo(if (show) 1f else 0f, 0.1f, Easing.OutQuint).after {
-                if (!show) holder.isVisible = false
-            }
+            fadeTo(if (show) 1f else 0f, 0.1f, Easing.OutQuint)
         }
     }
 

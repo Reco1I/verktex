@@ -88,24 +88,28 @@ open class LinearContainer : Container() {
 
             for ((child, factor) in childWithFillSize) {
 
+                // On an unbounded axis (e.g. while a wrapping parent measures its content) there's
+                // no free space to share, so filling children wrap their content instead.
                 val constraints = when (orientation) {
 
                     Orientation.Horizontal -> {
                         val assignedPiece = freeWidth * factor
 
-                        contentConstraints.loosen().copy(
-                            minWidth = assignedPiece,
-                            maxWidth = assignedPiece,
-                        )
+                        if (assignedPiece.isFinite()) {
+                            contentConstraints.loosen().copy(minWidth = assignedPiece, maxWidth = assignedPiece)
+                        } else {
+                            contentConstraints.loosen()
+                        }
                     }
 
                     Orientation.Vertical -> {
                         val assignedPiece = freeHeight * factor
 
-                        contentConstraints.loosen().copy(
-                            minHeight = assignedPiece,
-                            maxHeight = assignedPiece,
-                        )
+                        if (assignedPiece.isFinite()) {
+                            contentConstraints.loosen().copy(minHeight = assignedPiece, maxHeight = assignedPiece)
+                        } else {
+                            contentConstraints.loosen()
+                        }
                     }
                 }
 
