@@ -61,6 +61,8 @@ import com.reco1l.verktex.ui.shape.triangle
 import com.reco1l.verktex.ui.text.faSolidIcon
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.ui.text.spans
+import com.reco1l.verktex.ui.text.TextEffect
+import com.reco1l.verktex.ui.text.TextGradient
 import com.reco1l.verktex.ui.textButton
 import com.reco1l.verktex.ui.themed
 import com.reco1l.verktex.ui.transformSequence
@@ -108,6 +110,68 @@ object VerktexUITests : UITestSuite("Verktex") {
                         width = 300f.dip
                         maxLines = 1
                         text = "A single line that is cut once it reaches the end of its width."
+                    }
+                }
+            }
+        }
+
+        test("Text effects") {
+            column {
+                val gold = Color4("#FFCC22")
+
+                fun Container.sample(label: String, size: Float = 56f, block: com.reco1l.verktex.ui.text.Text.() -> Unit) {
+                    linearContainer {
+                        orientation = Orientation.Vertical
+                        spacing = 4f.dip
+                        text { text = label; color = Color4(1f, 1f, 1f, 0.6f) }
+                        text {
+                            text = "SS 98.7%"
+                            fontFamily = BuiltIn.Fonts.Fredoka
+                            fontWeight = Font.Weight.Bold
+                            fontSize = size.dip
+                            color = Color4.White
+                            // Room for the effects, which don't change the measured size.
+                            padding = Padding(12f.dip)
+                            block()
+                        }
+                    }
+                }
+
+                section("Each effect") {
+                    sample("Shadow") { effects = listOf(TextEffect.Shadow(offsetY = 4f.dip)) }
+                    sample("Soft shadow") { effects = listOf(TextEffect.Shadow(Color4(0f, 0f, 0f, 0.8f), offsetY = 4f.dip, softness = 6f.dip)) }
+                    sample("Outline") { effects = listOf(TextEffect.Outline(Color4("#2B1A00"), 3f.dip)) }
+                    sample("Glow") { effects = listOf(TextEffect.Glow(gold, 14f.dip)) }
+                    sample("Gradient") { fillGradient = TextGradient(Color4("#FFF3B0"), gold) }
+                }
+
+                section("Combined") {
+                    sample("All of them", 96f) {
+                        fillGradient = TextGradient(Color4("#FFF3B0"), gold)
+                        effects = listOf(
+                            TextEffect.Shadow(Color4(0f, 0f, 0f, 0.6f), offsetY = 6f.dip, softness = 8f.dip),
+                            TextEffect.Glow(gold, 20f.dip),
+                            TextEffect.Outline(Color4("#2B1A00"), 3f.dip),
+                        )
+                    }
+
+                    // The glow pulses through effectsAlpha.
+                    sample("Pulsing glow", 96f) {
+                        color = Color4("#88DA20")
+                        effects = listOf(TextEffect.Glow(Color4("#88DA20"), 24f.dip, 1.5f))
+                        var time = 0f
+                        onEachFrame {
+                            time += it.elapsedFrameTime
+                            effectsAlpha = 0.6f + 0.4f * sin(time * 3f)
+                        }
+                    }
+                }
+
+                section("Small sizes") {
+                    for (size in listOf(14f, 20f, 28f)) {
+                        sample("$size dip", size) {
+                            effects = listOf(TextEffect.Shadow(offsetY = 1f.dip), TextEffect.Outline(Color4.Black, 1f.dip))
+                        }
                     }
                 }
             }

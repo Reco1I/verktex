@@ -551,6 +551,20 @@ abstract class Renderer {
             (channel8(color.alpha * alpha) shl 24)
     }
 
+    /**
+     * [transformColorPacked] of the color [fraction] of the way from [from] to [to], clamped to
+     * them, without allocating a color.
+     */
+    fun transformColorPackedLerp(from: Color4, to: Color4, fraction: Float): Int {
+        val t = fraction.coerceIn(0f, 1f)
+        val alpha = currentAlpha
+
+        return channel8((from.red + (to.red - from.red) * t) * tintRed) or
+            (channel8((from.green + (to.green - from.green) * t) * tintGreen) shl 8) or
+            (channel8((from.blue + (to.blue - from.blue) * t) * tintBlue) shl 16) or
+            (channel8((from.alpha + (to.alpha - from.alpha) * t) * alpha) shl 24)
+    }
+
     // A channel in 8 bits, as Color4's red8 and the others.
     private fun channel8(value: Float) = (value * 255f).roundToInt().coerceIn(0, 255)
 
@@ -1384,16 +1398,21 @@ abstract class Renderer {
     /**
      * Draws text using the specified font, position, and color. The text is rendered using the
      * font's atlas pages, each run of glyphs on the same page is one draw command.
+     *
+     * With a [bottomColor] the glyphs are a vertical gradient, from [color] at [y] to [bottomColor] a
+     * line height of the font below it.
      */
     fun drawText(
         text: String,
         font: Font,
         x: Float,
         y: Float,
-        color: Color4 = Color4.White
+        color: Color4 = Color4.White,
+        bottomColor: Color4? = null
     ) {
         val transform = matrixStack.lastOrNull() ?: Mat2.Identity
         val packedColor = transformColorPacked(color)
+        val lineHeight = font.metrics.lineHeight
 
         // Glyphs are laid out in local space and every corner is transformed, so rotation and
         // scale apply to text as well.
@@ -1447,12 +1466,20 @@ abstract class Renderer {
                 transform.transform(right, bottom, p, 4)
                 transform.transform(left, bottom, p, 6)
 
+                var topPacked = packedColor
+                var bottomPacked = packedColor
+
+                if (bottomColor != null && lineHeight > 0f) {
+                    topPacked = transformColorPackedLerp(color, bottomColor, (top - y) / lineHeight)
+                    bottomPacked = transformColorPackedLerp(color, bottomColor, (bottom - y) / lineHeight)
+                }
+
                 // A quad: top left, top right, bottom right, bottom left.
                 buffer!!.apply {
-                    addUIVertex(p[0], p[1], u0, v0, packedColor, UI_TEXT_BOX)
-                    addUIVertex(p[2], p[3], u1, v0, packedColor, UI_TEXT_BOX)
-                    addUIVertex(p[4], p[5], u1, v1, packedColor, UI_TEXT_BOX)
-                    addUIVertex(p[6], p[7], u0, v1, packedColor, UI_TEXT_BOX)
+                    addUIVertex(p[0], p[1], u0, v0, topPacked, UI_TEXT_BOX)
+                    addUIVertex(p[2], p[3], u1, v0, topPacked, UI_TEXT_BOX)
+                    addUIVertex(p[4], p[5], u1, v1, bottomPacked, UI_TEXT_BOX)
+                    addUIVertex(p[6], p[7], u0, v1, bottomPacked, UI_TEXT_BOX)
                 }
             }
 

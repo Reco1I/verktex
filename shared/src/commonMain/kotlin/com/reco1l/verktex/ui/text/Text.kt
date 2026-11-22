@@ -19,7 +19,11 @@ import com.reco1l.verktex.data.px
 import com.reco1l.verktex.fonts.Fonts
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.data.Color4
+import kotlin.math.PI
+import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.sin
 
 
 // The key of the locale binding of a text.
@@ -215,6 +219,30 @@ open class Text : Canvas() {
             field = value
             invalidateMeasure()
         }
+
+    //endregion
+
+    //region Effects
+
+    /**
+     * The effects drawn under the glyphs, the first one lowest: shadows, outlines and glows, see
+     * [TextEffect]. They're drawn around the glyphs without changing the measured size, so they go
+     * past the bounds (give the text a padding for them to stay inside) and are cut by a clipping
+     * ancestor. They follow the text's alpha, but overlapping copies show through each other while
+     * the text is translucent.
+     */
+    var effects: List<TextEffect> = emptyList()
+
+    /**
+     * How opaque the [effects] are, multiplying their colors' alpha, e.g. to animate a glow.
+     */
+    var effectsAlpha = 1f
+
+    /**
+     * A vertical gradient filling the glyphs instead of their color, the text's or their span's. Null
+     * to fill them with their color.
+     */
+    var fillGradient: TextGradient? = null
 
     //endregion
 
@@ -550,22 +578,55 @@ open class Text : Canvas() {
         val offsetX = if (autoScrollAxes == Axis.X) offset else 0f
         val offsetY = if (autoScrollAxes == Axis.Y) offset else 0f
 
-        var lineY = contentTop + (contentHeight - textHeight) * alignment.y - offsetY
+        val left = contentLeft - offsetX
+        val top = contentTop + (contentHeight - textHeight) * alignment.y - offsetY
+
+        // Every background first, then every effect and the glyphs over them, so the effects of a
+        // fragment never cover the glyphs of another.
+        forEachFragment(left, top, contentWidth) { fragment, x, lineY, lineHeight, _ ->
+            if (fragment.backgroundColor != null) {
+                renderer.drawRect(x, lineY, fragment.width, lineHeight, fragment.backgroundColor)
+            }
+        }
+
+        if (effectsAlpha > 0f) {
+            for (effect in effects) {
+                drawEffect(renderer, effect, left, top, contentWidth)
+            }
+        }
+
+        val gradient = fillGradient
+
+        forEachFragment(left, top, contentWidth) { fragment, x, _, _, y ->
+            if (fragment.text.isNotEmpty()) {
+                renderer.drawText(
+                    color = gradient?.top ?: fragment.color ?: contentColor,
+                    bottomColor = gradient?.bottom,
+                    font = fragment.font,
+                    text = fragment.text,
+                    x = x,
+                    y = y
+                )
+            }
+        }
+    }
+
+    /**
+     * Calls [block] with each fragment, where it's drawn ([x], and [y], where the renderer is given
+     * its text), and its line's top and height, for the text laid out from [left] and [top].
+     */
+    private inline fun forEachFragment(
+        left: Float,
+        top: Float,
+        contentWidth: Float,
+        block: (fragment: Fragment, x: Float, lineY: Float, lineHeight: Float, y: Float) -> Unit
+    ) {
+        var lineY = top
 
         for (line in lines) {
-            val lineX = contentLeft + (contentWidth - line.width) * alignment.x - offsetX
+            val lineX = left + (contentWidth - line.width) * alignment.x
 
             for (fragment in line.fragments) {
-                val x = lineX + fragment.x
-
-                if (fragment.backgroundColor != null) {
-                    renderer.drawRect(x, lineY, fragment.width, line.height, fragment.backgroundColor)
-                }
-
-                if (fragment.text.isEmpty()) {
-                    continue
-                }
-
                 val metrics = fragment.font.metrics
 
                 val y = when (fragment.verticalAlign) {
@@ -574,16 +635,88 @@ open class Text : Canvas() {
                     SpanStyle.VerticalAlign.Baseline -> lineY + line.ascent + metrics.ascent
                 }
 
-                renderer.drawText(
-                    color = fragment.color ?: contentColor,
-                    font = fragment.font,
-                    text = fragment.text,
-                    x = x,
-                    y = y
-                )
+                block(fragment, lineX + fragment.x, lineY, line.height, y)
             }
 
             lineY += line.height + lineGap
+        }
+    }
+
+    /**
+     * Draws the glyphs of every fragment in [color], moved by [dx] and [dy].
+     */
+    private fun drawCopy(renderer: Renderer, color: Color4, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
+        forEachFragment(left, top, contentWidth) { fragment, x, _, _, y ->
+            if (fragment.text.isNotEmpty()) {
+                renderer.drawText(fragment.text, fragment.font, x + dx, y + dy, color)
+            }
+        }
+    }
+
+    /**
+     * Draws copies in [color] around the glyphs on a circle of [radius], centered [dx] and [dy] away.
+     */
+    private fun drawRing(renderer: Renderer, color: Color4, radius: Float, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
+        // About one copy every two pixels of the circle, so the ring has no gaps.
+        val taps = ceil(2f * PI.toFloat() * radius / 2f).toInt().coerceIn(MIN_RING_TAPS, MAX_RING_TAPS)
+
+        for (i in 0 until taps) {
+            val angle = 2f * PI.toFloat() * i / taps
+            drawCopy(renderer, color, dx + cos(angle) * radius, dy + sin(angle) * radius, left, top, contentWidth)
+        }
+    }
+
+    /**
+     * Draws a halo of [color] fading out over [radius] around the glyphs, centered [dx] and [dy] away:
+     * rings of copies growing and fading, which approximate a blur.
+     */
+    private fun drawSoft(renderer: Renderer, color: Color4, radius: Float, intensity: Float, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
+        val rings = ceil(radius / SOFT_RING_SPACING).toInt().coerceIn(1, MAX_SOFT_RINGS)
+
+        // Each ring is fainter than the one inside it, the copies of the inner ones add up near the glyphs.
+        for (ring in rings downTo 1) {
+            val fraction = ring / rings.toFloat()
+            val alpha = color.alpha * effectsAlpha * intensity * SOFT_TAP_ALPHA * (1f - fraction + 1f / rings)
+            drawRing(renderer, color.alpha(alpha), radius * fraction, dx, dy, left, top, contentWidth)
+        }
+
+        drawCopy(renderer, color.alpha(color.alpha * effectsAlpha * intensity * SOFT_TAP_ALPHA), dx, dy, left, top, contentWidth)
+    }
+
+    private fun drawEffect(renderer: Renderer, effect: TextEffect, left: Float, top: Float, contentWidth: Float) {
+        when (effect) {
+            is TextEffect.Shadow -> {
+                val dx = effect.offsetX.toPixels()
+                val dy = effect.offsetY.toPixels()
+                val softness = effect.softness.toPixels()
+
+                if (softness > 0f) {
+                    drawSoft(renderer, effect.color, softness, 1f, dx, dy, left, top, contentWidth)
+                } else {
+                    drawCopy(renderer, effect.color.alpha(effect.color.alpha * effectsAlpha), dx, dy, left, top, contentWidth)
+                }
+            }
+
+            is TextEffect.Outline -> {
+                val width = effect.width.toPixels()
+                if (width <= 0f) return
+
+                val color = effect.color.alpha(effect.color.alpha * effectsAlpha)
+
+                // Inner rings fill what's between the glyph and the outer one in wide outlines.
+                var radius = width
+                while (radius > 0f) {
+                    drawRing(renderer, color, radius, 0f, 0f, left, top, contentWidth)
+                    radius -= OUTLINE_RING_SPACING
+                }
+            }
+
+            is TextEffect.Glow -> {
+                val radius = effect.radius.toPixels()
+                if (radius > 0f) {
+                    drawSoft(renderer, effect.color, radius, effect.intensity, 0f, 0f, left, top, contentWidth)
+                }
+            }
         }
     }
 
@@ -641,6 +774,18 @@ private const val CELL_NEWLINE = 2
 
 // How far, in pixels, a line can go past the available width before it breaks.
 private const val LINE_BREAK_TOLERANCE = 0.01f
+
+// The copies on a ring of an effect, see Text.drawRing.
+private const val MIN_RING_TAPS = 8
+private const val MAX_RING_TAPS = 32
+
+// The distance in pixels between the rings of an outline, and of a glow or a soft shadow.
+private const val OUTLINE_RING_SPACING = 1.5f
+private const val SOFT_RING_SPACING = 3f
+private const val MAX_SOFT_RINGS = 6
+
+// The alpha of each copy of a glow or a soft shadow, before its ring's fading.
+private const val SOFT_TAP_ALPHA = 0.12f
 
 fun faRegularIcon(code: Int) = Text.IconLookup(code, BuiltIn.Fonts.FontAwesomeIconRegular)
 fun faSolidIcon(code: Int) = Text.IconLookup(code, BuiltIn.Fonts.FontAwesomeIconSolid)
