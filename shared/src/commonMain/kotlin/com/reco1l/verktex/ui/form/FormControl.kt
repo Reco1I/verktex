@@ -15,12 +15,11 @@ import com.reco1l.verktex.ui.moveToX
 import com.reco1l.verktex.ui.transitionSlot
 import com.reco1l.verktex.ui.FAIcon
 import com.reco1l.verktex.ui.Button
-import com.reco1l.verktex.ui.TextButton
+import com.reco1l.verktex.ui.IconButton
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.container.LinearContainer
 import com.reco1l.verktex.ui.control.Control
 import com.reco1l.verktex.ui.text.Text
-import com.reco1l.verktex.ui.text.faSolidIcon
 import com.reco1l.verktex.ui.themed
 
 /**
@@ -55,9 +54,8 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
     /**
      * The button that resets the value of the control to its default value.
      */
-    val resetButton = TextButton().apply {
-        text = "Reset"
-        leadingIcon = faSolidIcon(FAIcon.RotateLeft)
+    val resetButton = IconButton().apply {
+        icon = FAIcon.RotateLeft
         density = Button.Density.Small
         variant = Button.Variant.Soft
         onActionUp = { value = defaultValue }
@@ -69,6 +67,9 @@ abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearCon
     private val resetButtonHolder = object : Container() {
         override fun onInputEvent(event: InputEvent) = isResetShown && super.onInputEvent(event)
     }.apply {
+        // Centered with the label and what follows it, however many lines the label takes.
+        anchor = Anchor.CenterLeft
+        origin = Anchor.CenterLeft
         alpha = 0f
         translationX = RESET_BUTTON_OFFSET.dip
         +resetButton
