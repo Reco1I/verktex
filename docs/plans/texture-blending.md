@@ -75,8 +75,6 @@ premultiplied alpha below fixed.
 9. **Rules for new code.**
     - A new shader must output premultiplied colours and premultiply the straight colours it's given.
     - A new texture source must write premultiplied pixels (`Texture.PixelTarget` says so).
-    - The storyboard renderer (`../../../legacy/storyboard`), once rewritten on Verktex, must map its additive
-      parameter to `BlendMode.Additive` and not port straight alpha factors.
 10. **Unrelated failing tests.** `ColorInheritanceTest`, `PointerEventTest` and `ThemedValuesTest` in
     `:verktex:core:jvmTest` failed before any of this (`PointerEventTest` with "Platform implementation
     not initialized").

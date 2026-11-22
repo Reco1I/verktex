@@ -50,8 +50,6 @@ often poor), NDK 22.1.7171670 (ships Vulkan headers, `libvulkan.so` and `glslc` 
 | 11 | **Capabilities** only `maxTextureSize` from `GL_MAX_TEXTURE_SIZE` | `Device.Capabilities`, `ESDevice.refreshCapabilities` | Fill from `VkPhysicalDeviceLimits.maxImageDimension2D`; consider adding `supportsExternalTextures`, `maxVertexAttributes`. |
 | 12 | **Backend selection is GL-only** | `GPUBackend.kt`, `Android.kt`, `SettingsSections.kt`, `MainActivity.java`, `../src/com/acivev/utils/DevicePerfomanceUtils.kt` (GLES3 check) | Add `Vulkan` entry, fallback chain Vulkan → ES3 → ES2 on init failure. |
 
-Out of scope: `../legacy/storyboard` (`GLWrapped` etc.) is outside the source set and pending a rewrite on Verktex.
-
 ## Recommended design
 ### Native layer
 - New CMake target inside `:verktex:android` (`../android/src/main/cpp/vulkan`, `externalNativeBuild`), linking `vulkan`, `android`, `log`.
