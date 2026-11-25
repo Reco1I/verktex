@@ -393,4 +393,118 @@ class RendererCommandsTest {
         assertEquals(Vec4(4f, 4f, 92f, 42f), padded.clip!!.rect)
     }
 
+    // The vertices of a command of the UI layout: x, y, u, v, the packed color, and the mode.
+    private data class UIVertex(val x: Float, val y: Float, val u: Float, val v: Float, val color: Int, val mode: Int)
+
+    private fun uiVertices(command: DrawCommand): List<UIVertex> {
+        val buffer = command.buffer!!
+        return buffer.words.copyOf(buffer.wordCount).toList().chunked(Renderer.UI_VERTEX_STRIDE / 4).map { words ->
+            val float = { i: Int -> java.lang.Float.intBitsToFloat(words[i]) }
+            UIVertex(float(0), float(1), float(2), float(3), words[4], float(8).toInt() and 3)
+        }
+    }
+
+    @Test
+    fun aLargeRingIsDrawnAsABandAroundItsEmptyInside() {
+        val renderer = RecordingRenderer()
+
+        renderer.begin()
+        renderer.drawRect(0f, 0f, 200f, 200f, borderWidth = 6f, borderColor = Color4.White, radius = 100f)
+        renderer.end()
+
+        val vertices = uiVertices(renderer.commands.single())
+        // 16 sides for a radius of 100 pixels, a quad each, and nothing inside.
+        assertEquals(16 * 4, vertices.size)
+        assertTrue(vertices.all { it.mode == 0 })
+
+        // Inside the box, which it covers up to its edges, and no closer to the centre than the border.
+        assertTrue(vertices.all { it.x in -0.001f..200.001f && it.y in -0.001f..200.001f })
+        assertTrue(vertices.all { kotlin.math.hypot(it.x - 100f, it.y - 100f) >= 100f - 6f - 2f - 0.001f })
+        assertEquals(200f, vertices.maxOf { it.x }, 0.001f)
+        // The texture coordinates are those of the whole box.
+        assertTrue(vertices.all { kotlin.math.abs(it.u - it.x / 200f) < 0.0001f && kotlin.math.abs(it.v - it.y / 200f) < 0.0001f })
+    }
+
+    @Test
+    fun aLargeDiscFillsItsInsideWithoutTheShape() {
+        val renderer = RecordingRenderer()
+
+        renderer.begin()
+        renderer.drawRect(0f, 0f, 200f, 200f, color = Color4.White, radius = 100f)
+        renderer.end()
+
+        val vertices = uiVertices(renderer.commands.single())
+        // The band's 16 quads, then the inside's 7.
+        assertEquals((16 + 7) * 4, vertices.size)
+        assertTrue(vertices.take(16 * 4).all { it.mode == 0 })
+        assertTrue(vertices.drop(16 * 4).all { it.mode == 3 })
+    }
+
+    @Test
+    fun smallCirclesAndRoundedBoxesAreOneQuad() {
+        val renderer = RecordingRenderer()
+
+        renderer.begin()
+        renderer.drawRect(0f, 0f, 20f, 20f, color = Color4.White, radius = 10f)
+        // Not a circle: a pill.
+        renderer.drawRect(0f, 0f, 200f, 100f, color = Color4.White, radius = 50f)
+        renderer.end()
+
+        assertEquals(2 * 4, uiVertices(renderer.commands.single()).size)
+    }
+
+    @Test
+    fun aGlowAroundACircleSkipsTheShapeItIsCutOutOf() {
+        val renderer = RecordingRenderer()
+
+        // As Component.draw draws a cut out shadow of a 200 wide disc with a blur of 10.
+        renderer.begin()
+        renderer.drawRect(-10f, -10f, 220f, 220f, color = Color4.White, borderWidth = -1f, softness = 10f, inset = 10f, radius = 100f)
+        renderer.end()
+
+        val vertices = uiVertices(renderer.commands.single())
+        // 16 sides for its 110 pixels, a quad each, and nothing inside.
+        assertEquals(16 * 4, vertices.size)
+        assertTrue(vertices.all { it.mode == 2 })
+        assertTrue(vertices.all { kotlin.math.hypot(it.x - 100f, it.y - 100f) >= 100f - 2f - 0.001f })
+    }
+
+    @Test
+    fun aGradientCircleKeepsItsColorsAtTheVertices() {
+        val renderer = RecordingRenderer()
+        val top = Color4(1f, 0f, 0f, 1f)
+        val bottom = Color4(0f, 0f, 1f, 1f)
+
+        renderer.begin()
+        renderer.drawGradientRect(0f, 0f, 200f, 200f, top, top, bottom, bottom, radius = 100f)
+        renderer.end()
+
+        val vertices = uiVertices(renderer.commands.single())
+        assertTrue(vertices.size > 4)
+        for (vertex in vertices) {
+            val red = vertex.color and 0xFF
+            val blue = (vertex.color ushr 16) and 0xFF
+            assertEquals((255 * (1f - vertex.v)).toDouble(), red.toDouble(), 1.0)
+            assertEquals((255 * vertex.v).toDouble(), blue.toDouble(), 1.0)
+        }
+    }
+
+    @Test
+    fun linesShareTheBatchOfBoxes() {
+        val renderer = RecordingRenderer()
+
+        renderer.begin()
+        renderer.drawRect(0f, 0f, 10f, 10f, color = Color4.White, radius = 5f)
+        renderer.drawLine(0f, 0f, 10f, 0f, 2f, Color4.White)
+        renderer.drawRect(0f, 0f, 10f, 10f, color = Color4.White, radius = 5f)
+        renderer.end()
+
+        val command = renderer.commands.single()
+        assertSame(ui, command.shader)
+
+        // The line's quad, grown by a pixel around it.
+        val line = uiVertices(command).subList(4, 8)
+        assertEquals(listOf(-1f to -2f, 11f to -2f, 11f to 2f, -1f to 2f), line.map { it.x to it.y })
+    }
+
 }

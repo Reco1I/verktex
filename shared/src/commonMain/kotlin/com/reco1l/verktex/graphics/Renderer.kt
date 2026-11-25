@@ -811,6 +811,10 @@ abstract class Renderer {
             return
         }
 
+        if (addSlicedUICircle(buffer, transform, x, y, width, height, c0, c1, c2, c3)) {
+            return
+        }
+
         val p = points
         transform.transform(x, y, p, 0)
         transform.transform(x + width, y, p, 2)
@@ -847,9 +851,9 @@ abstract class Renderer {
             return false
         }
 
-        // The size of a local unit on screen. The antialiased edge is about a pixel wide whatever
-        // the scale, so the inside starts two pixels in from the shape.
-        val scale = sqrt(min(transform.a * transform.a + transform.b * transform.b, transform.c * transform.c + transform.d * transform.d))
+        // The antialiased edge is about a pixel wide whatever the scale, so the inside starts two
+        // pixels in from the shape.
+        val scale = pixelScale(transform)
         if (scale <= 0f || width * height * scale * scale < MIN_SLICED_UI_BOX_AREA) {
             return false
         }
@@ -914,6 +918,207 @@ abstract class Renderer {
         buffer.addUIVertex(p[2], p[3], u1, v0, color, box)
         buffer.addUIVertex(p[4], p[5], u1, v1, color, box)
         buffer.addUIVertex(p[6], p[7], u0, v1, color, box)
+    }
+
+    /**
+     * Draws the box set by [uiBox] when it's a circle, whose corners leave no inside for
+     * [addSlicedUIBox]: as a band of quads along its edge, where the shape, the border and the
+     * antialiasing are, around a polygon inside it filled with the color alone (UI_MODE_FILL), or
+     * not drawn at all when nothing is drawn there (a ring's transparent inside, the shape a glow
+     * is cut out of). Soft circles (shadows, glows) are sliced likewise around their soft edge.
+     * The polygons have more sides on larger circles, so the band stays thin: a ring scaled up on
+     * screen otherwise runs the shape for every pixel of its square, most of them transparent.
+     *
+     * The outer polygon lies inside the box's quad and covers what the shader draws of it, and the
+     * colors at the corners must be those of a linear gradient (or a single color), which the
+     * polygons' vertices then take exactly, so it's drawn exactly as the whole quad would. Returns
+     * false, without drawing, otherwise, for a small circle, or while writing depth.
+     */
+    private fun addSlicedUICircle(
+        buffer: Buffer, transform: Mat2,
+        x: Float, y: Float, width: Float, height: Float,
+        c0: Int, c1: Int, c2: Int, c3: Int
+    ): Boolean {
+        val box = uiBox
+        val boxFlags = box[3]
+        val mode = boxFlags.toInt() and 3
+        if (mode != UI_MODE_BOX && mode != UI_MODE_SOFT_BOX) {
+            return false
+        }
+
+        val depthState = depthStateStack.lastOrNull() ?: DepthState.Default
+        if (depthState.enabled && depthState.writeEnabled) {
+            return false
+        }
+
+        val scale = pixelScale(transform)
+        if (scale <= 0f || width * height * scale * scale < MIN_SLICED_UI_BOX_AREA) {
+            return false
+        }
+
+        // The shape is inside the quad by the inset of a soft box, see ui.frag.
+        val isSoft = mode == UI_MODE_SOFT_BOX
+        val inset = if (isSoft) box[9] else 0f
+        val shapeWidth = width - 2f * inset
+        val shapeHeight = height - 2f * inset
+        if (shapeWidth <= 0f || abs(shapeWidth - shapeHeight) > shapeWidth * 0.001f) {
+            return false
+        }
+
+        // A circle when every corner is rounded by at least half its size, which the shader
+        // reduces them to.
+        val radius = min(shapeWidth, shapeHeight) / 2f
+        val minRadius = radius * 0.999f
+        if (box[4] < minRadius || box[5] < minRadius || box[6] < minRadius || box[7] < minRadius) {
+            return false
+        }
+
+        if (!isLinearGradient(c0, c1, c2, c3)) {
+            return false
+        }
+
+        val margin = 2f / scale
+        val softness = if (isSoft) box[8] else 0f
+        val borderWidth = box[2]
+
+        // How far from the centre something is drawn: the antialiased edge or the soft one, never
+        // past the quad, which the outer polygon stays inside of.
+        val outer = min(radius + softness + margin, min(width, height) / 2f)
+
+        // From how far from the centre every pixel is alike: filled with the color, or empty.
+        val inner: Float
+        val isInsideFilled: Boolean
+        if (isSoft && borderWidth < 0f) {
+            // A glow, cut out of its shape.
+            inner = radius - margin
+            isInsideFilled = false
+        } else if (isSoft) {
+            inner = radius - softness - margin
+            isInsideFilled = true
+        } else {
+            inner = radius - max(borderWidth, 0f) - margin
+            isInsideFilled = (c0 ushr 24) != 0 || (c1 ushr 24) != 0 || (c2 ushr 24) != 0 || (c3 ushr 24) != 0
+        }
+
+        // Too little inside to be worth the vertices.
+        if (inner < outer * MIN_SLICED_UI_CIRCLE_INSIDE) {
+            return false
+        }
+
+        val outerPixels = outer * scale
+        val sides = when {
+            outerPixels < 48f -> 8
+            outerPixels < 160f -> 16
+            else -> 32
+        }
+        val directions = circleDirections(sides)
+
+        val centerX = x + width / 2f
+        val centerY = y + height / 2f
+
+        // The outer polygon is around the circle of radius outer, its sides touching it, and the
+        // inner one inside the circle of radius inner, its corners on it. Their corners are half a
+        // side away from the axes, so the sides of the outer one along the axes are on the edges
+        // of the quad, as far as it can go.
+        val outerCorner = outer / cos(PI_F / sides)
+
+        // The band: a quad between each side of the outer polygon and the same side of the inner.
+        for (i in 0 until sides) {
+            val j = if (i + 1 == sides) 0 else i + 1
+            val cosI = directions[i * 2]
+            val sinI = directions[i * 2 + 1]
+            val cosJ = directions[j * 2]
+            val sinJ = directions[j * 2 + 1]
+
+            addUICircleVertex(buffer, transform, x, y, width, height, centerX + cosI * outerCorner, centerY + sinI * outerCorner, c0, c1, c3)
+            addUICircleVertex(buffer, transform, x, y, width, height, centerX + cosJ * outerCorner, centerY + sinJ * outerCorner, c0, c1, c3)
+            addUICircleVertex(buffer, transform, x, y, width, height, centerX + cosJ * inner, centerY + sinJ * inner, c0, c1, c3)
+            addUICircleVertex(buffer, transform, x, y, width, height, centerX + cosI * inner, centerY + sinI * inner, c0, c1, c3)
+        }
+
+        if (isInsideFilled) {
+            box[3] = UI_MODE_FILL.toFloat()
+
+            // The inner polygon as a fan of quads from its first corner.
+            val firstX = centerX + directions[0] * inner
+            val firstY = centerY + directions[1] * inner
+            var k = 1
+            while (k + 2 < sides) {
+                addUICircleVertex(buffer, transform, x, y, width, height, firstX, firstY, c0, c1, c3)
+                for (corner in k..k + 2) {
+                    addUICircleVertex(
+                        buffer, transform, x, y, width, height,
+                        centerX + directions[corner * 2] * inner, centerY + directions[corner * 2 + 1] * inner,
+                        c0, c1, c3
+                    )
+                }
+                k += 2
+            }
+
+            box[3] = boxFlags
+        }
+        return true
+    }
+
+    // A vertex of a sliced circle at (localX, localY) in its box's space, with the texture
+    // coordinates and the color the whole box has there. The color follows the gradient from the
+    // top left corner (c0) to the top right (c1) and the bottom left (c3).
+    private fun addUICircleVertex(
+        buffer: Buffer, transform: Mat2,
+        x: Float, y: Float, width: Float, height: Float,
+        localX: Float, localY: Float,
+        c0: Int, c1: Int, c3: Int
+    ) {
+        val p = points
+        transform.transform(localX, localY, p, 0)
+
+        val u = (localX - x) / width
+        val v = (localY - y) / height
+
+        val color = if (c0 == c1 && c0 == c3) c0 else lerpPackedColor(c0, c1, c3, u, v)
+        buffer.addUIVertex(p[0], p[1], u, v, color, uiBox)
+    }
+
+    // The size of a local unit on screen, the smaller of the axes'.
+    private fun pixelScale(transform: Mat2): Float =
+        sqrt(min(transform.a * transform.a + transform.b * transform.b, transform.c * transform.c + transform.d * transform.d))
+
+    // Whether the colors at the corners (top left, top right, bottom right, bottom left) are those
+    // of a linear gradient, whose opposite corners add up to the same, within their rounding.
+    private fun isLinearGradient(c0: Int, c1: Int, c2: Int, c3: Int): Boolean {
+        if (c0 == c1 && c1 == c2 && c2 == c3) {
+            return true
+        }
+        for (shift in 0 until 32 step 8) {
+            val sum02 = ((c0 ushr shift) and 0xFF) + ((c2 ushr shift) and 0xFF)
+            val sum13 = ((c1 ushr shift) and 0xFF) + ((c3 ushr shift) and 0xFF)
+            if (abs(sum02 - sum13) > 2) {
+                return false
+            }
+        }
+        return true
+    }
+
+    // The packed color at (u, v) of the linear gradient from c0 at (0, 0) to c1 at (1, 0) and c3
+    // at (0, 1), clamped as it may be outside the box.
+    private fun lerpPackedColor(c0: Int, c1: Int, c3: Int, u: Float, v: Float): Int {
+        var result = 0
+        for (shift in 0 until 32 step 8) {
+            val a = ((c0 ushr shift) and 0xFF).toFloat()
+            val b = ((c1 ushr shift) and 0xFF).toFloat()
+            val c = ((c3 ushr shift) and 0xFF).toFloat()
+            val channel = (a + (b - a) * u + (c - a) * v).roundToInt().coerceIn(0, 255)
+            result = result or (channel shl shift)
+        }
+        return result
+    }
+
+    // The cos and sin of the corners of a polygon of the given sides, half a side away from the
+    // axes, see addSlicedUICircle.
+    private fun circleDirections(sides: Int): FloatArray = when (sides) {
+        8 -> CIRCLE_DIRECTIONS_8
+        16 -> CIRCLE_DIRECTIONS_16
+        else -> CIRCLE_DIRECTIONS_32
     }
 
     //endregion
@@ -1095,6 +1300,9 @@ abstract class Renderer {
 
     /**
      * Draws a line between two points with the specified width and color.
+     *
+     * It's a box along the line drawn by the UI shader, which antialiases its edges, so lines
+     * share the batches of boxes and text instead of breaking them.
      */
     fun drawLine(
         x1: Float,
@@ -1107,33 +1315,48 @@ abstract class Renderer {
         val length = hypot(x2 - x1, y2 - y1)
         if (length <= 0f || lineWidth <= 0f) return
 
-        setState(
-            shader = BuiltIn.Shaders.SolidQuad,
-            uniformSet = EMPTY_UNIFORMS
+        setUIState(null)
+
+        setUIBox(
+            length, lineWidth, 0f, UI_MODE_BOX,
+            0f, 0f, 0f, 0f,
+            Color4.Transparent, Color4.Transparent, Color4.Transparent, Color4.Transparent,
+            0f, 0f
         )
 
-        drawGeometry { transform, _ ->
-            val color = transformColorPacked(color)
+        val buffer = activeBuffer ?: throw IllegalStateException("No active vertex buffer to draw geometry.")
+        val transform = matrixStack.lastOrNull() ?: Mat2.Identity
 
-            // Perpendicular offset of half the line width.
-            val nx = -(y2 - y1) / length * lineWidth / 2f
-            val ny = (x2 - x1) / length * lineWidth / 2f
+        // Grown by a pixel on every side, where the shader fades the edges out, so the edges are
+        // antialiased across them and the line keeps its width.
+        val scale = pixelScale(transform)
+        val margin = if (scale > 0f) 1f / scale else 0f
 
-            val p = points
+        // Along the line, and across it by half its width and the margin.
+        val dx = (x2 - x1) / length
+        val dy = (y2 - y1) / length
+        val alongX = dx * margin
+        val alongY = dy * margin
+        val acrossX = -dy * (lineWidth / 2f + margin)
+        val acrossY = dx * (lineWidth / 2f + margin)
 
-            transform.transform(x1 + nx, y1 + ny, p, 0)
-            transform.transform(x2 + nx, y2 + ny, p, 2)
-            transform.transform(x2 - nx, y2 - ny, p, 4)
-            transform.transform(x1 - nx, y1 - ny, p, 6)
+        val u0 = -margin / length
+        val u1 = 1f + margin / length
+        val v0 = -margin / lineWidth
+        val v1 = 1f + margin / lineWidth
 
-            addVertex(p[0], p[1], 0.5f, 0.5f, color)
-            addVertex(p[2], p[3], 0.5f, 0.5f, color)
-            addVertex(p[4], p[5], 0.5f, 0.5f, color)
+        val p = points
+        transform.transform(x1 - alongX - acrossX, y1 - alongY - acrossY, p, 0)
+        transform.transform(x2 + alongX - acrossX, y2 + alongY - acrossY, p, 2)
+        transform.transform(x2 + alongX + acrossX, y2 + alongY + acrossY, p, 4)
+        transform.transform(x1 - alongX + acrossX, y1 - alongY + acrossY, p, 6)
 
-            addVertex(p[0], p[1], 0.5f, 0.5f, color)
-            addVertex(p[4], p[5], 0.5f, 0.5f, color)
-            addVertex(p[6], p[7], 0.5f, 0.5f, color)
-        }
+        val fill = transformColorPacked(color)
+        val box = uiBox
+        buffer.addUIVertex(p[0], p[1], u0, v0, fill, box)
+        buffer.addUIVertex(p[2], p[3], u1, v0, fill, box)
+        buffer.addUIVertex(p[4], p[5], u1, v1, fill, box)
+        buffer.addUIVertex(p[6], p[7], u0, v1, fill, box)
     }
 
     // The points of the last arc on a unit circle, cos and sin of each segment boundary. Arcs of
@@ -1573,6 +1796,25 @@ abstract class Renderer {
         // those whose inside is less than this fraction of them.
         private const val MIN_SLICED_UI_BOX_AREA = 64f * 64f
         private const val MIN_SLICED_UI_BOX_INSIDE = 0.25f
+
+        // Circles whose inside is less than this fraction of their radius aren't sliced, see
+        // addSlicedUICircle.
+        private const val MIN_SLICED_UI_CIRCLE_INSIDE = 0.3f
+
+        private const val PI_F = kotlin.math.PI.toFloat()
+
+        // The corners of the polygons of sliced circles, see circleDirections.
+        private val CIRCLE_DIRECTIONS_8 = polygonDirections(8)
+        private val CIRCLE_DIRECTIONS_16 = polygonDirections(16)
+        private val CIRCLE_DIRECTIONS_32 = polygonDirections(32)
+
+        private fun polygonDirections(sides: Int) = FloatArray(sides * 2).also {
+            for (i in 0 until sides) {
+                val angle = PI_F * (2 * i + 1) / sides
+                it[i * 2] = cos(angle)
+                it[i * 2 + 1] = sin(angle)
+            }
+        }
 
         // The box of every glyph, of which only the mode is read.
         private val UI_TEXT_BOX = FloatArray(UI_BOX_FLOATS).also { it[3] = UI_MODE_TEXT.toFloat() }
