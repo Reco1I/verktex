@@ -1,13 +1,16 @@
 package com.reco1l.verktex.android
 
+import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Build
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Font
+import com.reco1l.verktex.fonts.GlyphCoverage
 import com.reco1l.verktex.graphics.Texture
 import androidx.core.graphics.createBitmap
+import java.nio.ByteBuffer
 
 class AndroidFont(
     private val typeface: Typeface,
@@ -87,6 +90,36 @@ class AndroidFont(
             bearingY = bearingY,
             region = addGlyphSource(AndroidTextureSource(bitmap)),
         )
+    }
+
+    override fun createCoverage(codePoint: Int): GlyphCoverage? {
+        val characters = Character.toChars(codePoint)
+
+        paint.getTextBounds(characters, 0, characters.size, rect)
+        if (rect.isEmpty) return null
+
+        val width = rect.width()
+        val height = rect.height()
+
+        // The glyph as onCreateGlyph draws it, its alpha alone.
+        val bitmap = createBitmap(width, height, Bitmap.Config.ALPHA_8)
+        canvas.setBitmap(bitmap)
+        canvas.drawText(String(characters), -rect.left.toFloat(), -rect.top.toFloat(), paint)
+        canvas.setBitmap(null)
+
+        // Rows can be padded past the width.
+        val rowBytes = bitmap.rowBytes
+        val buffer = ByteBuffer.allocate(rowBytes * height)
+        bitmap.copyPixelsToBuffer(buffer)
+        bitmap.recycle()
+
+        val alpha = ByteArray(width * height)
+        for (y in 0 until height) {
+            buffer.position(y * rowBytes)
+            buffer.get(alpha, y * width, width)
+        }
+
+        return GlyphCoverage(width, height, rect.left, rect.top, alpha)
     }
 
     override fun getKerning(first: Int, second: Int): Float {

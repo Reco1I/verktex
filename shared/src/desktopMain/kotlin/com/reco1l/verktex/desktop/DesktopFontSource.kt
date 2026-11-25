@@ -3,6 +3,7 @@ package com.reco1l.verktex.desktop
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.fonts.Font
 import com.reco1l.verktex.fonts.FontFamily
+import com.reco1l.verktex.fonts.GlyphCoverage
 import com.reco1l.verktex.graphics.Texture
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -199,14 +200,46 @@ class DesktopFont(
         return Verktex.graphics.createTexture(pageSize, pageSize)
     }
 
-    override fun onCreateGlyph(codePoint: Int): Glyph = synchronized(source) {
+    override fun onCreateGlyph(codePoint: Int): Glyph {
+        val (advance, glyph) = rasterize(codePoint)
+        if (glyph == null) {
+            // No visible representation (e.g. a space), only its advance.
+            return Glyph(codePoint = codePoint, advance = advance)
+        }
+
+        // The atlas packs glyphs edge to edge, and text is drawn at fractional positions, where
+        // linear filtering reads half a texel past the glyph. A transparent border keeps it from
+        // reading the neighbouring glyph, the box grows by it on every side.
+        return Glyph(
+            codePoint = codePoint,
+            advance = advance,
+            width = (glyph.width + 2 * BORDER).toFloat(),
+            height = (glyph.height + 2 * BORDER).toFloat(),
+            bearingX = (glyph.left - BORDER).toFloat(),
+            bearingY = (glyph.top - BORDER).toFloat(),
+            region = addGlyphSource(glyph.toTextureSource()),
+        )
+    }
+
+    override fun createCoverage(codePoint: Int): GlyphCoverage? {
+        val glyph = rasterize(codePoint).second ?: return null
+        val alpha = ByteArray(glyph.width * glyph.height)
+        glyph.coverage.duplicate().apply { rewind() }.get(alpha)
+        return GlyphCoverage(glyph.width, glyph.height, glyph.left, glyph.top, alpha)
+    }
+
+    /**
+     * The advance of the glyph of [codePoint] and its bitmap, null when it has no visible
+     * representation.
+     */
+    private fun rasterize(codePoint: Int): Pair<Float, GlyphBitmap?> = synchronized(source) {
         MemoryStack.stackPush().use { stack ->
             source.prepare(descriptor, stack)
 
             val face = source.face
             // Light hinting, as Android's slight: snapped vertically only, advances keep their widths.
             if (FT_Load_Char(face, codePoint.toLong(), FT_LOAD_TARGET_LIGHT) != FT_Err_Ok) {
-                return Glyph(codePoint = codePoint, advance = 0f)
+                return 0f to null
             }
 
             val slot = face.glyph()!!
@@ -219,7 +252,7 @@ class DesktopFont(
                     FT_Outline_Embolden(slot.outline(), emboldenStrength)
                 }
                 if (FT_Render_Glyph(slot, FT_RENDER_MODE_LIGHT) != FT_Err_Ok) {
-                    return Glyph(codePoint = codePoint, advance = advance)
+                    return advance to null
                 }
             }
 
@@ -228,8 +261,7 @@ class DesktopFont(
             val height = bitmap.rows()
 
             if (width <= 0 || height <= 0 || bitmap.pixel_mode().toInt() != FT_PIXEL_MODE_GRAY) {
-                // No visible representation (e.g. a space), only its advance.
-                return Glyph(codePoint = codePoint, advance = advance)
+                return advance to null
             }
 
             // FreeType's rows may be padded, or go upwards with a negative pitch.
@@ -247,24 +279,11 @@ class DesktopFont(
             val top = -slot.bitmap_top()
             val left = slot.bitmap_left()
 
-            val glyph = if (skew == 0f) {
-                GlyphBitmap(coverage, width, height, left)
+            advance to if (skew == 0f) {
+                GlyphBitmap(coverage, width, height, left, top)
             } else {
                 skewed(coverage, width, height, left, top)
             }
-
-            // The atlas packs glyphs edge to edge, and text is drawn at fractional positions, where
-            // linear filtering reads half a texel past the glyph. A transparent border keeps it from
-            // reading the neighbouring glyph, the box grows by it on every side.
-            Glyph(
-                codePoint = codePoint,
-                advance = advance,
-                width = (glyph.width + 2 * BORDER).toFloat(),
-                height = (height + 2 * BORDER).toFloat(),
-                bearingX = (glyph.left - BORDER).toFloat(),
-                bearingY = (top - BORDER).toFloat(),
-                region = addGlyphSource(glyph.toTextureSource()),
-            )
         }
     }
 
@@ -274,7 +293,7 @@ class DesktopFont(
     }
 
 
-    private class GlyphBitmap(val coverage: ByteBuffer, val width: Int, val height: Int, val left: Int) {
+    private class GlyphBitmap(val coverage: ByteBuffer, val width: Int, val height: Int, val left: Int, val top: Int) {
 
         // White with the coverage as alpha, premultiplied as textures are, inside a transparent border
         // of BORDER pixels.
@@ -326,7 +345,7 @@ class DesktopFont(
             }
         }
 
-        return GlyphBitmap(result, newWidth, height, newLeft)
+        return GlyphBitmap(result, newWidth, height, newLeft, top)
     }
 
     private fun sample(coverage: ByteBuffer, width: Int, row: Int, column: Int): Float {

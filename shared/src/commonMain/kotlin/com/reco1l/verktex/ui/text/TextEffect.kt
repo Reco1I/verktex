@@ -7,14 +7,16 @@ import com.reco1l.verktex.data.px
 /**
  * An effect drawn under the glyphs of a [Text], see [Text.effects].
  *
- * Effects are copies of the glyphs drawn offset in the effect's color: they need no offscreen pass,
- * and cost a draw of the text per copy, so the soft ones ([Glow], a [Shadow] with a softness) are
- * meant for short text such as headings, letters or numbers.
+ * Each effect is a copy of the text in the effect's color, drawn with glyphs grown or blurred once
+ * per glyph and kept in an atlas of their own ([com.reco1l.verktex.fonts.Font.withEffect]): an effect
+ * costs a draw of the text whatever its radius, and an offscreen pass never. The first time a glyph
+ * is drawn with an effect it's changed on the CPU, which takes longer the larger the glyph and the
+ * radius.
  */
 sealed class TextEffect {
 
     /**
-     * A copy of the text in [color] moved by [offsetX] and [offsetY], blurred by [softness] when it
+     * A copy of the text in [color] moved by [offsetX] and [offsetY], blurred over [softness] when it
      * isn't zero.
      */
     data class Shadow(

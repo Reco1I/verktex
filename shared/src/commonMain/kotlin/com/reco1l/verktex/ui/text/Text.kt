@@ -17,13 +17,10 @@ import com.reco1l.verktex.ui.Canvas
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.fonts.Fonts
+import com.reco1l.verktex.fonts.GlyphEffect
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.data.Color4
-import kotlin.math.PI
-import kotlin.math.ceil
-import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.sin
 
 
 // The key of the locale binding of a text.
@@ -643,79 +640,43 @@ open class Text : Canvas() {
     }
 
     /**
-     * Draws the glyphs of every fragment in [color], moved by [dx] and [dy].
+     * Draws the glyphs of every fragment changed by [effect] (as they are without one) in [color],
+     * moved by [dx] and [dy].
      */
-    private fun drawCopy(renderer: Renderer, color: Color4, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
+    private fun drawCopy(renderer: Renderer, effect: GlyphEffect?, color: Color4, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
         forEachFragment(left, top, contentWidth) { fragment, x, _, _, y ->
             if (fragment.text.isNotEmpty()) {
-                renderer.drawText(fragment.text, fragment.font, x + dx, y + dy, color)
+                val font = if (effect != null) fragment.font.withEffect(effect) else fragment.font
+                renderer.drawText(fragment.text, font, x + dx, y + dy, color)
             }
         }
     }
 
-    /**
-     * Draws copies in [color] around the glyphs on a circle of [radius], centered [dx] and [dy] away.
-     */
-    private fun drawRing(renderer: Renderer, color: Color4, radius: Float, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
-        // About one copy every two pixels of the circle, so the ring has no gaps.
-        val taps = ceil(2f * PI.toFloat() * radius / 2f).toInt().coerceIn(MIN_RING_TAPS, MAX_RING_TAPS)
-
-        for (i in 0 until taps) {
-            val angle = 2f * PI.toFloat() * i / taps
-            drawCopy(renderer, color, dx + cos(angle) * radius, dy + sin(angle) * radius, left, top, contentWidth)
-        }
-    }
-
-    /**
-     * Draws a halo of [color] fading out over [radius] around the glyphs, centered [dx] and [dy] away:
-     * rings of copies growing and fading, which approximate a blur.
-     */
-    private fun drawSoft(renderer: Renderer, color: Color4, radius: Float, intensity: Float, dx: Float, dy: Float, left: Float, top: Float, contentWidth: Float) {
-        val rings = ceil(radius / SOFT_RING_SPACING).toInt().coerceIn(1, MAX_SOFT_RINGS)
-
-        // Each ring is fainter than the one inside it, the copies of the inner ones add up near the glyphs.
-        for (ring in rings downTo 1) {
-            val fraction = ring / rings.toFloat()
-            val alpha = color.alpha * effectsAlpha * intensity * SOFT_TAP_ALPHA * (1f - fraction + 1f / rings)
-            drawRing(renderer, color.alpha(alpha), radius * fraction, dx, dy, left, top, contentWidth)
-        }
-
-        drawCopy(renderer, color.alpha(color.alpha * effectsAlpha * intensity * SOFT_TAP_ALPHA), dx, dy, left, top, contentWidth)
-    }
-
+    // Each effect is one copy of the text, in a font whose glyphs were changed once, see Font.withEffect.
     private fun drawEffect(renderer: Renderer, effect: TextEffect, left: Float, top: Float, contentWidth: Float) {
         when (effect) {
             is TextEffect.Shadow -> {
-                val dx = effect.offsetX.toPixels()
-                val dy = effect.offsetY.toPixels()
                 val softness = effect.softness.toPixels()
+                val color = effect.color.alpha(effect.color.alpha * effectsAlpha)
+                val blur = if (softness > 0f) GlyphEffect.blur(softness) else null
 
-                if (softness > 0f) {
-                    drawSoft(renderer, effect.color, softness, 1f, dx, dy, left, top, contentWidth)
-                } else {
-                    drawCopy(renderer, effect.color.alpha(effect.color.alpha * effectsAlpha), dx, dy, left, top, contentWidth)
-                }
+                drawCopy(renderer, blur, color, effect.offsetX.toPixels(), effect.offsetY.toPixels(), left, top, contentWidth)
             }
 
             is TextEffect.Outline -> {
                 val width = effect.width.toPixels()
                 if (width <= 0f) return
 
-                val color = effect.color.alpha(effect.color.alpha * effectsAlpha)
-
-                // Inner rings fill what's between the glyph and the outer one in wide outlines.
-                var radius = width
-                while (radius > 0f) {
-                    drawRing(renderer, color, radius, 0f, 0f, left, top, contentWidth)
-                    radius -= OUTLINE_RING_SPACING
-                }
+                drawCopy(renderer, GlyphEffect.dilate(width), effect.color.alpha(effect.color.alpha * effectsAlpha), 0f, 0f, left, top, contentWidth)
             }
 
             is TextEffect.Glow -> {
                 val radius = effect.radius.toPixels()
-                if (radius > 0f) {
-                    drawSoft(renderer, effect.color, radius, effect.intensity, 0f, 0f, left, top, contentWidth)
-                }
+                if (radius <= 0f) return
+
+                // Strong near the glyphs, where a plain blur is half as opaque as them.
+                val blur = GlyphEffect.blur(radius, GLOW_GAIN * effect.intensity)
+                drawCopy(renderer, blur, effect.color.alpha(effect.color.alpha * effectsAlpha), 0f, 0f, left, top, contentWidth)
             }
         }
     }
@@ -775,17 +736,8 @@ private const val CELL_NEWLINE = 2
 // How far, in pixels, a line can go past the available width before it breaks.
 private const val LINE_BREAK_TOLERANCE = 0.01f
 
-// The copies on a ring of an effect, see Text.drawRing.
-private const val MIN_RING_TAPS = 8
-private const val MAX_RING_TAPS = 32
-
-// The distance in pixels between the rings of an outline, and of a glow or a soft shadow.
-private const val OUTLINE_RING_SPACING = 1.5f
-private const val SOFT_RING_SPACING = 3f
-private const val MAX_SOFT_RINGS = 6
-
-// The alpha of each copy of a glow or a soft shadow, before its ring's fading.
-private const val SOFT_TAP_ALPHA = 0.12f
+// How much a glow multiplies the coverage of the blurred glyphs.
+private const val GLOW_GAIN = 2f
 
 fun faRegularIcon(code: Int) = Text.IconLookup(code, BuiltIn.Fonts.FontAwesomeIconRegular)
 fun faSolidIcon(code: Int) = Text.IconLookup(code, BuiltIn.Fonts.FontAwesomeIconSolid)

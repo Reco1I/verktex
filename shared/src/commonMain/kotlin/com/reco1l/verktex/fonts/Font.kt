@@ -72,8 +72,29 @@ abstract class Font {
         return region
     }
 
+    private val effectFonts = mutableMapOf<GlyphEffect, Font>()
+
     /**
-     * Disposes every atlas page and forgets the glyphs. The font must not be drawn afterwards.
+     * This font with its glyphs changed by [effect], e.g. grown for an outline or blurred for a glow,
+     * with its own atlas pages: each glyph is changed once, when it's first drawn, so drawing text
+     * with it costs the same as drawing it with this font. It lines up with this font's text.
+     *
+     * Its glyphs have no image where [createCoverage] gives none.
+     */
+    fun withEffect(effect: GlyphEffect): Font {
+        return effectFonts.getOrPut(effect) { EffectFont(this, effect) }
+    }
+
+    /**
+     * The coverage of the glyph of [codePoint], which [withEffect] changes. Null when it has no
+     * visible representation, or when the font can't give it.
+     */
+    open fun createCoverage(codePoint: Int): GlyphCoverage? = null
+
+
+    /**
+     * Disposes every atlas page, of its effects' fonts as well, and forgets the glyphs. The font must
+     * not be drawn afterwards.
      */
     fun dispose() {
         for (page in mutablePages) {
@@ -81,6 +102,11 @@ abstract class Font {
         }
         mutablePages.clear()
         glyphs.clear()
+
+        for (font in effectFonts.values) {
+            font.dispose()
+        }
+        effectFonts.clear()
     }
 
 
