@@ -162,14 +162,14 @@ androidComponents {
 // pick a newer one of the same major versions (avformat 62, avcodec 62, avutil 60, swscale 9) and
 // update the release, the assets and the checksums. FFmpegVideoDecoder reads structs at the offsets
 // of these versions and refuses others.
-val ffmpegRelease = "autobuild-2026-11-10-12-39"
+val ffmpegRelease = "autobuild-2026-11-24-12-41"
 val ffmpegBuilds = mapOf(
-    "win32-x86-64" to ("ffmpeg-n8.1.3-34-ga35157abb9-win64-lgpl-shared-8.1.zip" to
-        "3045c2213ed8cbb05edf0d5a631b4490061de3b7567ec145644156e7c98da2c6"),
-    "linux-x86-64" to ("ffmpeg-n8.1.3-34-ga35157abb9-linux64-lgpl-shared-8.1.tar.xz" to
-        "cde02ff1124f60f36dd732bbf6cbe3ff3646e95c7fc0f11736cb92e05e90a485"),
-    "linux-aarch64" to ("ffmpeg-n8.1.3-34-ga35157abb9-linuxarm64-lgpl-shared-8.1.tar.xz" to
-        "7bd06a245816c2c84d8ef2d90e34e6a4609b70dd1c958d676182942c1defda5f"),
+    "win32-x86-64" to ("ffmpeg-n8.1.3-41-ga8029b6528-win64-lgpl-shared-8.1.zip" to
+        "dbed3e64d68de76472bf2cd0b0f3250384fb96bac14b635a708e998f6e1d6996"),
+    "linux-x86-64" to ("ffmpeg-n8.1.3-41-ga8029b6528-linux64-lgpl-shared-8.1.tar.xz" to
+        "8d6114c1a6dfd92e0eb383c1a3064b6ef062a53cd9c0fc286f3ee44845192775"),
+    "linux-aarch64" to ("ffmpeg-n8.1.3-41-ga8029b6528-linuxarm64-lgpl-shared-8.1.tar.xz" to
+        "efaa5e961dd929e6f6e1c39d868fe7105f46d861faceed03d15f7a26401f496b"),
 )
 
 // JNA's name for the platform, which FFmpegVideoDecoder looks the libraries up under.
