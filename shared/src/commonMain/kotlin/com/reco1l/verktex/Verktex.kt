@@ -288,6 +288,8 @@ object Verktex {
             PerformanceStats.updateTime = (monotonicNanos() - updateStartNanos) / 1_000_000f
         }
 
+        PerformanceStats.onUpdateEnd()
+
         Settings.update()
     }
 

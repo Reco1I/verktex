@@ -170,11 +170,18 @@ class PathShape : Canvas() {
     private var endCapStart = 0
     private var segmentAngles = FloatArray(0)
 
+    // The segments of the path, which the arrays above can be bigger than.
+    private var segmentCount = 0
+
     // The partial segments and caps of the drawn part.
     private val piece = MeshBuilder()
     private var isPieceDirty = true
     private var rangeStart = 0
     private var rangeEnd = 0
+
+    // Where the drawn part starts and ends, x and y.
+    private val startPoint = FloatArray(2)
+    private val endPoint = FloatArray(2)
 
     private var meshBuffer: Buffer? = null
     private var pieceBuffer: Buffer? = null
@@ -213,15 +220,15 @@ class PathShape : Canvas() {
             isPieceUploaded = true
         }
 
+        val uniforms = obtainUniforms(renderer)
         val transform = renderer.currentTransform
 
         // Column-major, with the 2D transformation in the X and Y axes.
-        val matrix = floatArrayOf(
-            transform.a, transform.b, 0f, 0f,
-            transform.c, transform.d, 0f, 0f,
-            0f, 0f, 1f, 0f,
-            transform.tx, transform.ty, 0f, 1f
-        )
+        uniforms.matrix.let {
+            it[0] = transform.a; it[1] = transform.b
+            it[4] = transform.c; it[5] = transform.d
+            it[12] = transform.tx; it[13] = transform.ty
+        }
 
         // The bands, as distances from the centre line out of the mesh's radius.
         val radius = meshRadius
@@ -229,43 +236,76 @@ class PathShape : Canvas() {
         val bodyWidth = halfWidth - clampedBorder
         val clampedHint = hintWidth.coerceIn(0f, bodyWidth)
 
-        val content = contentColor
+        writeShaderColor(renderer, hintColor, uniforms.hintColor)
+        writeShaderColor(renderer, bodyCenterColor ?: bodyColor, uniforms.bodyCenterColor)
+        writeShaderColor(renderer, bodyColor, uniforms.bodyColor)
+        writeShaderColor(renderer, borderColor, uniforms.borderColor)
+        writeShaderColor(renderer, shadowColor, uniforms.shadowColor)
 
-        fun shaderColor(color: Color4) = renderer.transformColor(Color4(
-            color.red * content.red,
-            color.green * content.green,
-            color.blue * content.blue,
-            color.alpha
-        ))
-
-        val uniforms = Shader.UniformSet().apply {
-            set("uTransform", matrix)
-            set("uHintEnd", clampedHint / radius)
-            set("uBodyEnd", bodyWidth / radius)
-            set("uBorderEnd", halfWidth / radius)
-            set("uHintColor", shaderColor(hintColor))
-            set("uBodyCenterColor", shaderColor(bodyCenterColor ?: bodyColor))
-            set("uBodyColor", shaderColor(bodyColor))
-            set("uBorderColor", shaderColor(borderColor))
-            set("uShadowColor", shaderColor(shadowColor))
-        }
-
-        fun draw() {
-            renderer.drawVertices(BuiltIn.Shaders.Path, meshBuffer, LAYOUT, rangeStart, rangeEnd - rangeStart, uniforms)
-            renderer.drawVertices(BuiltIn.Shaders.Path, pieceBuffer, LAYOUT, 0, piece.vertexCount, uniforms)
-        }
+        uniforms.set
+            .set("uHintEnd", clampedHint / radius)
+            .set("uBodyEnd", bodyWidth / radius)
+            .set("uBorderEnd", halfWidth / radius)
 
         // The depth is the distance from the centre line, so this keeps the nearest one at every pixel.
         renderer.pushBlendMode(NO_COLOR)
         renderer.pushDepthState(DEPTH_NEAREST)
-        draw()
+        drawMesh(renderer, meshBuffer, pieceBuffer, uniforms.set)
         renderer.popDepthState()
         renderer.popBlendMode()
 
         // Then only the nearest part of the path draws each pixel, once.
         renderer.pushDepthState(DEPTH_EQUAL)
-        draw()
+        drawMesh(renderer, meshBuffer, pieceBuffer, uniforms.set)
         renderer.popDepthState()
+    }
+
+    private fun drawMesh(renderer: Renderer, meshBuffer: Buffer, pieceBuffer: Buffer, uniforms: Shader.UniformSet) {
+        renderer.drawVertices(BuiltIn.Shaders.Path, meshBuffer, LAYOUT, rangeStart, rangeEnd - rangeStart, uniforms)
+        renderer.drawVertices(BuiltIn.Shaders.Path, pieceBuffer, LAYOUT, 0, piece.vertexCount, uniforms)
+    }
+
+    // A colour tinted by the content colour and transformed as the renderer transforms colours, into a vec4.
+    private fun writeShaderColor(renderer: Renderer, color: Color4, out: FloatArray) {
+        val content = contentColor
+        renderer.transformColorInto(color.red * content.red, color.green * content.green, color.blue * content.blue,
+            color.alpha, out)
+    }
+
+    // The uniforms of the next draw of this frame: a draw's are read when the frame ends, so each draw of a frame
+    // (the shape can be drawn more than once, through proxies) has its own, reused in the next frames.
+    private fun obtainUniforms(renderer: Renderer): DrawUniforms {
+        if (uniformsFrame != renderer.frameIndex) {
+            uniformsFrame = renderer.frameIndex
+            uniformsUsed = 0
+        }
+
+        return drawUniforms.getOrNull(uniformsUsed++) ?: DrawUniforms().also { drawUniforms += it }
+    }
+
+    private val drawUniforms = ArrayList<DrawUniforms>(1)
+    private var uniformsFrame = -1L
+    private var uniformsUsed = 0
+
+    /**
+     * The uniforms of a draw, written in place: the arrays are read by reference when the draw runs, and never
+     * compared with the values set before as other uniform values are.
+     */
+    private class DrawUniforms {
+        val matrix = FloatArray(16).also { it[10] = 1f; it[15] = 1f }
+        val hintColor = FloatArray(4)
+        val bodyCenterColor = FloatArray(4)
+        val bodyColor = FloatArray(4)
+        val borderColor = FloatArray(4)
+        val shadowColor = FloatArray(4)
+
+        val set = Shader.UniformSet()
+            .set("uTransform", matrix)
+            .set("uHintColor", hintColor)
+            .set("uBodyCenterColor", bodyCenterColor)
+            .set("uBodyColor", bodyColor)
+            .set("uBorderColor", borderColor)
+            .set("uShadowColor", shadowColor)
     }
 
 
@@ -295,21 +335,29 @@ class PathShape : Canvas() {
         mesh.clear()
 
         if (points == 0) {
-            quadStarts = IntArray(0)
+            segmentCount = 0
             endCapStart = 0
             return
         }
 
         if (points == 1) {
-            quadStarts = IntArray(0)
+            segmentCount = 0
             mesh.addCap(path.x(0), path.y(0), PI_F, PI_F, meshRadius)
             endCapStart = mesh.vertexCount
             mesh.addCap(path.x(0), path.y(0), 0f, PI_F, meshRadius)
             return
         }
 
-        segmentAngles = FloatArray(segments) { atan2(path.y(it + 1) - path.y(it), path.x(it + 1) - path.x(it)) }
-        quadStarts = IntArray(segments)
+        // Kept while they're big enough: a pooled shape draws one path after another.
+        if (segmentAngles.size < segments) {
+            segmentAngles = FloatArray(segments)
+            quadStarts = IntArray(segments)
+        }
+        segmentCount = segments
+
+        for (i in 0 until segments) {
+            segmentAngles[i] = atan2(path.y(i + 1) - path.y(i), path.x(i + 1) - path.x(i))
+        }
 
         mesh.addCap(path.x(0), path.y(0), segmentAngles[0] + HALF_PI_F, PI_F, meshRadius)
 
@@ -327,7 +375,7 @@ class PathShape : Canvas() {
         mesh.addCap(path.x(points - 1), path.y(points - 1), segmentAngles[segments - 1] - HALF_PI_F, PI_F, meshRadius)
     }
 
-    private fun quadStartOrEndCap(segment: Int) = if (segment < quadStarts.size) quadStarts[segment] else endCapStart
+    private fun quadStartOrEndCap(segment: Int) = if (segment < segmentCount) quadStarts[segment] else endCapStart
 
     private fun ensurePiece() {
         if (!isPieceDirty) {
@@ -363,17 +411,17 @@ class PathShape : Canvas() {
 
         val startSegment = segmentAt(start)
         val endSegment = segmentAt(end)
-        val startPoint = path.pointAt(start)
-        val endPoint = path.pointAt(end)
+        path.pointAt(start, startPoint)
+        path.pointAt(end, endPoint)
 
         if (!isStartWhole) {
-            piece.addCap(startPoint.x, startPoint.y, segmentAngles[startSegment] + HALF_PI_F, PI_F, meshRadius)
+            piece.addCap(startPoint[0], startPoint[1], segmentAngles[startSegment] + HALF_PI_F, PI_F, meshRadius)
         }
 
         // The partial segment the drawn part starts on, up to its end point and its join.
         fun addStartSegment() {
             val next = startSegment + 1
-            piece.addQuadIfLong(startPoint.x, startPoint.y, path.x(next), path.y(next), meshRadius)
+            piece.addQuadIfLong(startPoint[0], startPoint[1], path.x(next), path.y(next), meshRadius)
 
             if (next < segments) {
                 val angle = segmentAngles[startSegment]
@@ -383,8 +431,8 @@ class PathShape : Canvas() {
 
         // The partial segment the drawn part ends on, from its start point, and the end cap.
         fun addEndSegment(fromX: Float, fromY: Float) {
-            piece.addQuadIfLong(fromX, fromY, endPoint.x, endPoint.y, meshRadius)
-            piece.addCap(endPoint.x, endPoint.y, segmentAngles[endSegment] - HALF_PI_F, PI_F, meshRadius)
+            piece.addQuadIfLong(fromX, fromY, endPoint[0], endPoint[1], meshRadius)
+            piece.addCap(endPoint[0], endPoint[1], segmentAngles[endSegment] - HALF_PI_F, PI_F, meshRadius)
         }
 
         when {
@@ -403,7 +451,7 @@ class PathShape : Canvas() {
             startSegment == endSegment -> {
                 rangeStart = 0
                 rangeEnd = 0
-                addEndSegment(startPoint.x, startPoint.y)
+                addEndSegment(startPoint[0], startPoint[1])
             }
 
             else -> {
@@ -499,6 +547,15 @@ class PathShape : Canvas() {
 
 
     companion object {
+
+        /**
+         * Does the work of drawing [path] that doesn't depend on the shape ahead of time, e.g. as the paths of a level
+         * load: otherwise it's done on the frame a shape is first given it.
+         */
+        fun prepare(path: Path) {
+            path.simplified(MERGE_DISTANCE)
+        }
+
         private const val PI_F = PI.toFloat()
         private const val HALF_PI_F = (PI / 2).toFloat()
         private const val CAP_STEP = PI_F / 24

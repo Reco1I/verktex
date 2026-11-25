@@ -1,5 +1,8 @@
 package com.reco1l.verktex.ui
 
+import com.reco1l.verktex.time.monotonicNanos
+import com.reco1l.verktex.Logger
+import com.reco1l.verktex.PerformanceStats
 import com.reco1l.verktex.localization.Localization
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.ui.container.Container
@@ -1167,6 +1170,16 @@ abstract class Component {
             return
         }
 
+        val threshold = PerformanceStats.slowComponentThreshold
+        if (threshold > 0f) {
+            updateProfiled(clock, threshold)
+            return
+        }
+
+        updateSelf(clock)
+    }
+
+    private fun updateSelf(clock: FrameClock) {
         engineClockTime = clock.time
         applyLocaleBindings()
         updateInteractionState()
@@ -1175,6 +1188,26 @@ abstract class Component {
         attachedBackground?.update(clock)
         onUpdate(clock)
     }
+
+    // Logs the deepest component whose update took longer than the threshold, see PerformanceStats.slowComponentThreshold.
+    private fun updateProfiled(clock: FrameClock, threshold: Float) {
+        val reportedBefore = PerformanceStats.slowComponentReported
+        PerformanceStats.slowComponentReported = false
+
+        val start = monotonicNanos()
+        updateSelf(clock)
+        val ms = (monotonicNanos() - start) / 1_000_000f
+
+        if (ms > threshold && !PerformanceStats.slowComponentReported) {
+            Logger.w("PerformanceStats", "Slow component update: ${ms}ms in ${this::class.simpleName} " +
+                "(${childCountForProfile()} children), in ${parent?.let { it::class.simpleName }}")
+            PerformanceStats.slowComponentReported = true
+        }
+
+        PerformanceStats.slowComponentReported = PerformanceStats.slowComponentReported || reportedBefore
+    }
+
+    private fun childCountForProfile() = (this as? Container)?.childCount ?: 0
 
     /**
      * The clock pacing the transforms and the choreography of this component and its children. When null it's

@@ -4,8 +4,6 @@ import com.reco1l.verktex.math.toRadians
 import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
-import com.reco1l.verktex.data.Vec2
-import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.graphics.Buffer
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.graphics.Shader
@@ -129,21 +127,56 @@ open class ParticleSystem(val maxParticles: Int = 256) : Canvas() {
             instanceBuffer = buffer,
             instanceLayout = PARTICLE_LAYOUT,
             instanceCount = instanceCount,
-            uniformSet = Shader.UniformSet().apply {
-                set("uTime", time)
-                set("uParticleSize", Vec2(region.displayWidth, region.displayHeight))
-                set("uUVRect", Vec4(region.u0, region.v0, region.u1, region.v1))
-                set("uColorMultiplier", renderer.transformColor(contentColor))
+            uniformSet = obtainUniforms(renderer).let { uniforms ->
+                uniforms.particleSize[0] = region.displayWidth
+                uniforms.particleSize[1] = region.displayHeight
+                uniforms.uvRect[0] = region.u0
+                uniforms.uvRect[1] = region.v0
+                uniforms.uvRect[2] = region.u1
+                uniforms.uvRect[3] = region.v1
+
+                val color = contentColor
+                renderer.transformColorInto(color.red, color.green, color.blue, color.alpha, uniforms.colorMultiplier)
 
                 // Column-major, with the 2D transformation in the X and Y axes.
-                set("uTransform", floatArrayOf(
-                    transform.a, transform.b, 0f, 0f,
-                    transform.c, transform.d, 0f, 0f,
-                    0f, 0f, 1f, 0f,
-                    transform.tx, transform.ty, 0f, 1f
-                ))
+                uniforms.transform.let {
+                    it[0] = transform.a; it[1] = transform.b
+                    it[4] = transform.c; it[5] = transform.d
+                    it[12] = transform.tx; it[13] = transform.ty
+                }
+
+                uniforms.set.set("uTime", time)
             }
         )
+    }
+
+    // The uniforms of the next draw of this frame: a draw's are read when the frame ends, so each draw of a frame
+    // has its own, reused in the next frames instead of allocated on every one.
+    private fun obtainUniforms(renderer: Renderer): DrawUniforms {
+        if (uniformsFrame != renderer.frameIndex) {
+            uniformsFrame = renderer.frameIndex
+            uniformsUsed = 0
+        }
+
+        return drawUniforms.getOrNull(uniformsUsed++) ?: DrawUniforms().also { drawUniforms += it }
+    }
+
+    private val drawUniforms = ArrayList<DrawUniforms>(1)
+    private var uniformsFrame = -1L
+    private var uniformsUsed = 0
+
+    // Written in place: arrays are read by reference when the draw runs, and never compared with the values set before.
+    private class DrawUniforms {
+        val particleSize = FloatArray(2)
+        val uvRect = FloatArray(4)
+        val colorMultiplier = FloatArray(4)
+        val transform = FloatArray(16).also { it[10] = 1f; it[15] = 1f }
+
+        val set = Shader.UniformSet()
+            .set("uParticleSize", particleSize)
+            .set("uUVRect", uvRect)
+            .set("uColorMultiplier", colorMultiplier)
+            .set("uTransform", transform)
     }
 
     private fun writeAliveParticles(buffer: Buffer): Int {

@@ -18,6 +18,20 @@ class PathShapeTest {
     private val quad = 4 * 3
 
     @Test
+    fun `Test a shorter path after a longer one`() {
+        // A pooled shape keeps its arrays: the segments past the new path's mustn't be read.
+        val shape = path(Path.of(0f, 0f, 100f, 0f, 100f, 100f, 200f, 100f))
+        shape.meshVertexCount
+
+        shape.path = Path.of(0f, 0f, 100f, 0f)
+        assertEquals(2 * cap + quad, shape.meshVertexCount)
+        assertEquals(Triple(0, shape.meshVertexCount, 0), shape.drawnVertices)
+
+        shape.endLength = 50f
+        assertEquals(path(Path.of(0f, 0f, 100f, 0f)).apply { endLength = 50f }.drawnVertices, shape.drawnVertices)
+    }
+
+    @Test
     fun `Test single point is a circle`() {
         assertEquals(2 * cap, path(Path.of(10f, 10f)).meshVertexCount)
     }

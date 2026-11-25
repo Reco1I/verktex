@@ -536,6 +536,17 @@ abstract class Renderer {
     }
 
     /**
+     * Writes the channels of [transformColor] of the color ([red], [green], [blue], [alpha]) into [out], from
+     * [offset], without allocating a color: for uniforms, as a vec4.
+     */
+    fun transformColorInto(red: Float, green: Float, blue: Float, alpha: Float, out: FloatArray, offset: Int = 0) {
+        out[offset] = red * tintRed
+        out[offset + 1] = green * tintGreen
+        out[offset + 2] = blue * tintBlue
+        out[offset + 3] = alpha * currentAlpha
+    }
+
+    /**
      * [transformColor] packed as [Color4.packedRGBA], without allocating a color. Without a tint or
      * an alpha to apply it's the color's own cached packing.
      */
@@ -1499,7 +1510,15 @@ abstract class Renderer {
      */
     open fun prepareFrame(): Boolean = true
 
+    /**
+     * Goes up as each frame begins: what a component hands a draw (its uniforms) is read when the frame ends, so it
+     * can reuse it in the next frame, but not for another draw of the same one.
+     */
+    var frameIndex = 0L
+        private set
+
     open fun begin() {
+        frameIndex++
         activeBuffer = null
         activeShader = null
         activeTexture = null

@@ -3,6 +3,8 @@ package com.reco1l.verktex.math
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Test
 
 class PathTest {
@@ -70,6 +72,27 @@ class PathTest {
         assertPoint(0f, 0f, path[0])
         assertPoint(5f, 0f, path[1])
         assertPoint(6.5f, 0f, path[2])
+    }
+
+    @Test
+    fun `Test simplified is kept`() {
+        val path = Path.of(0f, 0f, 1f, 0f, 5f, 0f)
+        val simplified = path.simplified(2f)
+
+        assertSame(simplified, path.simplified(2f))
+        assertSame(simplified, simplified.simplified(2f))
+        assertNotSame(simplified, path.simplified(0.5f))
+    }
+
+    @Test
+    fun `Test point at length into an array`() {
+        val path = Path.of(0f, 0f, 10f, 0f, 10f, 10f)
+        val point = FloatArray(2)
+
+        for (distance in floatArrayOf(5f, 15f, 25f)) {
+            path.pointAt(distance, point)
+            assertPoint(point[0], point[1], path.pointAt(distance))
+        }
     }
 
     @Test

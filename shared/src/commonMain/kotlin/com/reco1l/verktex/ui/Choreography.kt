@@ -44,6 +44,7 @@ class Choreography internal constructor(private val target: Component) {
     private val steps = ArrayList<Step>()
     private val freeSteps = ArrayList<Step>()
     private val callbacks = ArrayList<Callback>()
+    private val freeCallbacks = ArrayList<Callback>()
 
     private var cursor = 0f
     private var chainEnd = 0f
@@ -215,7 +216,11 @@ class Choreography internal constructor(private val target: Component) {
      * goes back and passes it again.
      */
     fun after(callback: OnTransformFinished): Choreography {
-        callbacks.add(Callback(chainEnd, callback))
+        val entry = freeCallbacks.removeLastOrNull() ?: Callback()
+        entry.time = chainEnd
+        entry.action = callback
+        entry.isCalled = false
+        callbacks.add(entry)
         endTime = maxOf(endTime, chainEnd)
         return this
     }
@@ -228,6 +233,11 @@ class Choreography internal constructor(private val target: Component) {
     fun clear() {
         freeSteps.addAll(steps)
         steps.clear()
+        for (i in callbacks.indices) {
+            // Not kept from being collected by a pooled component.
+            callbacks[i].action = null
+        }
+        freeCallbacks.addAll(callbacks)
         callbacks.clear()
 
         hasLastValue.fill(false)
@@ -257,7 +267,7 @@ class Choreography internal constructor(private val target: Component) {
 
             if (!callback.isCalled && time >= callback.time) {
                 callback.isCalled = true
-                callback.action(target)
+                callback.action?.invoke(target)
             }
         }
 
@@ -343,7 +353,9 @@ class Choreography internal constructor(private val target: Component) {
         }
     }
 
-    private class Callback(val time: Float, val action: OnTransformFinished) {
+    private class Callback {
+        var time = 0f
+        var action: OnTransformFinished? = null
         var isCalled = false
     }
 }

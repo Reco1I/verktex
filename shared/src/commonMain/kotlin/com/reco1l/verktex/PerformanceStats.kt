@@ -122,6 +122,33 @@ object PerformanceStats {
         }
 
 
+    /**
+     * Frames and updates longer than this many milliseconds are logged with what they spent their time on, to find
+     * stalls: none are at 0, the default.
+     */
+    @Volatile
+    var slowFrameThreshold = 0f
+
+    /**
+     * Logs the update that just took [updateTime], if it's slow, see [slowFrameThreshold]. Called on the update worker.
+     */
+    fun onUpdateEnd() {
+        val threshold = slowFrameThreshold
+        if (threshold > 0f && updateTime > threshold) {
+            Logger.w(TAG, "Slow update: ${updateTime}ms, garbage collections so far: ${garbageCollectionCount()}")
+        }
+    }
+
+    /**
+     * Component updates longer than this many milliseconds are logged, the deepest one: none are at 0, the default.
+     * Each component's update is timed while it's set, for debugging.
+     */
+    @Volatile
+    var slowComponentThreshold = 0f
+
+    // Whether a component below the one updating was logged as slow, see Component.update.
+    internal var slowComponentReported = false
+
     private val frameTimes = FloatArray(HISTORY_SIZE)
     private var nextIndex = 0
     private var lastFrameNanos = 0L
@@ -146,8 +173,17 @@ object PerformanceStats {
         val now = monotonicNanos()
 
         if (lastFrameNanos != 0L) {
-            frameTimes[nextIndex] = (now - lastFrameNanos) / 1_000_000f
+            val frameTime = (now - lastFrameNanos) / 1_000_000f
+            frameTimes[nextIndex] = frameTime
             nextIndex = (nextIndex + 1) % HISTORY_SIZE
+
+            val threshold = slowFrameThreshold
+            if (threshold > 0f && frameTime > threshold) {
+                // The times of the frame before, the one that took long.
+                Logger.w(TAG, "Slow frame: ${frameTime}ms (draw $drawTime, layout ${frameLayoutNanos / 1_000_000f}, " +
+                    "record $recordTime, submit $submitTime, gpu $gpuTime, last update $updateTime), " +
+                    "garbage collections so far: ${garbageCollectionCount()}")
+            }
         }
 
         lastFrameNanos = now
@@ -204,4 +240,6 @@ object PerformanceStats {
     }
 
     private const val MEMORY_WINDOW_NANOS = 2_000_000_000L
+
+    private const val TAG = "PerformanceStats"
 }

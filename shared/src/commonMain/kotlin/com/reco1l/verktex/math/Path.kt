@@ -100,38 +100,46 @@ class Path private constructor(private val coordinates: FloatArray, val pointCou
      * its last line.
      */
     fun pointAt(distance: Float): Vec2 {
+        val point = FloatArray(2)
+        pointAt(distance, point)
+        return Vec2(point[0], point[1])
+    }
+
+    /**
+     * Writes the point at [distance] along the path, as [pointAt] gives it, into [out]: its x at 0 and its y at 1.
+     * It doesn't allocate, for what runs on every frame.
+     */
+    fun pointAt(distance: Float, out: FloatArray) {
         require(pointCount > 0) { "The path has no points." }
 
         if (distance >= length) {
             val last = pointCount - 1
-            if (pointCount < 2) {
-                return get(last)
-            }
+            val lineLength = if (pointCount < 2) 0f else lengths[last] - lengths[last - 1]
 
-            val lineLength = lengths[last] - lengths[last - 1]
             if (lineLength <= EPSILON) {
-                return get(last)
+                out[0] = x(last)
+                out[1] = y(last)
+                return
             }
 
             val extra = distance - length
-            return Vec2(
-                x(last) + (x(last) - x(last - 1)) / lineLength * extra,
-                y(last) + (y(last) - y(last - 1)) / lineLength * extra
-            )
+            out[0] = x(last) + (x(last) - x(last - 1)) / lineLength * extra
+            out[1] = y(last) + (y(last) - y(last - 1)) / lineLength * extra
+            return
         }
 
         val index = indexAt(distance)
         val lineLength = lengths[index + 1] - lengths[index]
 
         if (lineLength <= EPSILON) {
-            return get(index)
+            out[0] = x(index)
+            out[1] = y(index)
+            return
         }
 
         val progress = (distance - lengths[index]) / lineLength
-        return Vec2(
-            x(index) + (x(index + 1) - x(index)) * progress,
-            y(index) + (y(index + 1) - y(index)) * progress
-        )
+        out[0] = x(index) + (x(index + 1) - x(index)) * progress
+        out[1] = y(index) + (y(index + 1) - y(index)) * progress
     }
 
     /**
@@ -157,6 +165,9 @@ class Path private constructor(private val coordinates: FloatArray, val pointCou
      * and the last points are always kept.
      */
     fun simplified(minDistance: Float): Path {
+        // Kept, as drawing a path again simplifies it again (a pooled shape given it once more).
+        simplifiedPath?.let { if (simplifiedDistance == minDistance) return it }
+
         val builder = Builder()
 
         for (i in 0 until pointCount) {
@@ -167,8 +178,18 @@ class Path private constructor(private val coordinates: FloatArray, val pointCou
             }
         }
 
-        return builder.build()
+        return builder.build().also {
+            simplifiedPath = it
+            simplifiedDistance = minDistance
+            // Simplifying it again keeps it as it is.
+            it.simplifiedPath = it
+            it.simplifiedDistance = minDistance
+        }
     }
+
+    // The last path simplified gave, and the distance it was given.
+    private var simplifiedPath: Path? = null
+    private var simplifiedDistance = 0f
 
 
     /**

@@ -41,7 +41,7 @@ data class DrawCommand(
     /**
      * The set of uniform variables to be passed to the shader program during rendering.
      */
-    val uniformSet: Shader.UniformSet = Shader.UniformSet(),
+    val uniformSet: Shader.UniformSet = NO_UNIFORMS,
 
     /**
      * Whether this command clears the depth buffer instead of drawing. A clear command carries no
@@ -139,5 +139,10 @@ data class DrawCommand(
                 this.scissor == scissor &&
                 // By identity, each push is a new clip.
                 this.clip === clip
+    }
+
+    companion object {
+        // The uniforms of commands that have none, which never change.
+        private val NO_UNIFORMS = Shader.UniformSet()
     }
 }
