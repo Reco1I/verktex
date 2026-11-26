@@ -174,6 +174,11 @@ open class Container : Component(), MutableIterable<Component> {
         // Topmost children (drawn last) get the event first.
         for (child in children.asReversed()) {
 
+            // A hidden child isn't drawn, so it can't be interacted with either.
+            if (!child.isVisible) {
+                continue
+            }
+
             // Only presses, wheel scrolls and hovers go to the children under the pointer. Every other
             // event goes to all of them, so a pressed component keeps following its pointer after
             // it left its bounds.
