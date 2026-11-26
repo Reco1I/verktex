@@ -93,6 +93,13 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   played into the choreography at a time (`docs/choreography.md`). A component drawn in another layer
   than its parent's is drawn through a `Proxy` (`docs/proxies.md`).
 - Textures and shader outputs are premultiplied, see `docs/plans/texture-blending.md`.
+- Textures are kept in `TextureStore`s (`Textures.store(name)`, `Textures.default` when none is given), each
+  with atlases of its own, so a store is unloaded at once by releasing them (`unloadAll()`); sounds likewise
+  in `SoundStore`s. `Texture.Region`s are immutable: removing one never moves the others, and an atlas that
+  needs the space removed regions left packs again into new regions, releasing the old ones
+  (`Region.isReleased`, never drawn). Whatever outlives a texture refers to it through a
+  `TextureReference.Lookup` (e.g. `storedTexture(key, store)`), which `Sprite`, `AnimatedSprite`,
+  `TextureText` and `ParticleSystem` follow.
 - Shaders are GLSL ES 3.00 in `shared/assets/shaders/`, sharing code from `lib/*.glsl` with
   `#import "lib/x.glsl"`, expanded before any translation (`ShaderImports`). Built-in fragment
   shaders multiply their output by `clipCoverage()` (`lib/clip.glsl`), which clips to rounded and

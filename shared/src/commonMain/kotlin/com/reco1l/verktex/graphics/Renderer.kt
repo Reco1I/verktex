@@ -1576,6 +1576,11 @@ abstract class Renderer {
         maskWidth: Float = width,
         maskHeight: Float = height
     ) {
+        if (region.isReleased) {
+            warnReleased(region)
+            return
+        }
+
         val externalTransform = texture.transform
         val isRounded = radiusTopLeft > 0f || radiusTopRight > 0f || radiusBottomRight > 0f || radiusBottomLeft > 0f
 

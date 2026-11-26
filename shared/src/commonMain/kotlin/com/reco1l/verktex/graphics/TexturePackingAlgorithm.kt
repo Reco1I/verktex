@@ -1,5 +1,6 @@
 package com.reco1l.verktex.graphics
 
+import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
 import kotlin.math.min
 
@@ -24,34 +25,35 @@ abstract class TexturePackingAlgorithm {
 
 
     /**
-     * Packs a list of texture regions into a texture atlas of the specified width and height.
+     * Packs rectangles of the given sizes (width to height) into a texture of the specified width and height, each
+     * one keeping [padding] free pixels around it, see [Texture.regionPadding]. Nothing is changed: the caller
+     * makes the regions at the positions returned.
      *
-     * The heuristic can fail on regions that fit when they were added one by one, so the regions and
-     * [freeRegions] are only changed when every region fits. Each region keeps [padding] free pixels
-     * around it, see [Texture.regionPadding].
-     *
-     * @return Whether every region fit.
+     * @return Where each rectangle goes (its top-left corner, inside its gutter) and the free space left, or null
+     * if they don't all fit.
      */
-    fun pack(regions: List<Texture.Region>, freeRegions: MutableList<Vec4>, rootWidth: Float, rootHeight: Float, padding: Int = 0): Boolean {
+    fun pack(sizes: List<Pair<Float, Float>>, rootWidth: Float, rootHeight: Float, padding: Int = 0): Packed? {
 
-        val packedFreeRegions = mutableListOf(Vec4(0f, 0f, rootWidth, rootHeight))
+        val freeRegions = mutableListOf(Vec4(0f, 0f, rootWidth, rootHeight))
         val gutter = 2f * padding
 
-        val allocatedNodes = regions.map { region ->
-            allocate(region.source.width + gutter, region.source.height + gutter, packedFreeRegions) ?: return false
+        // The largest first, which packs far tighter than the order they were added in.
+        val order = sizes.indices.sortedWith(compareByDescending<Int> { sizes[it].first * sizes[it].second }.thenByDescending { maxOf(sizes[it].first, sizes[it].second) })
+        val positions = arrayOfNulls<Vec2>(sizes.size)
+
+        for (i in order) {
+            val (width, height) = sizes[i]
+            val node = allocate(width + gutter, height + gutter, freeRegions) ?: return null
+            positions[i] = Vec2(node.x + padding, node.y + padding)
         }
 
-        for ((region, allocatedNode) in regions.zip(allocatedNodes)) {
-            region.x = allocatedNode.x + padding
-            region.y = allocatedNode.y + padding
-            region.width = region.source.width
-            region.height = region.source.height
-        }
-
-        freeRegions.clear()
-        freeRegions.addAll(packedFreeRegions)
-        return true
+        return Packed(positions.map { it!! }, freeRegions)
     }
+
+    /**
+     * The result of [pack].
+     */
+    class Packed(val positions: List<Vec2>, val freeRegions: List<Vec4>)
 
 
     companion object {

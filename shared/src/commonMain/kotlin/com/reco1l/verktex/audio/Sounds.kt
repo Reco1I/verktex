@@ -1,98 +1,70 @@
 package com.reco1l.verktex.audio
 
-import com.reco1l.verktex.Logger
-import com.reco1l.verktex.Verktex
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 
 /**
- * A class that manages the loading and unloading of audio resources.
+ * The sound stores of the application, see [SoundStore]. Sounds go to the [default] store unless one is given:
+ * its members are the default store's.
  */
 object Sounds {
 
+    private val stores = mutableMapOf<String, SoundStore>()
+    private val lock = SynchronizedObject()
+
     /**
-     * The list of audio resources loaded.
+     * The store used when none is given.
+     */
+    val default = SoundStore("default")
+
+
+    /**
+     * The store named [name], created when it's first asked for.
+     */
+    fun store(name: String): SoundStore = synchronized(lock) {
+        if (name == default.name) default else stores.getOrPut(name) { SoundStore(name) }
+    }
+
+    /**
+     * Releases every audio resource of the store named [name] and forgets it.
+     */
+    fun remove(name: String) {
+        val store = synchronized(lock) { stores.remove(name) } ?: return
+        store.unloadAll()
+    }
+
+    //region Default store
+
+    /**
+     * The audio resources of the [default] store.
      */
     val resources: Map<String, AudioResource>
-        field = mutableMapOf<String, AudioResource>()
-
+        get() = default.resources
 
     /**
-     * Loads an audio stream from the given path.
-     *
-     * @param key The unique identifier for the audio stream.
-     * @param path The path to the audio stream file.
-     * @param isExternal Whether the path is external or internal, in some platforms this may affect
+     * Loads an audio stream into the [default] store, see [SoundStore.loadStream].
      */
-    fun loadStream(key: String, path: String, isExternal: Boolean = true): AudioStream {
-
-        val source = Verktex.audio.createStreamSource(path, isExternal)
-            ?: throw IllegalArgumentException("Invalid path: $path")
-
-        val resource = source.createStream()
-
-        val oldResource = resources[key]
-        if (oldResource != null) {
-            if (oldResource is AudioSample) {
-                Logger.w("SoundManager", "An audio resource that was loaded as an AudioSample with the key \"$key\" is being replaced as an AudioStream.")
-            } else {
-                Logger.i("SoundManager", "Overriding existing AudioStream with same key: $key")
-            }
-            oldResource.dispose()
-        }
-
-        resources[key] = resource
-        return resource
-    }
+    fun loadStream(key: String, path: String, isExternal: Boolean = true): AudioStream = default.loadStream(key, path, isExternal)
 
     /**
-     * Loads an audio sample from the given path. Differently from [loadStream] this returns a new
-     * [AudioPlayback] instance of the sample upon creation instead of the [AudioSample].
-     *
-     * @param key The unique identifier for the audio sample.
-     * @param path The path to the audio sample file.
-     * @param isExternal Whether the path is external or internal, in some platforms this may affect
+     * Loads an audio sample into the [default] store, see [SoundStore.loadSample].
      */
-    fun loadSample(key: String, path: String, isExternal: Boolean = true): AudioPlayback {
-
-        val source = Verktex.audio.createSampleSource(path, isExternal)
-            ?: throw IllegalArgumentException("Invalid path: $path")
-
-        val resource = source.createSample()
-
-        val oldResource = resources[key]
-        if (oldResource != null) {
-            if (oldResource is AudioStream) {
-                Logger.w("SoundManager", "An audio resource that was loaded as an AudioStream with the key \"$key\" is being replaced as an AudioSample.")
-            } else {
-                Logger.i("SoundManager", "Overriding existing AudioSample with same key: $key")
-            }
-            oldResource.dispose()
-        }
-
-        resources[key] = resource
-        return resource.createPlayback()
-    }
+    fun loadSample(key: String, path: String, isExternal: Boolean = true): AudioPlayback = default.loadSample(key, path, isExternal)
 
     /**
-     * Unloads an audio resource from memory.
-     */
-    /**
-     * Releases every loaded audio resource.
+     * Releases every audio resource of every store.
      */
     fun unloadAll() {
-        resources.values.forEach { it.dispose() }
-        resources.clear()
+        default.unloadAll()
+        synchronized(lock) { stores.values.toList() }.forEach { it.unloadAll() }
     }
 
-    fun unload(key: String) {
-        val resource = resources[key] ?: return
-        resource.dispose()
-        resources.remove(key)
-    }
+    /**
+     * Releases an audio resource of the [default] store.
+     */
+    fun unload(key: String) = default.unload(key)
 
+    operator fun get(key: String): AudioPlayback? = default[key]
 
-    operator fun get(key: String): AudioPlayback? {
-        val resource = resources[key] ?: return null
-        return resource.createPlayback()
-    }
-
+    //endregion
 }

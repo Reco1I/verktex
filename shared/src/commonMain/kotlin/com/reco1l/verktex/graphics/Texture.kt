@@ -3,6 +3,7 @@ package com.reco1l.verktex.graphics
 import kotlinx.atomicfu.locks.synchronized
 import kotlinx.atomicfu.locks.SynchronizedObject
 import com.reco1l.verktex.data.Vec4
+import com.reco1l.verktex.Logger
 
 /**
  * The [Texture] class represents a texture resource that can be used for rendering in the application.
@@ -57,6 +58,10 @@ abstract class Texture : GPUResource() {
 
     private var freeRegionsInitialized = false
 
+    // The area (gutters included) removed regions gave back since the regions were last packed, which only a
+    // repack can use whole, see addSourceRepacking.
+    private var removedArea = 0f
+
     // Textures are loaded and unloaded from any thread while the draw worker binds the texture.
     private val lock = SynchronizedObject()
 
@@ -84,10 +89,11 @@ abstract class Texture : GPUResource() {
      * Attempts to add a new [source] to the texture. If the source fits within the texture, space is
      * reserved for it right away and its data is uploaded the next time the texture is bound.
      *
+     * @param density The region's [Region.density].
      * @see TexturePackingAlgorithm
      * @return The newly created [Region] if the source fits, or null if it does not fit.
      */
-    open fun addSource(source: Source): Region? = synchronized(lock) {
+    open fun addSource(source: Source, density: Float = 1f): Region? = synchronized(lock) {
 
         val existingRegion = regions.find { it.source == source }
         if (existingRegion != null) {
@@ -98,37 +104,107 @@ abstract class Texture : GPUResource() {
 
         val padding = regionPadding.toFloat()
         val node = packingAlgorithm.allocate(source.width + 2 * padding, source.height + 2 * padding, freeRegions) ?: return null
-        val region = Region(this, source, node.x + padding, node.y + padding, source.width, source.height)
+        val region = Region(this, source, node.x + padding, node.y + padding, source.width, source.height, density)
 
         regions += region
         pendingUploads += region
         region
     }
 
+    /**
+     * Adds [source] by packing it again along with every region of the texture, for when it doesn't fit the space
+     * left between them (the space removed regions left). Regions are immutable, so each region that moves is
+     * replaced by a new one and released, see [Region.isReleased]: whoever stored them must take the new ones from
+     * [Repacked.replaced].
+     *
+     * @return The new region and the regions replaced, or null if they don't all fit, in which case nothing changed.
+     */
+    open fun addSourceRepacking(source: Source, density: Float = 1f): Repacked? = synchronized(lock) {
+        addSource(source, density)?.let { return Repacked(it, emptyMap()) }
+
+        // Only the space of removed regions is worth a repack, which replaces regions and uploads them again: an
+        // atlas regions were only added to is full.
+        val gutter = 2f * regionPadding
+        if (removedArea < (source.width + gutter) * (source.height + gutter)) {
+            return null
+        }
+
+        val sizes = regions.map { it.source.width to it.source.height } + (source.width to source.height)
+        val packed = packingAlgorithm.pack(sizes, width, height, regionPadding) ?: return null
+
+        val replaced = HashMap<Region, Region>()
+        val packedRegions = ArrayList<Region>(regions.size + 1)
+
+        for (i in regions.indices) {
+            val old = regions[i]
+            val position = packed.positions[i]
+
+            if (position.x == old.x && position.y == old.y) {
+                packedRegions += old
+                continue
+            }
+
+            val moved = Region(this, old.source, position.x, position.y, old.source.width, old.source.height, old.density)
+            old.isReleased = true
+            replaced[old] = moved
+            packedRegions += moved
+            pendingUploads.remove(old)
+            pendingUploads += moved
+        }
+
+        val position = packed.positions.last()
+        val region = Region(this, source, position.x, position.y, source.width, source.height, density)
+        packedRegions += region
+        pendingUploads += region
+
+        regions.clear()
+        regions += packedRegions
+        removedArea = 0f
+        freeRegionsInitialized = true
+        freeRegions.clear()
+        freeRegions += packed.freeRegions
+
+        Repacked(region, replaced)
+    }
+
+    /**
+     * What [addSourceRepacking] did: the [region] of the source added, and the regions it [replaced] by their
+     * replacement.
+     */
+    class Repacked(val region: Region, val replaced: Map<Region, Region>)
+
     //endregion
 
 
     /**
-     * Removes the specified [region] from the texture.
-     *
-     * The remaining regions are repacked right away, so the freed space can be used immediately.
-     * They are uploaded again at their new positions on the next bind. When they do not repack, they
-     * keep their positions and the region's space is returned to the free space instead.
+     * Removes the specified [region] from the texture and releases it, see [Region.isReleased]. Its space is
+     * returned to the free space: the other regions don't move, [addSourceRepacking] packs them again when a
+     * source needs the space.
      */
     fun removeRegion(region: Region) = synchronized(lock) {
         if (regions.remove(region)) {
-            freeRegionsInitialized = true
-
-            if (packingAlgorithm.pack(regions, freeRegions, width, height, regionPadding)) {
-                pendingUploads.clear()
-                pendingUploads += regions
-            } else {
-                pendingUploads.remove(region)
-                // The removed rectangle was a used one, and MaxRects keeps free rectangles disjoint from used ones, so giving it back cannot create overlaps.
-                val padding = regionPadding.toFloat()
-                freeRegions += Vec4(region.x - padding, region.y - padding, region.x + region.width + padding, region.y + region.height + padding)
-            }
+            region.isReleased = true
+            pendingUploads.remove(region)
+            ensureFreeRegions()
+            // The removed rectangle was a used one, and MaxRects keeps free rectangles disjoint from used ones, so giving it back cannot create overlaps.
+            val padding = regionPadding.toFloat()
+            freeRegions += Vec4(region.x - padding, region.y - padding, region.x + region.width + padding, region.y + region.height + padding)
+            removedArea += (region.width + 2 * padding) * (region.height + 2 * padding)
         }
+    }
+
+    /**
+     * Removes and releases every region of the texture, for when it's disposed along with them.
+     */
+    fun removeAllRegions() = synchronized(lock) {
+        for (region in regions) {
+            region.isReleased = true
+        }
+        regions.clear()
+        pendingUploads.clear()
+        freeRegions.clear()
+        freeRegionsInitialized = false
+        removedArea = 0f
     }
 
 
@@ -238,29 +314,40 @@ abstract class Texture : GPUResource() {
         /**
          * The x-coordinate of the region's position within the texture.
          */
-        var x: Float = 0f,
+        val x: Float = 0f,
 
         /**
          * The y-coordinate of the region's position within the texture.
          */
-        var y: Float = 0f,
+        val y: Float = 0f,
 
         /**
          * The width of the region within the texture.
          */
-        var width: Float = 0f,
+        val width: Float = 0f,
 
         /**
          * The height of the region within the texture.
          */
-        var height: Float = 0f
-    ) {
+        val height: Float = 0f,
 
         /**
          * How many pixels of the texture make one pixel of the size the region is shown at, e.g. 2 for an
          * image made at twice the resolution (an `@2x` one). [width] and [height] stay in texture pixels.
          */
-        var density = 1f
+        val density: Float = 1f
+    ) {
+
+        /**
+         * Whether the region was taken out of its texture: removed, replaced by a repack, or its texture disposed.
+         * Its rectangle may hold another region's pixels by now, so it's never drawn: whoever holds a region
+         * directly should look it up again instead (a [com.reco1l.verktex.texture.TextureReference.Lookup]).
+         */
+        var isReleased = false
+            internal set
+
+        // Whether drawing it once released was already warned about.
+        internal var warnedReleased = false
 
         /**
          * The width the region is shown at, [width] divided by [density].
@@ -337,3 +424,14 @@ abstract class Texture : GPUResource() {
     }
 }
 
+
+
+/**
+ * Warns, once for each region, that a released region was about to be drawn: whoever drew it holds it directly
+ * instead of looking it up again (see [Texture.Region.isReleased]), so it's drawn as nothing.
+ */
+internal fun warnReleased(region: Texture.Region) {
+    if (region.warnedReleased) return
+    region.warnedReleased = true
+    Logger.w("Texture", "A released texture region (${region.width.toInt()}x${region.height.toInt()}) was drawn: it's held directly instead of being looked up, so it's not drawn.")
+}

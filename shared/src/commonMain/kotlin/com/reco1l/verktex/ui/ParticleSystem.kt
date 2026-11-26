@@ -3,11 +3,14 @@ package com.reco1l.verktex.ui
 import com.reco1l.verktex.math.toRadians
 import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.Verktex
+import com.reco1l.verktex.graphics.warnReleased
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.graphics.Buffer
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.graphics.Shader
 import com.reco1l.verktex.graphics.Texture
+import com.reco1l.verktex.texture.TextureReference
+import com.reco1l.verktex.texture.reference
 import com.reco1l.verktex.graphics.VertexLayout
 import com.reco1l.verktex.graphics.VertexLayout.Attribute
 import com.reco1l.verktex.time.FrameClock
@@ -27,9 +30,20 @@ inline fun Container.particleSystem(maxParticles: Int = 256, builder: ParticleSy
 open class ParticleSystem(val maxParticles: Int = 256) : Canvas() {
 
     /**
-     * The texture of the particles.
+     * The texture of the particles, a region given directly or one looked up (see
+     * [com.reco1l.verktex.texture.TextureReference.Lookup]), resolved whenever they're drawn.
      */
-    var texture: Texture.Region? = null
+    var textureReference: TextureReference? = null
+
+    /**
+     * The region the particles are drawn with. Setting it is a shorthand for setting [textureReference] to the
+     * region itself.
+     */
+    var texture: Texture.Region?
+        get() = textureReference?.resolve()
+        set(value) {
+            textureReference = value?.reference
+        }
 
 
     private val particles = FloatArray(maxParticles * FLOATS_PER_PARTICLE)
@@ -108,6 +122,11 @@ open class ParticleSystem(val maxParticles: Int = 256) : Canvas() {
 
     override fun onDraw(renderer: Renderer) {
         val region = texture ?: return
+
+        if (region.isReleased) {
+            warnReleased(region)
+            return
+        }
 
         val buffer = instanceBuffer ?: renderer.createVertexBuffer().also { instanceBuffer = it }
         val instanceCount = writeAliveParticles(buffer)

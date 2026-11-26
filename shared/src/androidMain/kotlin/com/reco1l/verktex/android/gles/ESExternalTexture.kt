@@ -95,7 +95,8 @@ open class ESExternalTexture(
     /**
      * Always null, an upload into the external texture's name would be invalid.
      */
-    override fun addSource(source: Source): Region? = null
+    override fun addSource(source: Source, density: Float): Region? = null
+    override fun addSourceRepacking(source: Source, density: Float): Repacked? = null
 
     // Nothing is written, there are no sources.
     override fun onWritePixels(x: Int, y: Int, width: Int, height: Int, pixels: PixelBuffer) = Unit

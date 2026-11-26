@@ -2,8 +2,11 @@ package com.reco1l.verktex
 
 import com.reco1l.verktex.graphics.GPUResource
 import com.reco1l.verktex.graphics.Texture
-import com.reco1l.verktex.texture.FramedTextureRegion
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import com.reco1l.verktex.graphics.PixelBuffer
 
@@ -99,17 +102,60 @@ class TextureUploadsTest {
     }
 
     @Test
-    fun framedSourceWritesEveryFrameAtItsOffset() {
-        val atlas = RecordingTexture()
-        val frames = listOf(
-            Texture.Region(atlas, SolidSource(4), 0f, 0f, 4f, 4f),
-            Texture.Region(atlas, SolidSource(4), 4f, 0f, 4f, 4f),
-        )
-        val source = FramedTextureRegion.Source(frames)
+    fun removingARegionKeepsTheOthers() {
+        val texture = RecordingTexture()
+        val first = texture.addSource(SolidSource(8))!!
+        val second = texture.addSource(SolidSource(8))!!
+        val x = second.x
+        val y = second.y
 
-        val writes = mutableListOf<Pair<Int, Int>>()
-        source.writePixels({ x, y, _, _, _ -> writes += x to y }, 10, 20)
+        texture.removeRegion(first)
 
-        assertEquals(listOf(10 to 20, 14 to 20), writes)
+        assertTrue(first.isReleased)
+        assertFalse(second.isReleased)
+        assertEquals(x, second.x)
+        assertEquals(y, second.y)
+    }
+
+    @Test
+    fun aSourceFittingOnlyOnceRepackedReplacesTheMovedRegions() {
+        val texture = RecordingTexture()
+        // Four 30 pixel regions (32 with their gutter) fill the 64 pixel texture.
+        val regions = List(4) { texture.addSource(SolidSource(30))!! }
+
+        // Two diagonal ones removed leave two 32 pixel holes, too small for a 62 pixel wide source, unless the
+        // two left are packed side by side.
+        val removed = listOf(regions[0], regions[3])
+        removed.forEach(texture::removeRegion)
+        val kept = regions - removed.toSet()
+
+        val wide = object : Texture.Source {
+            override val width = 62f
+            override val height = 30f
+            override fun writePixels(target: Texture.PixelTarget, x: Int, y: Int) = Unit
+        }
+        assertNull(texture.addSource(wide))
+
+        val repacked = texture.addSourceRepacking(wide)!!
+
+        assertFalse(repacked.region.isReleased)
+        for (region in kept) {
+            val replacement = repacked.replaced[region] ?: continue
+            assertTrue(region.isReleased)
+            assertSame(region.source, replacement.source)
+        }
+        assertTrue(repacked.replaced.isNotEmpty())
+    }
+
+    @Test
+    fun removingAllRegionsReleasesThem() {
+        val texture = RecordingTexture()
+        val region = texture.addSource(SolidSource(8))!!
+
+        texture.removeAllRegions()
+
+        assertTrue(region.isReleased)
+        texture.flushUploads()
+        assertEquals(0, texture.writes.size)
     }
 }

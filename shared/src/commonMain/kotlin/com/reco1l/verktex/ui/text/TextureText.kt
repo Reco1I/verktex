@@ -6,13 +6,26 @@ import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.graphics.Texture
 import com.reco1l.verktex.localization.Localized
+import com.reco1l.verktex.texture.TextureReference
+import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.Canvas
 import kotlin.math.*
 
 /**
- * A text component that uses textures for each character.
+ * A text component that uses textures for each character, each one a [TextureReference] followed as it changes
+ * (e.g. a skin's, see [com.reco1l.verktex.texture.TextureReference.Lookup]).
  */
-open class TextureText(val characters: Map<Char, Texture.Region?>) : Canvas() {
+open class TextureText(private val references: Map<Char, TextureReference?>) : Canvas() {
+
+    /**
+     * The regions the characters resolved to, the ones the text is measured and drawn with.
+     */
+    val characters: Map<Char, Texture.Region?>
+        field = HashMap<Char, Texture.Region?>().also { map ->
+            for ((char, reference) in references) {
+                map[char] = reference?.resolve()
+            }
+        }
 
     /**
      * The spacing between glyphs.
@@ -107,6 +120,29 @@ open class TextureText(val characters: Map<Char, Texture.Region?>) : Canvas() {
         height = Dimension.WrapContent
     }
 
+
+    // Resolves the characters again, measuring the text again if a region changed.
+    private fun refresh() {
+        var changed = false
+
+        for ((char, reference) in references) {
+            val region = reference?.resolve()
+
+            if (region !== characters[char]) {
+                characters[char] = region
+                changed = true
+            }
+        }
+
+        if (changed) {
+            invalidateMeasure()
+        }
+    }
+
+    override fun onUpdate(clock: FrameClock) {
+        refresh()
+        super.onUpdate(clock)
+    }
 
     private fun setDisplayedText(value: String) {
         if (displayedText != value) {

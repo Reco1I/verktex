@@ -172,7 +172,8 @@ class VKExternalTexture internal constructor(
      */
     override fun fitsSource(source: Source) = false
 
-    override fun addSource(source: Source): Region? = null
+    override fun addSource(source: Source, density: Float): Region? = null
+    override fun addSourceRepacking(source: Source, density: Float): Repacked? = null
 
     override fun onBindTexture() = Unit
     override fun onWritePixels(x: Int, y: Int, width: Int, height: Int, pixels: PixelBuffer) = Unit

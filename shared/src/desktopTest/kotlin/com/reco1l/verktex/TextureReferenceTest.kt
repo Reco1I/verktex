@@ -10,6 +10,8 @@ import com.reco1l.verktex.texture.reference
 import com.reco1l.verktex.texture.storedTexture
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -129,4 +131,47 @@ class TextureReferenceTest {
         Textures.unload("$key-1")
         assertSame(first, sprite.textureRegion)
     }
+
+    @Test
+    fun storedFollowsTheKeyInItsStore() {
+        val atlas = Atlas()
+        val store = Textures.store("$key-store")
+        val reference = storedTexture(key, store)
+
+        Textures.load(key, SolidSource(8), destinationAtlas = atlas)
+        assertNull(reference.resolve())
+
+        val region = store.load(key, SolidSource(8), destinationAtlas = atlas)
+        assertSame(region, reference.resolve())
+
+        store.unload(key)
+        assertNull(reference.resolve())
+        Textures.remove(store.name)
+    }
+
+    @Test
+    fun unloadingAStoreLeavesTheOthers() {
+        val atlas = Atlas()
+        val store = Textures.store("$key-store")
+        val other = Textures.load(key, SolidSource(8), destinationAtlas = atlas)!!
+        val region = store.load(key, SolidSource(8), destinationAtlas = Atlas())!!
+        val revision = Textures.revision
+
+        store.unloadAll()
+
+        assertTrue(region.isReleased)
+        assertFalse(other.isReleased)
+        assertSame(other, Textures[key])
+        assertNull(store[key])
+        assertTrue(Textures.revision != revision)
+        Textures.remove(store.name)
+    }
+
+    @Test
+    fun storesAreKeptByName() {
+        assertSame(Textures.store("$key-store"), Textures.store("$key-store"))
+        assertSame(Textures.default, Textures.store(Textures.default.name))
+        Textures.remove("$key-store")
+    }
 }
+

@@ -3,7 +3,7 @@ package com.reco1l.verktex.texture
 import com.reco1l.verktex.graphics.Texture
 
 /**
- * Refers to the texture region a component draws: a region given directly, one stored in [Textures]
+ * Refers to the texture region a component draws: a region given directly, one stored in a [TextureStore]
  * under a key ([storedTexture]), or one an application looks up its own way ([Lookup]).
  */
 abstract class TextureReference {
@@ -52,17 +52,19 @@ abstract class TextureReference {
     }
 
     /**
-     * The region stored in [Textures] under [key], followed as it's loaded, replaced or unloaded.
+     * The region stored in [store] under [key], followed as it's loaded, replaced, moved or unloaded.
      */
-    data class Stored(val key: String) : Lookup() {
-        override fun lookup() = Textures[key]
+    data class Stored(val key: String, val store: TextureStore = Textures.default) : Lookup() {
+        override fun lookup() = store[key]
     }
 }
 
 /**
- * Refers to the region stored in [Textures] under [key], following it as it's replaced.
+ * Refers to the region stored in [store] (by default [Textures.default]) under [key], following it as it's
+ * replaced.
  */
-fun storedTexture(key: String): TextureReference.Stored = TextureReference.Stored(key)
+fun storedTexture(key: String, store: TextureStore = Textures.default): TextureReference.Stored =
+    TextureReference.Stored(key, store)
 
 /**
  * Refers to this region directly.
