@@ -72,7 +72,6 @@ kotlin {
     }
 
     compilerOptions {
-        freeCompilerArgs.add("-Xexplicit-backing-fields")
         freeCompilerArgs.add("-Xexpect-actual-classes")
         optIn.add("com.reco1l.verktex.VerktexPlatformApi")
     }
@@ -187,7 +186,7 @@ val ffmpegPlatform: String = run {
 // The libraries, in the order they're loaded: each after the ones it needs.
 val ffmpegLibraries = listOf("avutil" to 60, "swresample" to 6, "swscale" to 9, "avcodec" to 62, "avformat" to 62)
 
-val prepareFFmpeg by tasks.registering {
+val prepareFFmpeg = tasks.register("prepareFFmpeg") {
     group = "build setup"
     description = "Downloads FFmpeg's shared libraries for this platform into build/ffmpeg, for videos."
 

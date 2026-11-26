@@ -140,7 +140,7 @@ val buildVulkanLibrary = tasks.register<BuildVulkanLibrary>("buildVulkanLibrary"
 
 // The built-in shaders translated and compiled to SPIR-V with the NDK's glslc, as on Android, as
 // shaders/<name>.spv next to the GLSL ones :shared packages. Without glslc they're skipped with a warning.
-val vulkanShaderTools: Configuration by configurations.creating {
+val vulkanShaderTools: Configuration = configurations.create("vulkanShaderTools") {
     isCanBeConsumed = false
     isCanBeResolved = true
     attributes {
@@ -149,7 +149,7 @@ val vulkanShaderTools: Configuration by configurations.creating {
 }
 
 dependencies {
-    vulkanShaderTools(project(":shadertools"))
+    vulkanShaderTools(dependencies.project(":shadertools"))
 }
 
 val shaderDirectory: Directory = rootProject.layout.projectDirectory.dir("shared/assets/shaders")

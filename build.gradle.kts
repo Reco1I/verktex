@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.android.kotlinMultiplatformLibrary) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.kotlin.jvm) apply false
-    alias(libs.plugins.kotlin.android) apply false
 }
 
 // The coordinates applications depend on, com.reco1l.verktex:<module>, which a build including

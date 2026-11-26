@@ -999,9 +999,9 @@ object VerktexUITests : UITestSuite("Verktex") {
             fun sceneAt(level: Int): Scene = object : Scene() {
                 init {
                     // Drawn over the whole scene and not affected by its layout.
-                    backgroundComponent = Box().apply {
+                    background = Background.Component(Box().apply {
                         color = BACKGROUND_COLORS[level % BACKGROUND_COLORS.size]
-                    }
+                    })
 
                     linearContainer {
                         orientation = Orientation.Vertical

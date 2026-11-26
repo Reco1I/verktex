@@ -2,7 +2,6 @@
 // device without an application built on it. Install it with ./gradlew :androidApp:installDebug.
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {

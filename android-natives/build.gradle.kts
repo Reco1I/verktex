@@ -103,7 +103,7 @@ abstract class CompileVulkanShaders : DefaultTask() {
     }
 }
 
-val vulkanShaderTools: Configuration by configurations.creating {
+val vulkanShaderTools: Configuration = configurations.create("vulkanShaderTools") {
     isCanBeConsumed = false
     isCanBeResolved = true
     attributes {
@@ -112,7 +112,7 @@ val vulkanShaderTools: Configuration by configurations.creating {
 }
 
 dependencies {
-    vulkanShaderTools(project(":shadertools"))
+    vulkanShaderTools(dependencies.project(":shadertools"))
 }
 
 // The built-in shaders, which :shared packages itself.

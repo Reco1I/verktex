@@ -547,7 +547,7 @@ object Verktex {
     /**
      * What is drawn behind the scenes, over the whole window: a background every scene shares,
      * which goes on as scenes are pushed and popped instead of each scene drawing its own. A
-     * scene's own background ([Scene.backgroundComponent]) and content are drawn over it, so an
+     * scene's own [Scene.background] and content are drawn over it, so an
      * opaque one covers it. A [Background.Component] is updated with the engine's [clock] before
      * the scene, and doesn't receive input. None by default.
      *

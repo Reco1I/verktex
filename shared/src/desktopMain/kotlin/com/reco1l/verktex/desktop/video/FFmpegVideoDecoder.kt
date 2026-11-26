@@ -36,6 +36,7 @@ class FFmpegVideoDecoder(private val path: String) : VideoDecoder {
     private val onSizeKnown = AtomicReference<(() -> Unit)?>()
 
     // The video's clock and what the thread is asked to do, guarded by the lock.
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") // java.lang.Object, to wait and be notified on it.
     private val lock = Object()
     private var isPlaying = false
     private var speed = 1f

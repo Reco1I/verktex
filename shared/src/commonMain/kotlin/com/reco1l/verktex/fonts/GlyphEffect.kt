@@ -49,6 +49,7 @@ sealed class GlyphEffect {
     /**
      * The glyph grown by [radius] pixels on every side, with round corners.
      */
+    @ConsistentCopyVisibility
     data class Dilate internal constructor(val radius: Float) : GlyphEffect() {
 
         override val extent = floor(radius).toInt() + 1
@@ -74,6 +75,7 @@ sealed class GlyphEffect {
      * its coverage multiplied by [gain] and clamped, so that a gain above 1 makes it stronger near
      * the glyph.
      */
+    @ConsistentCopyVisibility
     data class Blur internal constructor(val radius: Float, val gain: Float) : GlyphEffect() {
 
         private val boxes = gaussianBoxes(radius / 2f)

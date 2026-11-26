@@ -121,7 +121,7 @@ class TextureStore internal constructor(
      *
      * @param key The key associated with the texture region to unload.
      */
-    fun unload(key: String) = synchronized(lock) {
+    fun unload(key: String): Unit = synchronized(lock) {
         val region = textureRegions.remove(key) ?: run {
             Logger.w(TAG, "Texture region with key '$key' not found in '$name'. Cannot unload.")
             return
@@ -134,7 +134,7 @@ class TextureStore internal constructor(
     /**
      * Unloads a texture region and removes it from its texture atlas.
      */
-    fun unload(region: Texture.Region) = synchronized(lock) {
+    fun unload(region: Texture.Region): Unit = synchronized(lock) {
         val key = textureRegions.entries.find { it.value == region }?.key ?: run {
             Logger.w(TAG, "Texture region not found in '$name'. Cannot unload.")
             return

@@ -12,14 +12,12 @@ import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.container.Container
 
+/**
+ * A screen of the application, the root of the components shown while it's the current one. Its
+ * content keeps the safe area through its padding. Something drawn behind the content over the whole
+ * scene, padding aside, is its [background], e.g. a [com.reco1l.verktex.data.Background.Component].
+ */
 open class Scene : Container() {
-
-    /**
-     * The background component of the scene. This component will be drawn before any other
-     * children of the scene and will not be affected by the scene's padding.
-     */
-    var backgroundComponent: Component? = null
-
 
     init {
         width = fill()
@@ -69,18 +67,12 @@ open class Scene : Container() {
                 right = embeddedSafeArea.z.px,
                 bottom = embeddedSafeArea.w.px
             )
-            layoutEmbeddedBackground()
-            backgroundComponent?.draw(renderer)
             super.onDraw(renderer)
             return
         }
 
-        // A background left from when the scene was embedded would follow its old transformations.
-        backgroundComponent?.let { if (it.parent === this) it.parent = null }
-
-        // Padding will be applied to the scene's content, but not to the background since it is not
-        // present on the children list.
-        // The safe area is shifted up while the on-screen keyboard would cover the focused input.
+        // The padding keeps the content in the safe area, the background is laid out over the whole
+        // scene. The safe area is shifted up while the on-screen keyboard would cover the focused input.
         val safeArea = safeArea
         val imeShift = Verktex.imeShift
         padding = Padding(
@@ -94,41 +86,7 @@ open class Scene : Container() {
         onPerformLayout()
         PerformanceStats.addLayoutTime(monotonicNanos() - layoutStartNanos)
 
-        backgroundComponent?.draw(renderer)
         super.onDraw(renderer)
-    }
-
-
-    override fun onUpdate(clock: FrameClock) {
-        backgroundComponent?.update(clock)
-        super.onUpdate(clock)
-    }
-
-    /**
-     * Lays the background out over the scene, which its parent laid out. The scene is the parent of
-     * its background meanwhile, so the background follows the transformations of the scene and its
-     * parents (e.g. a scaled down stage). It isn't one of the children, those are laid out with the
-     * padding.
-     */
-    private fun layoutEmbeddedBackground() {
-        val backgroundComponent = backgroundComponent ?: return
-        val width = bounds.width
-        val height = bounds.height
-
-        if (backgroundComponent.parent !== this) {
-            backgroundComponent.parent = this
-        }
-
-        backgroundComponent.measure(LayoutConstraints(
-            minWidth = width,
-            maxWidth = width,
-            minHeight = height,
-            maxHeight = height
-        ))
-        backgroundComponent.layout(Vec4(x = 0f, y = 0f, z = width, w = height))
-
-        // The scene doesn't tell its background when it moves, as it does with its children.
-        backgroundComponent.calculateTransformations()
     }
 
     /**
@@ -147,7 +105,6 @@ open class Scene : Container() {
         )
 
         measure(constraints)
-        backgroundComponent?.measure(constraints)
 
         val bounds = Vec4(
             x = 0f,
@@ -157,7 +114,6 @@ open class Scene : Container() {
         )
 
         layout(bounds)
-        backgroundComponent?.layout(bounds)
     }
 
 

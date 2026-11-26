@@ -24,6 +24,7 @@ abstract class ThreadLoopWorker(
     // Tasks are scheduled from other threads, so the queue must be thread safe.
     private val taskQueue = ConcurrentLinkedQueue<LoopWorker.TaskState>()
     // java.lang.Object on purpose, the thread waits and is notified on it.
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     private val lock = Object()
 
     private val thread = object : Thread(name) {
