@@ -37,11 +37,16 @@ import java.io.File
  * The graphics backend is the `GPUBackend` setting ([VerktexSettings.GPUBackend]): Vulkan
  * when it's picked and works, OpenGL 3.3 otherwise, see `docs/vulkan-backend.md`.
  *
+ * @param title The window's title.
+ * @param applicationName The name of the folders the application keeps its files in (see
+ * [Platform.storage]), the title by default. It's separate so that a title with characters folder
+ * names had better avoid can name them differently.
  * @param vsync Whether frames wait for the display's refresh, see [DesktopGPUContext.vsync].
  * Off by default, so the frame rate isn't capped to the display's.
  */
 abstract class DesktopGameHost(
     private val title: String = "Verktex",
+    private val applicationName: String = title,
     private val initialWidth: Int = 1280,
     private val initialHeight: Int = 720,
     private val vsync: Boolean = false,
@@ -100,7 +105,7 @@ abstract class DesktopGameHost(
                 density = scaleX[0].takeIf { it > 0f } ?: 1f,
                 width = mode?.width() ?: initialWidth,
                 height = mode?.height() ?: initialHeight,
-                applicationName = title,
+                applicationName = applicationName,
                 application = platformApplication,
                 onExit = ::close,
             )
