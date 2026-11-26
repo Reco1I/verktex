@@ -41,7 +41,7 @@ object Toasts {
         width = fill()
         anchor = Anchor.BottomCenter
         origin = Anchor.BottomCenter
-        padding = Padding(bottom = 48f.dip)
+        padding = Padding(bottom = 24f.dip)
     }
 
     private class Message(val text: CharSequence, val title: CharSequence, val duration: Duration) {

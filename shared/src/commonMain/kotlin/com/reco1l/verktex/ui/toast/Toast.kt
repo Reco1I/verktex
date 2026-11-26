@@ -32,7 +32,7 @@ open class Toast : LinearContainer() {
 
     private val titleText = Text().apply {
         width = fill()
-        fontSettings = themed { typography.caption }
+        fontSettings = themed { typography.smallCaption }
         color = themed { palette.accent }
         isVisible = false
     }
@@ -48,7 +48,7 @@ open class Toast : LinearContainer() {
     protected val body = LinearContainer().apply {
         orientation = Orientation.Vertical
         width = fill()
-        spacing = themed { gap.xs }
+        spacing = 2f.dip
 
         +titleText
         +messageText
@@ -106,12 +106,13 @@ open class Toast : LinearContainer() {
         orientation = Orientation.Horizontal
         anchor = Anchor.TopCenter
         origin = Anchor.TopCenter
-        width = 360f.dip
+        // Compact, so that it covers little of a phone's screen.
+        width = 320f.dip
         maxWidth = fill(0.9f)
-        spacing = themed { gap.md }
-        padding = themed { Padding(gap.md) }
+        spacing = 8f.dip
+        padding = themed { Padding(horizontal = gap.sm, vertical = 8f.dip) }
         background = Background.Color(themed { palette.surface })
-        radius = themed { CornerRadius(radius.lg) }
+        radius = themed { CornerRadius(radius.md) }
 
         +body
         +closeButton
