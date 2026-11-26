@@ -6,9 +6,8 @@ import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.dip
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.math.Easing
-import com.reco1l.verktex.ui.container.LinearContainer
+import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.fadeOut
-import com.reco1l.verktex.ui.themed
 import com.reco1l.verktex.ui.transformSequence
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -16,8 +15,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Shows [Toast]s at the bottom of the window, above the scene and the other overlays. They can be
- * shown and changed from any thread.
+ * Shows messages as [Toast]s at the bottom of the window, above the scene and the other overlays,
+ * one at a time: those shown while one is on screen wait their turn, in order, and a message
+ * already shown or waiting isn't queued again. They can be shown from any thread, and the user can
+ * dismiss them, with their close button or swiping them away, which shows the next one.
  *
  * Nothing is shown until the engine is initialized, so code that shows toasts also runs without it
  * (e.g. in tests).
@@ -36,14 +37,22 @@ object Toasts {
 
     private const val FADE_DURATION = 0.2f
 
-    private val container = LinearContainer().apply {
-        orientation = LinearContainer.Orientation.Vertical
+    private val container = Container().apply {
         width = fill()
         anchor = Anchor.BottomCenter
         origin = Anchor.BottomCenter
-        spacing = themed { gap.sm }
         padding = Padding(bottom = 48f.dip)
     }
+
+    private class Message(val text: CharSequence, val title: CharSequence, val duration: Duration) {
+        fun isSameAs(other: Message) = text.toString() == other.text.toString() && title.toString() == other.title.toString()
+    }
+
+    // Changed under the tree lock, as the components.
+    private val queue = ArrayDeque<Message>()
+
+    private var current: Toast? = null
+    private var currentMessage: Message? = null
 
 
     /**
@@ -59,125 +68,78 @@ object Toasts {
     fun showLong(text: CharSequence) = show(text, Long)
 
     /**
-     * Shows [text] for [duration], see [Short] and [Long].
-     *
-     * @param action The label of a button at the end of the toast, which calls [onAction] and hides
-     * the toast, none if null.
-     */
-    fun show(text: CharSequence, duration: Duration, action: CharSequence? = null, onAction: () -> Unit = {}): Handle {
-        val toast = Handle(text, title = "", duration)
-        if (action != null) {
-            toast.setAction(action) {
-                onAction()
-                toast.dismiss()
-            }
-        }
-        return toast.also(::add)
-    }
-
-    /**
-     * Shows a toast that stays until [Handle.dismiss] is called, e.g. for the progress of a task.
+     * Shows [text], with [title] above it if not empty, for [duration] once the messages before it
+     * were shown, see [Short] and [Long].
      */
     @JvmStatic
     @JvmOverloads
-    fun showPersistent(text: CharSequence, title: CharSequence = "", isIndeterminate: Boolean = false): Handle {
-        return Handle(text, title, duration = null).also {
-            it.isIndeterminate = isIndeterminate
-            add(it)
+    fun show(text: CharSequence, duration: Duration, title: CharSequence = "") = update {
+        val message = Message(text, title, duration)
+
+        if (currentMessage?.isSameAs(message) == true || queue.any { it.isSameAs(message) }) {
+            return@update
+        }
+
+        queue.addLast(message)
+        if (current == null) {
+            showNext()
         }
     }
 
-    private fun add(toast: Handle) = update {
+    private fun showNext() {
+        val message = queue.removeFirstOrNull()
+        currentMessage = message
+
+        if (message == null) {
+            current = null
+            container.removeSelf()
+            return
+        }
+
         // Toasts stay above what was added since, e.g. a dialog.
         container.removeSelf()
         Verktex.addOverlay(container)
 
-        container += toast.component
-        toast.component.alpha = 0f
-
-        val sequence = toast.component.transformSequence { fadeIn(FADE_DURATION, Easing.OutQuad) }
-        val duration = toast.duration ?: return@update
-
-        sequence.then().delay(duration.inWholeMilliseconds / 1000f).fadeOut(FADE_DURATION).after { remove(toast) }
-    }
-
-    private fun remove(toast: Handle) {
-        container -= toast.component
-        if (container.childCount == 0) {
-            container.removeSelf()
+        val toast = Toast().apply {
+            text = message.text
+            title = message.title
+            alpha = 0f
+            isDismissible = true
         }
+        toast.onDismiss = { hide(toast) }
+
+        current = toast
+        container += toast
+
+        toast.transformSequence { fadeIn(FADE_DURATION, Easing.OutQuad) }
+            .then()
+            .delay(message.duration.inWholeMilliseconds / 1000f)
+            .fadeOut(FADE_DURATION)
+            .after { finish(toast) }
     }
 
-    internal fun dismiss(toast: Handle) = update {
-        toast.component.fadeOut(FADE_DURATION, Easing.OutQuad).after { remove(toast) }
+    // Dismissed by the user before its time: the next one follows once it faded out.
+    private fun hide(toast: Toast) {
+        if (current !== toast) {
+            return
+        }
+        toast.fadeOut(FADE_DURATION, Easing.OutQuad).after { finish(toast) }
+    }
+
+    private fun finish(toast: Toast) {
+        // Already gone, e.g. dismissed before its time ran out.
+        if (current !== toast) {
+            return
+        }
+        container -= toast
+        showNext()
     }
 
     /**
      * Changes the components from any thread, holding the tree lock as the engine's workers do.
      */
-    internal fun update(block: () -> Unit) {
+    private fun update(block: () -> Unit) {
         if (!Verktex.isInitialized) return
         Verktex.withTreeLock(block)
-    }
-
-
-    /**
-     * A toast on screen. Its properties can be changed from any thread.
-     */
-    class Handle internal constructor(text: CharSequence, title: CharSequence, internal val duration: Duration?) {
-
-        // Created on first use, so nothing of the UI is built while the engine isn't initialized.
-        internal val component by lazy {
-            Toast().apply {
-                this.text = text
-                this.title = title
-            }
-        }
-
-        /**
-         * The message of the toast.
-         */
-        var text: CharSequence = text
-            set(value) {
-                field = value
-                update { component.text = value }
-            }
-
-        /**
-         * The title above the message, none if empty.
-         */
-        var title: CharSequence = title
-            set(value) {
-                field = value
-                update { component.title = value }
-            }
-
-        /**
-         * The progress of a task, from 0 to 1, or null for no progress bar.
-         */
-        var progress: Float? = null
-            set(value) {
-                field = value
-                update { component.progress = value }
-            }
-
-        /**
-         * Whether a task runs without a known progress, shown as a loading indicator.
-         */
-        var isIndeterminate = false
-            set(value) {
-                field = value
-                update { component.isIndeterminate = value }
-            }
-
-        /**
-         * Shows a button labeled [text] at the end of the toast, see [Toast.setAction].
-         */
-        fun setAction(text: CharSequence?, onClick: () -> Unit = {}) = update { component.setAction(text, onClick) }
-
-        /**
-         * Hides the toast.
-         */
-        fun dismiss() = dismiss(this)
     }
 }
