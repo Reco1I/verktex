@@ -955,11 +955,19 @@ abstract class Component {
      * rendering context, applying transformations, and calling [onDraw] to perform the actual
      * drawing of the component.
      */
+    /**
+     * Called as [draw] starts, before anything of this component is drawn, its background included, e.g. for a
+     * [Scene] to lay itself out.
+     */
+    protected open fun onPrepareDraw() {}
+
     fun draw(renderer: Renderer) {
 
         if (!isVisible) {
             return
         }
+
+        onPrepareDraw()
 
         if (transformationsInvalid) {
             transformationsInvalid = false

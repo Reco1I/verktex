@@ -161,4 +161,31 @@ class ProxyTest {
 
         assertEquals(listOf("piece", "sibling", "other"), log)
     }
+
+    // A scene draws a component background before its own content: it must be laid out by then, or what moved
+    // since the last frame shows at its old place for a frame (e.g. gameplay, whose tree is its scene's background).
+    @Test
+    fun sceneIsLaidOutBeforeItsComponentBackgroundIsDrawn() {
+        val moved = Probe(log, "moved")
+        val tree = Container().apply {
+            width = com.reco1l.verktex.data.Dimension.FillAvailable
+            height = com.reco1l.verktex.data.Dimension.FillAvailable
+            this += moved
+        }
+        val scene = object : Scene() {
+            override val keepsWindowSafeArea get() = false
+
+            override fun onPerformLayout() {
+                measure(com.reco1l.verktex.data.LayoutConstraints(minWidth = 0f, maxWidth = 1280f, minHeight = 0f, maxHeight = 720f))
+                layout(Vec4(0f, 0f, 1280f, 720f))
+            }
+        }
+        scene.background = com.reco1l.verktex.data.Background.Component(tree)
+
+        draw(scene)
+        moved.setPosition(300f, 0f)
+        draw(scene)
+
+        assertEquals(300f, moved.sceneX, 0.01f)
+    }
 }

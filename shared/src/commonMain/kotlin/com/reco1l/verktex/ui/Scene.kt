@@ -58,7 +58,10 @@ open class Scene : Container() {
         get() = true
 
 
-    override fun onDraw(renderer: Renderer) {
+    // Laid out before anything of the scene is drawn: a component background (e.g. a tree drawn behind the content,
+    // Background.Component) is drawn before onDraw, and would otherwise show the previous frame's layout, with
+    // what moved since at its old place for a frame.
+    override fun onPrepareDraw() {
 
         if (isEmbedded) {
             padding = Padding(
@@ -67,7 +70,6 @@ open class Scene : Container() {
                 right = embeddedSafeArea.z.px,
                 bottom = embeddedSafeArea.w.px
             )
-            super.onDraw(renderer)
             return
         }
 
@@ -85,8 +87,6 @@ open class Scene : Container() {
         val layoutStartNanos = monotonicNanos()
         onPerformLayout()
         PerformanceStats.addLayoutTime(monotonicNanos() - layoutStartNanos)
-
-        super.onDraw(renderer)
     }
 
     /**
