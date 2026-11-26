@@ -1,6 +1,7 @@
 #pragma once
 
 #include "audio_decoder.h"
+#include "audio_filter.h"
 #include "audio_spsc_queue.h"
 
 #include <array>
@@ -158,6 +159,13 @@ public:
     void setTempo(float value) { tempo.store(value, std::memory_order_relaxed); }
     float getTempo() const { return tempo.load(std::memory_order_relaxed); }
 
+    // The cutoffs in Hz of a low-pass filter, none at or above kMaxLowPassCutoff, and of a high-pass
+    // one, none at 0, on what the stream plays.
+    void setLowPassCutoff(float hz) { lowPassCutoff.store(hz, std::memory_order_relaxed); }
+    void setHighPassCutoff(float hz) { highPassCutoff.store(hz, std::memory_order_relaxed); }
+
+    static constexpr float kMaxLowPassCutoff = 22050.f;
+
     // Called by the service thread when the stream reaches its end.
     void setEndListener(std::function<void()> listener);
 
@@ -213,6 +221,8 @@ private:
     std::unique_ptr<Decoder> decoder;
     std::atomic<float> frequency;
     std::atomic<float> tempo{1.f};
+    std::atomic<float> lowPassCutoff{kMaxLowPassCutoff};
+    std::atomic<float> highPassCutoff{0.f};
 
     std::mutex producerLock;
     // The decoder reached the end of the file, no more stretched audio will come, and every chunk was written.
@@ -251,6 +261,8 @@ private:
     std::array<WindowFrame, 4> window{};
     bool windowFilled = false;
     double fraction = 0;
+    BiquadFilter lowPass{BiquadFilter::Type::LowPass};
+    BiquadFilter highPass{BiquadFilter::Type::HighPass};
     std::array<float, kFftSize> fftHistory{};
     std::atomic<uint32_t> fftWrite{0};
 

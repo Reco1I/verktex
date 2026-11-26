@@ -1,5 +1,7 @@
 package com.reco1l.verktex.desktop
 
+import com.reco1l.verktex.audio.AudioStream
+import com.reco1l.verktex.desktop.bass.BASSAudioStream
 import com.reco1l.verktex.desktop.bass.BassFxNative
 import com.reco1l.verktex.desktop.bass.BassNative as BASS
 import com.sun.jna.Memory
@@ -51,6 +53,36 @@ class BassTest {
 
         assertTrue(BASS.BASS_ChannelSetAttribute(tempo, BassFxNative.BASS_ATTRIB_TEMPO, 50f))
         assertTrue(BASS.BASS_ChannelFree(tempo))
+    }
+
+    @Test
+    fun streamsFilterTheirAudio() {
+        // 440 Hz through a low-pass at 100 Hz, two octaves below, comes out far quieter, and as it
+        // went in once the filter is removed.
+        fun rms(lowPassCutoff: Float): Double {
+            val wav = wav(seconds = 1.0)
+            val data = Memory(wav.size.toLong()).apply { write(0, wav, 0, wav.size) }
+            val decoding = BASS.BASS_StreamCreateFile(true, data, 0, wav.size.toLong(), BASS.BASS_STREAM_DECODE or BASS.BASS_STREAM_PRESCAN)
+            val stream = BASSAudioStream(BassFxNative.BASS_FX_TempoCreate(decoding, BASS.BASS_STREAM_DECODE))
+
+            stream.lowPassCutoff = 100f
+            stream.lowPassCutoff = lowPassCutoff
+
+            val buffer = ByteBuffer.allocateDirect(RATE).order(ByteOrder.LITTLE_ENDIAN)
+            val read = BASS.BASS_ChannelGetData(stream.id, buffer, RATE)
+            stream.dispose()
+            assertTrue("BASS error ${BASS.BASS_ErrorGetCode()}", read > 0)
+
+            // Past the filter's settling.
+            val samples = buffer.asShortBuffer()
+            var sum = 0.0
+            for (i in 4096 until read / 2) sum += samples[i].toDouble() * samples[i]
+            return Math.sqrt(sum / (read / 2 - 4096))
+        }
+
+        val unfiltered = rms(AudioStream.MAX_LOW_PASS_CUTOFF)
+        assertTrue("unfiltered $unfiltered", unfiltered > 4000)
+        assertTrue(rms(100f) < unfiltered * 0.2)
     }
 
 

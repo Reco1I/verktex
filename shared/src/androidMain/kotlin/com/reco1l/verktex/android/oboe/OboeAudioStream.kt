@@ -89,6 +89,20 @@ class OboeAudioStream internal constructor(private val driver: OboeAudioDriver, 
 
     override var onEnd: (() -> Unit)? = null
 
+    override var lowPassCutoff = MAX_LOW_PASS_CUTOFF
+        set(value) {
+            if (field == value) return
+            field = value
+            handle.let { if (it != 0L) OboeNative.setStreamLowPassCutoff(it, value) }
+        }
+
+    override var highPassCutoff = 0f
+        set(value) {
+            if (field == value) return
+            field = value
+            handle.let { if (it != 0L) OboeNative.setStreamHighPassCutoff(it, value) }
+        }
+
 
     init {
         frequency = baseFrequency.toFloat()

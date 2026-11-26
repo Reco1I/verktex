@@ -406,6 +406,61 @@ void streamsEndOnceAndLoop() {
     engine.release(stream);
 }
 
+// The root mean square of the left channel of `stereo`, from frame `from`.
+double rms(const std::vector<float> &stereo, size_t from) {
+    double sum = 0;
+    size_t count = 0;
+    for (size_t i = from * 2; i < stereo.size(); i += 2, ++count) sum += double(stereo[i]) * stereo[i];
+    return count > 0 ? std::sqrt(sum / count) : 0;
+}
+
+void filtersAttenuateAcrossTheirCutoff() {
+    auto signal = sine(kRate, 2000, 0.5f);
+    auto filter = [&](BiquadFilter::Type type, float cutoff) {
+        BiquadFilter biquad(type);
+        biquad.configure(cutoff, kRate, true);
+        std::vector<float> output(signal.size());
+        for (size_t i = 0; i < signal.size(); i += 2) {
+            output[i] = biquad.process(0, signal[i]);
+            output[i + 1] = biquad.process(1, signal[i + 1]);
+        }
+        return rms(output, 4096);
+    };
+    double input = rms(signal, 4096);
+
+    // A 2 kHz sine two octaves above a low-pass is about 24 dB down, two below a high-pass too.
+    CHECK(filter(BiquadFilter::Type::LowPass, 500) < input * 0.1);
+    CHECK(filter(BiquadFilter::Type::HighPass, 8000) < input * 0.1);
+    // Far from the cutoff it passes.
+    CHECK_NEAR(filter(BiquadFilter::Type::LowPass, 15000), input, input * 0.02);
+    CHECK_NEAR(filter(BiquadFilter::Type::HighPass, 50), input, input * 0.02);
+
+    BiquadFilter bypassed(BiquadFilter::Type::LowPass);
+    bypassed.configure(100, kRate, false);
+    CHECK(!bypassed.isActive());
+    CHECK(bypassed.process(0, 0.25f) == 0.25f);
+}
+
+void streamsFilterTheirAudio() {
+    Engine engine;
+    engine.setOutputRate(kRate);
+
+    auto *stream = engine.createStream(makeWav(sine(kRate, 2000, 0.5f)));
+    stream->play(false);
+    double unfiltered = rms(renderPaced(engine, 8192, stream), 0);
+
+    stream->setLowPassCutoff(500);
+    renderPaced(engine, 2048, stream);
+    double lowPassed = rms(renderPaced(engine, 8192, stream), 0);
+    CHECK(lowPassed < unfiltered * 0.15);
+
+    // Off again at the maximum cutoff.
+    stream->setLowPassCutoff(StreamPlayback::kMaxLowPassCutoff);
+    renderPaced(engine, 2048, stream);
+    CHECK_NEAR(rms(renderPaced(engine, 8192, stream), 0), unfiltered, unfiltered * 0.05);
+    engine.release(stream);
+}
+
 void streamsStallWithoutAudio() {
     Engine engine;
     engine.setOutputRate(kRate);
@@ -471,6 +526,8 @@ int main() {
     run("streamsChangeTempoKeepingPitch", streamsChangeTempoKeepingPitch);
     run("streamsChangePitchWithFrequency", streamsChangePitchWithFrequency);
     run("streamsEndOnceAndLoop", streamsEndOnceAndLoop);
+    run("filtersAttenuateAcrossTheirCutoff", filtersAttenuateAcrossTheirCutoff);
+    run("streamsFilterTheirAudio", streamsFilterTheirAudio);
     run("streamsStallWithoutAudio", streamsStallWithoutAudio);
     run("releasedPlaybacksAreDeleted", releasedPlaybacksAreDeleted);
 

@@ -74,6 +74,10 @@ builds and is tested on Linux with a null output (`natives/audio/tests/`).
 - **Spectrum**: the callback keeps the last 1024 frames of the stream; `readFFT()` applies a Hann
   window and a 1024 point FFT and returns 512 magnitudes, a full scale sine reading about 1. That
   BASS's `BASS_DATA_FFT1024` reads the same is to be checked against it.
+- **Filters**: a stream's `lowPassCutoff` and `highPassCutoff` are biquad filters (RBJ's, Butterworth
+  Q) on what it plays (`audio_filter.h`), after the resampler, so the spectrum reads them too; BASS
+  uses BASS_FX's `BASS_FX_BFX_BQF` for the same. Their coefficients are computed again only when a
+  cutoff moves, so they can be animated every frame.
 - **URL streams** aren't supported by Oboe yet (`createUrlStreamSource` returns null).
 
 ### The Oboe output (`android-natives`)
@@ -113,7 +117,7 @@ native core on desktop.
 - `natives/audio/tests/` (`cmake -S natives/audio -B build/audio -DVERKTEX_AUDIO_TESTS=ON`, then
   `cmake --build build/audio && ctest --test-dir build/audio`): decoded lengths (MP3s with their
   LAME tag), exact seeks, samples' rates, loops and volume ramps, streams' positions with the
-  output's latency, tempo and frequency, ends, loops, stalls, and released playbacks. They pass with
+  output's latency, tempo and frequency, filters, ends, loops, stalls, and released playbacks. They pass with
   the address, undefined behavior and thread sanitizers.
 - `Verktex/Audio` UI test: samples and streams, speed, pitch and frequency, rapid hits, spectrum,
   and the backend and latency.

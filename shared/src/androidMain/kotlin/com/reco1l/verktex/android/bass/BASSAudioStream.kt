@@ -94,8 +94,27 @@ class BASSAudioStream(
 
     override var onEnd: (() -> Unit)? = null
 
+    override var lowPassCutoff = MAX_LOW_PASS_CUTOFF
+        set(value) {
+            if (field == value) return
+            field = value
+            lowPassFX = applyFilter(lowPassFX, BASS_FX.BASS_BFX_BQF_LOWPASS, value, value < MAX_LOW_PASS_CUTOFF)
+        }
+
+    override var highPassCutoff = 0f
+        set(value) {
+            if (field == value) return
+            field = value
+            highPassFX = applyFilter(highPassFX, BASS_FX.BASS_BFX_BQF_HIGHPASS, value, value > 0f)
+        }
+
 
     private val baseFrequency: Int
+
+    // The handles of the filters' effects, 0 without them.
+    private var lowPassFX = 0
+    private var highPassFX = 0
+    private val filterParameters = BASS_FX.BASS_BFX_BQF()
 
     private val spectrumBuffer by lazy {
         ByteBuffer.allocateDirect(FFT_SIZE shl 1).order(ByteOrder.nativeOrder())
@@ -120,6 +139,29 @@ class BASSAudioStream(
 
         frequency = newFrequency
         BASS.BASS_ChannelSetAttribute(id, BASS_FX.BASS_ATTRIB_TEMPO, if (adjustPitch) 0f else (speed - 1f) * 100f)
+    }
+
+
+    /**
+     * Sets, updates or removes the biquad filter [fx] of [type] at [cutoff], returning its handle.
+     */
+    private fun applyFilter(fx: Int, type: Int, cutoff: Float, isEnabled: Boolean): Int {
+        if (!isEnabled) {
+            if (fx != 0) BASS.BASS_ChannelRemoveFX(id, fx)
+            return 0
+        }
+
+        val handle = if (fx != 0) fx else BASS.BASS_ChannelSetFX(id, BASS_FX.BASS_FX_BFX_BQF, 0)
+        if (handle == 0) return 0
+
+        // Animated every frame, so the parameters are reused.
+        filterParameters.lFilter = type
+        // Below the Nyquist frequency, as BASS_FX requires.
+        filterParameters.fCenter = cutoff.coerceIn(1f, baseFrequency / 2f - 1f)
+        filterParameters.fQ = FILTER_Q
+        filterParameters.lChannel = BASS_FX.BASS_BFX_CHANALL
+        BASS.BASS_FXSetParameters(handle, filterParameters)
+        return handle
     }
 
 

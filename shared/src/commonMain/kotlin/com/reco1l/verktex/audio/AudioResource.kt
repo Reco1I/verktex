@@ -63,9 +63,34 @@ abstract class AudioStream : AudioResource, AudioPlayback {
      */
     abstract fun readFFT(): FloatArray?
 
+    /**
+     * The cutoff of a low-pass filter on the stream in Hz, which muffles it as it goes down. At or
+     * above [MAX_LOW_PASS_CUTOFF], the default, there's no filter. It can be changed every frame,
+     * e.g. animated.
+     */
+    open var lowPassCutoff: Float = MAX_LOW_PASS_CUTOFF
+
+    /**
+     * The cutoff of a high-pass filter on the stream in Hz, which thins it as it goes up. At 0, the
+     * default, there's no filter. It can be changed every frame, e.g. animated.
+     */
+    open var highPassCutoff: Float = 0f
+
 
     override fun createPlayback(): AudioPlayback {
         return this
+    }
+
+    companion object {
+        /**
+         * The [lowPassCutoff] at and above which there's no low-pass filter.
+         */
+        const val MAX_LOW_PASS_CUTOFF = 22050f
+
+        /**
+         * The quality factor of the filters, a Butterworth response: flat, without resonance.
+         */
+        const val FILTER_Q = 0.70710677f
     }
 
     /**

@@ -149,6 +149,14 @@ JNI_FUNCTION(void, setStreamTempo)(JNIEnv *, jclass, jlong handle, jfloat tempo)
     stream(handle)->setTempo(tempo);
 }
 
+JNI_FUNCTION(void, setStreamLowPassCutoff)(JNIEnv *, jclass, jlong handle, jfloat hz) {
+    stream(handle)->setLowPassCutoff(hz);
+}
+
+JNI_FUNCTION(void, setStreamHighPassCutoff)(JNIEnv *, jclass, jlong handle, jfloat hz) {
+    stream(handle)->setHighPassCutoff(hz);
+}
+
 JNI_FUNCTION(jboolean, readStreamFFT)(JNIEnv *env, jclass, jlong handle, jfloatArray output) {
     float magnitudes[StreamPlayback::kFftSize / 2];
     if (!stream(handle)->readFFT(magnitudes)) return false;

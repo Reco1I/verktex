@@ -108,6 +108,9 @@ object BassNative {
     @JvmStatic external fun BASS_ChannelFree(handle: Int): Boolean
     @JvmStatic external fun BASS_ChannelSetSync(handle: Int, type: Int, param: Long, proc: SyncProc, user: Pointer?): Int
     @JvmStatic external fun BASS_ChannelGetData(handle: Int, buffer: ByteBuffer, length: Int): Int
+    @JvmStatic external fun BASS_ChannelSetFX(handle: Int, type: Int, priority: Int): Int
+    @JvmStatic external fun BASS_ChannelRemoveFX(handle: Int, fx: Int): Boolean
+    @JvmStatic external fun BASS_FXSetParameters(handle: Int, params: Structure): Boolean
 
 
     private val isWindows = System.getProperty("os.name").lowercase().contains("windows")
@@ -135,7 +138,7 @@ object BassNative {
 }
 
 /**
- * The tempo part of BASS_FX (bass_fx.h).
+ * The tempo and biquad filter parts of BASS_FX (bass_fx.h).
  */
 object BassFxNative {
 
@@ -147,6 +150,25 @@ object BassFxNative {
 
     const val BASS_ATTRIB_TEMPO = 0x10000
     const val BASS_ATTRIB_TEMPO_FREQ = 0x10002
+
+    const val BASS_FX_BFX_BQF = 0x10013
+    const val BASS_BFX_BQF_LOWPASS = 0
+    const val BASS_BFX_BQF_HIGHPASS = 1
+    const val BASS_BFX_CHANALL = -1
+
+    /**
+     * BASS_BFX_BQF, the parameters of a biquad filter effect.
+     */
+    @Structure.FieldOrder("lFilter", "fCenter", "fGain", "fBandwidth", "fQ", "fS", "lChannel")
+    class BiquadFilter : Structure() {
+        @JvmField var lFilter: Int = 0
+        @JvmField var fCenter: Float = 0f
+        @JvmField var fGain: Float = 0f
+        @JvmField var fBandwidth: Float = 0f
+        @JvmField var fQ: Float = 0f
+        @JvmField var fS: Float = 0f
+        @JvmField var lChannel: Int = 0
+    }
 
     @JvmStatic external fun BASS_FX_TempoCreate(channel: Int, flags: Int): Int
 }

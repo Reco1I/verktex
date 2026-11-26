@@ -465,6 +465,11 @@ void StreamPlayback::render(float *output, int count, int outputRate) {
     const float gainStep = 1.f / (kGainRampSeconds * float(outputRate));
     const double step = double(frequency.load(std::memory_order_relaxed)) / outputRate;
 
+    const float lowPassHz = lowPassCutoff.load(std::memory_order_relaxed);
+    const float highPassHz = highPassCutoff.load(std::memory_order_relaxed);
+    lowPass.configure(lowPassHz, outputRate, lowPassHz < kMaxLowPassCutoff);
+    highPass.configure(highPassHz, outputRate, highPassHz > 0.f);
+
     // No more frames will come from the chunks, and the playback is past its last frame.
     bool drained = false;
     bool ended = false;
@@ -523,6 +528,8 @@ void StreamPlayback::render(float *output, int count, int outputRate) {
             return hermite(value(window[0]), value(window[1]), value(window[2]), value(window[3]), t);
         };
         float left = sample(0), right = sample(1);
+        left = highPass.process(0, lowPass.process(0, left));
+        right = highPass.process(1, lowPass.process(1, right));
 
         if (renderStart < 0) {
             renderStart = window[1].source + fraction * window[1].step;

@@ -66,6 +66,8 @@ internal object OboeNative {
     @JvmStatic external fun streamSampleRate(stream: Long): Int
     @JvmStatic external fun setStreamFrequency(stream: Long, hz: Float)
     @JvmStatic external fun setStreamTempo(stream: Long, tempo: Float)
+    @JvmStatic external fun setStreamLowPassCutoff(stream: Long, hz: Float)
+    @JvmStatic external fun setStreamHighPassCutoff(stream: Long, hz: Float)
     @JvmStatic external fun readStreamFFT(stream: Long, output: FloatArray): Boolean
 
     /**
