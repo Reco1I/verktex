@@ -21,7 +21,8 @@ open class IconButton : Button() {
         anchor = Anchor.Center
         origin = Anchor.Center
 
-        color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
+        // Tinted by the button's color.
+        color = Color4.White
         iconSize = themed { buttonStyle[density].iconSize }
     }
 
@@ -32,9 +33,14 @@ open class IconButton : Button() {
     //endregion
 
 
+    // The icon is white, tinted by it, so setting it changes the icon's color.
+    override val highlightColor
+        get() = color
+
+
     init {
+        color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
         +iconComponent
-        tintChildren = false
     }
 
 }

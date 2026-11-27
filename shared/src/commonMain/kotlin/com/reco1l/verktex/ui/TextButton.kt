@@ -51,7 +51,13 @@ open class TextButton : Button() {
     //endregion
 
 
+    // The text is white, tinted by it, so setting it changes the text's color.
+    override val highlightColor
+        get() = color
+
+
     init {
+        color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
         +textComponent
     }
 

@@ -79,7 +79,6 @@ open class Button : ClickableContainer() {
         height = themed { buttonStyle[density].height }
         padding = horizontalPadding(themed { buttonStyle[density].horizontalPadding })
         radius = themed { CornerRadius(buttonStyle[density].radius) }
-        color = themed { if (variant == Variant.Solid) palette.contentOnSolid else palette.accent }
         border = themed {
             when (variant) {
                 Variant.Solid, Variant.Soft, Variant.Surface -> buttonStyle.elevation.border
@@ -114,8 +113,19 @@ open class Button : ClickableContainer() {
         highlight.onStateChanged(state)
     }
 
+    /**
+     * The color of the content of the button, which the highlight is drawn in: the theme's
+     * [Theme.ColorPalette.contentOnSolid] for [Variant.Solid] buttons, its accent otherwise.
+     *
+     * The button doesn't tint its content: its [color] is left white, so content added to a plain
+     * [Button] colors itself, e.g. with this color. [TextButton] and [IconButton] set their [color]
+     * to it instead, tinting their white text or icon, so `color` changes their content's color.
+     */
+    open val highlightColor: Color4
+        get() = resolvedTheme.palette.let { if (variant == Variant.Solid) it.contentOnSolid else it.accent }
+
     override fun drawOverBackground(renderer: Renderer) {
-        highlight.draw(renderer, color)
+        highlight.draw(renderer, highlightColor)
     }
 
     //region Touch
