@@ -140,6 +140,10 @@ going back restores the earlier state.
   without allocating: call `choreography?.clear()` and set the properties' starting values before
   building again.
 - `clearAnimations()` on the component clears both its transforms and its choreography.
+- `resetAnimatedState()` clears them and gives back the defaults of what they change (alpha, color, scale, rotation
+  and translation), for a pooled component before it's used again. Its descendants are left as they are.
+- `latestChoreographyEndTime()` is when the last choreography of a component and its descendants ends, e.g. to end
+  the lifetime of a hit object once everything its pieces play has ended, as osu!lazer's `LatestTransformEndTime`.
 
 ## Transitions keyed by a state
 
@@ -166,6 +170,27 @@ val endTime = judgement.play(piece, result, hitTime)
   steps stay in the choreography, so seeking back before `time` shows the earlier state again. Clear
   the choreography to play it anew, e.g. when the component is pooled.
 - It keeps no state, so one instance can be shared by every component it animates.
+
+## States of a target animating several components
+
+`ChoreographyStates<S, T>` (`ui/ChoreographyStates.kt`) is the same for a target of any type `T` that animates
+several components at once, e.g. a hit object, whose pieces each play their part when it's hit or missed. A block
+gets the target as its receiver and the time the state is played at:
+
+```kotlin
+private val states = choreographyStates<ArmedState, HitCircle> {
+    this[ArmedState.Hit] = { time -> circle.choreographAt(time) { it.scaleTo(1.4f, 0.2f).fadeOut(0.2f) } }
+    otherwise { time -> circle.choreographAt(time) { it.fadeOut(0.1f) } }
+}
+
+states.play(this, ArmedState.Hit, hitTime)
+```
+
+- `play(target, state, time)` returns whether the state had a block (its own or `otherwise`).
+- As `ChoreographyTransitions`, it keeps no state, so one instance can be shared by every target of its type, and
+  the steps it adds stay in the choreographies.
+
+`ChoreographyStatesTest` covers it.
 
 ## Interaction with other animations
 

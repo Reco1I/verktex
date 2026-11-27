@@ -40,6 +40,12 @@ class Choreography internal constructor(private val target: Component) {
     val isFinished
         get() = lifetimeEndReached
 
+    /**
+     * Whether a step or a callback was added since this choreography was last cleared.
+     */
+    val hasSteps
+        get() = steps.isNotEmpty() || callbacks.isNotEmpty()
+
 
     private val steps = ArrayList<Step>()
     private val freeSteps = ArrayList<Step>()
@@ -389,3 +395,34 @@ fun Component.choreographNow(block: ChoreographyBlock) = choreographAt(currentCl
  * Adds steps to the choreography of this component.
  */
 inline fun Component.choreograph(block: Choreography.() -> Unit): Choreography = choreography().apply(block)
+
+/**
+ * The time the last choreography of this component and its descendants ends at, see [Choreography.endTime], or
+ * [Float.NEGATIVE_INFINITY] when none has a step. E.g. the end of everything a hit object and its pieces play, to
+ * end its lifetime with, as osu!lazer's `LatestTransformEndTime`.
+ */
+fun Component.latestChoreographyEndTime(): Float {
+    var end = choreography?.takeIf { it.hasSteps }?.endTime ?: Float.NEGATIVE_INFINITY
+
+    if (this is com.reco1l.verktex.ui.container.Container) {
+        for (i in 0 until childCount) {
+            end = maxOf(end, this[i].latestChoreographyEndTime())
+        }
+    }
+    return end
+}
+
+/**
+ * Clears the animations of this component and gives back the defaults of what they change: the alpha, the color,
+ * the scale, the rotation and the translation. For a pooled component, before it's used again, so nothing of its
+ * last use is drawn. Its descendants are left as they are: a component resets its own parts.
+ */
+fun Component.resetAnimatedState() {
+    clearAnimations()
+    color = com.reco1l.verktex.data.Color4.White
+    scaleX = 1f
+    scaleY = 1f
+    rotationZ = 0f
+    translationX = 0f.px
+    translationY = 0f.px
+}
