@@ -127,7 +127,7 @@ open class GridContainer : Container() {
         val contentWidth = if (rowCount == 0) 0f else cellWidth * columnCount + columnSpacingPixels * (columnCount - 1)
         val contentHeight = rowHeights.sum() + rowSpacingPixels * max(0, rowCount - 1)
 
-        return contentConstraints.constrain(Vec2(contentWidth, contentHeight)).expand(padding.toVec4())
+        return contentConstraints.constrain(Vec2(contentWidth, contentHeight)).expand(measurePadding)
     }
 
     // Cells give the sizes to filling children, there's nothing left to stretch them to.
@@ -137,11 +137,11 @@ open class GridContainer : Container() {
 
 
     override fun onLayout(bounds: Vec4) {
-        val left = paddingLeft.toPixels()
+        val left = layoutPadding.x
         val columnSpacingPixels = columnSpacing.toPixels()
         val rowSpacingPixels = rowSpacing.toPixels()
 
-        var y = paddingTop.toPixels()
+        var y = layoutPadding.y
         var index = 0
 
         forEach { child ->

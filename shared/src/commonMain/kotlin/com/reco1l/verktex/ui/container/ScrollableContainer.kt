@@ -262,7 +262,7 @@ open class ScrollableContainer : Container() {
 
         // The own constraints, so the limits of this container (e.g. minWidth) are what filling
         // children are stretched to.
-        val measuredSize = contentConstraints.constrain(contentSize).expand(padding.toVec4())
+        val measuredSize = contentConstraints.constrain(contentSize).expand(measurePadding)
         stretchFillingChildren(measuredSize) { childConstraints }
         return measuredSize
     }
@@ -284,18 +284,18 @@ open class ScrollableContainer : Container() {
             }
 
             // Content shorter than the container is placed at its end.
-            val innerWidth = bounds.width - paddingLeft.toPixels() - paddingRight.toPixels()
-            val innerHeight = bounds.height - paddingTop.toPixels() - paddingBottom.toPixels()
+            val innerWidth = bounds.width - layoutPadding.x - layoutPadding.z
+            val innerHeight = bounds.height - layoutPadding.y - layoutPadding.w
             if (scrollAxes.isHorizontal) offsetX = max(0f, innerWidth - scrollableContentWidth)
             if (scrollAxes.isVertical) offsetY = max(0f, innerHeight - scrollableContentHeight)
         }
 
         // Children are offset by the current scroll position.
         val contentBounds = Vec4(
-            x = paddingLeft.toPixels() - scrollX + offsetX,
-            y = paddingTop.toPixels() - scrollY + offsetY,
-            z = bounds.width - paddingRight.toPixels() - scrollX + offsetX,
-            w = bounds.height - paddingBottom.toPixels() - scrollY + offsetY
+            x = layoutPadding.x - scrollX + offsetX,
+            y = layoutPadding.y - scrollY + offsetY,
+            z = bounds.width - layoutPadding.z - scrollX + offsetX,
+            w = bounds.height - layoutPadding.w - scrollY + offsetY
         )
 
         forEach { child -> child.layout(contentBounds) }

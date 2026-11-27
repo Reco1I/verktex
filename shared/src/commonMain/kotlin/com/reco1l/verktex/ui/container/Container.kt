@@ -100,7 +100,7 @@ open class Container : Component(), MutableIterable<Component> {
 
         // The own constraints, so the limits of this container (e.g. minWidth) are what filling
         // children are stretched to.
-        val measuredSize = contentConstraints.constrain(Vec2(measuredWidth, measuredHeight)).expand(padding.toVec4())
+        val measuredSize = contentConstraints.constrain(Vec2(measuredWidth, measuredHeight)).expand(measurePadding)
         stretchFillingChildren(measuredSize) { childConstraints }
         return measuredSize
     }
@@ -132,8 +132,8 @@ open class Container : Component(), MutableIterable<Component> {
      * [measuredSize] of this container.
      */
     protected fun stretchFillingChildren(measuredSize: Vec2, constraintsFor: (Component) -> LayoutConstraints) {
-        val contentWidth = measuredSize.x - paddingLeft.toPixels() - paddingRight.toPixels()
-        val contentHeight = measuredSize.y - paddingTop.toPixels() - paddingBottom.toPixels()
+        val contentWidth = measuredSize.x - measurePadding.x - measurePadding.z
+        val contentHeight = measuredSize.y - measurePadding.y - measurePadding.w
 
         forEach { child ->
             val fillsWidth = fillsWrappedWidth(child)
@@ -160,10 +160,10 @@ open class Container : Component(), MutableIterable<Component> {
      * the padding.
      */
     protected fun contentBounds(bounds: Vec4) = Vec4(
-        x = paddingLeft.toPixels(),
-        y = paddingTop.toPixels(),
-        z = bounds.width - paddingRight.toPixels(),
-        w = bounds.height - paddingBottom.toPixels()
+        x = layoutPadding.x,
+        y = layoutPadding.y,
+        z = bounds.width - layoutPadding.z,
+        w = bounds.height - layoutPadding.w
     )
 
     //endregion

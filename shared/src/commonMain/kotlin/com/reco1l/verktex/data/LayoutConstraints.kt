@@ -131,9 +131,15 @@ data class LayoutConstraints(
     /**
      * Returns a new [LayoutConstraints] instance with the specified padding applied.
      */
-    fun shrink(padding: Padding): LayoutConstraints {
-        val horizontal = padding.left.toPixels() + padding.right.toPixels()
-        val vertical = padding.top.toPixels() + padding.bottom.toPixels()
+    fun shrink(padding: Padding) = shrink(padding.toVec4())
+
+    /**
+     * Returns a new [LayoutConstraints] instance with the specified padding in pixels applied, as
+     * left, top, right and bottom.
+     */
+    fun shrink(padding: Vec4): LayoutConstraints {
+        val horizontal = padding.x + padding.z
+        val vertical = padding.y + padding.w
 
         return LayoutConstraints(
             minWidth = (minWidth - horizontal).coerceAtLeast(0f),

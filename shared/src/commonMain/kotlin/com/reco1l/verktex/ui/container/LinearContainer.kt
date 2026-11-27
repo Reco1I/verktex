@@ -130,7 +130,7 @@ open class LinearContainer : Container() {
 
         // The own constraints, so the limits of this container (e.g. minWidth) are what filling
         // children are stretched to.
-        val measuredSize = contentConstraints.constrain(Vec2(totalWidth, totalHeight)).expand(padding.toVec4())
+        val measuredSize = contentConstraints.constrain(Vec2(totalWidth, totalHeight)).expand(measurePadding)
 
         // The main axis keeps the size the child got in the first pass.
         stretchFillingChildren(measuredSize) { child ->
@@ -153,10 +153,10 @@ open class LinearContainer : Container() {
 
     override fun onLayout(bounds: Vec4) {
 
-        val contentLeft = paddingLeft.toPixels()
-        val contentTop = paddingTop.toPixels()
-        val contentRight = bounds.width - paddingRight.toPixels()
-        val contentBottom = bounds.height - paddingBottom.toPixels()
+        val contentLeft = layoutPadding.x
+        val contentTop = layoutPadding.y
+        val contentRight = bounds.width - layoutPadding.z
+        val contentBottom = bounds.height - layoutPadding.w
 
         var currentX = contentLeft
         var currentY = contentTop

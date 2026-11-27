@@ -74,7 +74,7 @@ open class Icon(iconCode: Int = FAIcon.Question) : Canvas() {
         val measuredWidth = font[iconCode].advance
         val measuredHeight = font.metrics.lineHeight
         val measuredSize = Vec2(measuredWidth, measuredHeight)
-        return parentConstraints.constrain(measuredSize.expand(padding.toVec4()))
+        return parentConstraints.constrain(measuredSize.expand(measurePadding))
     }
 
     override fun onDraw(renderer: Renderer) {
@@ -90,14 +90,14 @@ open class Icon(iconCode: Int = FAIcon.Question) : Canvas() {
         val font = font
 
         // Centered inside the content area, so rotations around the center keep the glyph in place.
-        val contentWidth = bounds.width - paddingLeft.toPixels() - paddingRight.toPixels()
-        val contentHeight = bounds.height - paddingTop.toPixels() - paddingBottom.toPixels()
+        val contentWidth = bounds.width - layoutPadding.x - layoutPadding.z
+        val contentHeight = bounds.height - layoutPadding.y - layoutPadding.w
 
         renderer.drawText(
             font = font,
             text = codePointToString(iconCode),
-            x = paddingLeft.toPixels() + (contentWidth - font[iconCode].advance) / 2f,
-            y = paddingTop.toPixels() + (contentHeight - font.metrics.lineHeight) / 2f,
+            x = layoutPadding.x + (contentWidth - font[iconCode].advance) / 2f,
+            y = layoutPadding.y + (contentHeight - font.metrics.lineHeight) / 2f,
             color = contentColor
         )
     }

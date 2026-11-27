@@ -86,6 +86,13 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   `ScrollableContainer`, calls `onScrolledToEnd` near the end of its content. A
   `ScrollableContainer` with `isAnchoredToEnd` starts from the end, as a chat's: short content sits
   at its end, and the scroll follows the content's growth while at the end.
+- A `Padding` can also make its component cover the parent's padding, ignoring it, content included
+  (`coverParentPadding()`), or keep its content out of the safe area (`extendIntoSafeArea()`): on the
+  sides placed against the safe area the component grows to the edges and is inset by the safe area.
+  Combined (`coverParentPadding().extendIntoSafeArea()`) a component reaches the edges of the window
+  with its content in the safe area, as modals do. Scenes have `extendIntoSafeArea()` by default, the
+  safe area being shifted by the on-screen keyboard. Layouts read the padding they keep from
+  `measurePadding` (measuring) and `layoutPadding` (laying out), never from `padding` itself.
 - Animations are started when a state changes, never computed in `onUpdate`: transforms
   (`ui/Transforms.kt`; the latest to start on a property replaces the others, and
   `animate`/`animateColor` reach any property through `AnimatableFloat`/`AnimatableColor`), a

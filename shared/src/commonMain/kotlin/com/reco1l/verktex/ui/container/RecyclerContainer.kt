@@ -229,9 +229,9 @@ open class RecyclerContainer<T : Any, C : RecyclableComponent<T>>(private val in
     }
 
     private fun startPadding() = if (orientation == LinearContainer.Orientation.Vertical) {
-        componentWrapper.paddingTop.toPixels()
+        componentWrapper.layoutPadding.y
     } else {
-        componentWrapper.paddingLeft.toPixels()
+        componentWrapper.layoutPadding.x
     }
 
     /**
@@ -371,7 +371,7 @@ open class RecyclerContainer<T : Any, C : RecyclableComponent<T>>(private val in
                 Vec2(itemsSize, contentConstraints.availableHeight)
             }
 
-            return parentConstraints.constrain(contentSize.expand(padding.toVec4()))
+            return parentConstraints.constrain(contentSize.expand(measurePadding))
         }
 
         override fun onLayout(bounds: Vec4) {
@@ -379,11 +379,11 @@ open class RecyclerContainer<T : Any, C : RecyclableComponent<T>>(private val in
             val spacingPixels = spacing.toPixels()
             val columnSpacingPixels = columnSpacing.toPixels()
 
-            val left = paddingLeft.toPixels()
-            val right = bounds.width - paddingRight.toPixels()
+            val left = layoutPadding.x
+            val right = bounds.width - layoutPadding.z
             val cell = if (columnCount > 1) cellWidth else right - left
 
-            var position = if (isVertical) paddingTop.toPixels() else left
+            var position = if (isVertical) layoutPadding.y else left
 
             for (row in rowSizes.indices) {
                 val first = row * columnCount
@@ -397,7 +397,7 @@ open class RecyclerContainer<T : Any, C : RecyclableComponent<T>>(private val in
                             val x = left + (index - first) * (cell + columnSpacingPixels)
                             Vec4(x, position, x + cell, position + rowSizes[row])
                         } else {
-                            Vec4(position, paddingTop.toPixels(), position + rowSizes[row], bounds.height - paddingBottom.toPixels())
+                            Vec4(position, layoutPadding.y, position + rowSizes[row], bounds.height - layoutPadding.w)
                         }
                     )
                 }

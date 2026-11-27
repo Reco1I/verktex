@@ -1101,11 +1101,12 @@ abstract class Component {
      */
     protected open fun clippingArea(): Vec4 {
         if (clipping == ClipMode.Padding) {
+            val padding = layoutPadding
             return Vec4(
-                x = paddingLeft.toPixels(),
-                y = paddingTop.toPixels(),
-                z = bounds.width - paddingRight.toPixels(),
-                w = bounds.height - paddingBottom.toPixels()
+                x = padding.x,
+                y = padding.y,
+                z = bounds.width - padding.z,
+                w = bounds.height - padding.w
             )
         }
 
@@ -1129,10 +1130,11 @@ abstract class Component {
             )
         }
 
-        val left = paddingLeft.toPixels()
-        val top = paddingTop.toPixels()
-        val right = paddingRight.toPixels()
-        val bottom = paddingBottom.toPixels()
+        val padding = layoutPadding
+        val left = padding.x
+        val top = padding.y
+        val right = padding.z
+        val bottom = padding.w
 
         return Vec4(
             (radius.topLeft.toPixels() - max(left, top)).coerceAtLeast(0f),
@@ -1443,9 +1445,40 @@ abstract class Component {
     private val paddingProperty = themeable(Padding.Zero) { invalidateMeasure() }
 
     /**
-     * The padding of the component.
+     * The padding of the component, which can also make it cover its parent's padding
+     * ([Padding.coverParentPadding]) or grow into the safe area ([Padding.extendIntoSafeArea]).
+     *
+     * Layouts read the space they keep around the content from [measurePadding] and
+     * [layoutPadding], which include what these add.
      */
     var padding: Padding by paddingProperty
+
+    /**
+     * The padding the content kept in the last measure pass, in pixels as left, top, right and
+     * bottom: the [padding]'s sides, plus the part of the safe area the component is padded by
+     * without growing into it ([Padding.extendIntoSafeArea]), as found by the last layout pass.
+     */
+    var measurePadding = Vec4.Zero
+        private set
+
+    /**
+     * The padding the content kept in the last layout pass, in pixels as left, top, right and
+     * bottom: the [padding]'s sides, plus the safe area on the sides placed against it
+     * ([Padding.extendIntoSafeArea]).
+     */
+    var layoutPadding = Vec4.Zero
+        private set
+
+    /**
+     * How much the component grew into the safe area on each side after the last layout pass, as
+     * left, top, right and bottom, see [Padding.extendIntoSafeArea].
+     */
+    var safeAreaExtent = Vec4.Zero
+        private set
+
+    // The part of the safe area padding the component without growing into it, e.g. all of it for a
+    // component already at the edges of the scene. It's measured with it, found when laid out.
+    private var safeAreaPadding = Vec4.Zero
 
     /**
      * The padding of the component on the left side.
@@ -1510,6 +1543,10 @@ abstract class Component {
 
     private var lastMeasureConstraints: LayoutConstraints? = null
 
+    // The constraints the parent last measured this component with, to measure it again when laying it
+    // out finds another safe area padding.
+    private var lastRequestedConstraints: LayoutConstraints? = null
+
     private var lastLayoutBounds: Vec4? = null
 
     /**
@@ -1517,11 +1554,27 @@ abstract class Component {
      * to perform the actual measurement.
      */
     fun measure(requestedConstraints: LayoutConstraints): Vec2 {
-        val parentContraints = adjustParentConstraints(requestedConstraints)
+        lastRequestedConstraints = requestedConstraints
 
-        if (!measureInvalid && parentContraints == lastMeasureConstraints) {
+        val padding = padding
+        val parent = parent
+        val coveredPadding = if (parent != null && padding.coversParentPadding) parent.measurePadding else Vec4.Zero
+
+        // Covering the parent's padding, the component is measured as if the parent had none.
+        val parentContraints = adjustParentConstraints(if (coveredPadding == Vec4.Zero) requestedConstraints else LayoutConstraints(
+            minWidth = requestedConstraints.minWidth + coveredPadding.x + coveredPadding.z,
+            maxWidth = requestedConstraints.maxWidth + coveredPadding.x + coveredPadding.z,
+            minHeight = requestedConstraints.minHeight + coveredPadding.y + coveredPadding.w,
+            maxHeight = requestedConstraints.maxHeight + coveredPadding.y + coveredPadding.w
+        ))
+
+        val newMeasurePadding = if (padding.extendsIntoSafeArea) padding.toVec4() + safeAreaPadding else padding.toVec4()
+
+        if (!measureInvalid && parentContraints == lastMeasureConstraints && newMeasurePadding == measurePadding) {
             return measuredSize
         }
+
+        measurePadding = newMeasurePadding
 
         // Reset before measuring, invalidations made meanwhile must trigger another pass.
         measureInvalid = false
@@ -1540,7 +1593,7 @@ abstract class Component {
             parentContraints.availableWidth,
             parentContraints.availableHeight
         )
-        val contentConstraints = ownConstraints.shrink(padding)
+        val contentConstraints = ownConstraints.shrink(measurePadding)
 
         val oldMeasuredSize = measuredSize
 
@@ -1559,22 +1612,69 @@ abstract class Component {
     }
 
     /**
-     * Layouts the component within the given bounds. This method will call [onLayout] to perform
-     * the actual layout of the component. The bounds are expected to be in the parent's coordinate system.
-     */
-    /**
-     * Adjusts the constraints the parent measures this component with, e.g. to grow past its
-     * padding as [com.reco1l.verktex.ui.container.IgnoreParentPaddingContainer] does.
+     * Adjusts the constraints the parent measures this component with, after growing them by the
+     * parent's padding when the [padding] covers it ([Padding.coverParentPadding]).
      */
     protected open fun adjustParentConstraints(constraints: LayoutConstraints) = constraints
 
     /**
      * Adjusts the bounds this component got from its measured size and the parent, before laying
-     * out its content. They can grow past the measured size without moving the siblings, e.g. into
-     * the safe area as [com.reco1l.verktex.ui.container.ExtendIntoSafeAreaContainer] does.
+     * out its content, after growing them over the parent's padding or into the safe area as the
+     * [padding] says. They can grow past the measured size without moving the siblings.
      */
     protected open fun adjustBounds(bounds: Vec4) = bounds
 
+    // How much the component grows into the safe area of its scene from the given bounds, and how much
+    // its content is inset by it: on each side placed against the safe area (or within it), it grows to
+    // the edge of the scene (the window unless the scene is embedded) and is inset by the safe area.
+    private fun computeSafeArea(bounds: Vec4): Pair<Vec4, Vec4> {
+        // A scene is the reference of its own safe area, at its edges. Outside of a scene there's none.
+        val scene = this as? Scene ?: findScene() ?: return Vec4.Zero to Vec4.Zero
+        val safeArea = scene.safeArea
+        val sceneWidth = if (scene === this) bounds.width else scene.bounds.width
+        val sceneHeight = if (scene === this) bounds.height else scene.bounds.height
+
+        // The layout positions of the ancestors up to the scene, the transformations are only
+        // applied when drawing and aren't up to date yet.
+        var sceneX = if (scene === this) 0f else bounds.x
+        var sceneY = if (scene === this) 0f else bounds.y
+        var ancestor = if (scene === this) null else parent
+        while (ancestor != null && ancestor !== scene) {
+            sceneX += ancestor.bounds.x
+            sceneY += ancestor.bounds.y
+            ancestor = ancestor.parent
+        }
+
+        val distances = Vec4(
+            x = sceneX,
+            y = sceneY,
+            z = sceneWidth - sceneX - bounds.width,
+            w = sceneHeight - sceneY - bounds.height
+        )
+
+        // A side is placed against the safe area when it doesn't reach past it. The inset can be
+        // negative, e.g. the top of a scene shifted up by the on-screen keyboard.
+        fun touches(inset: Float, distance: Float) = inset != 0f && distance <= max(inset, 0f) + SAFE_AREA_TOLERANCE
+        fun growth(inset: Float, distance: Float) = if (touches(inset, distance)) distance else 0f
+        fun inset(inset: Float, distance: Float) = if (touches(inset, distance)) inset else 0f
+
+        return Vec4(
+            x = growth(safeArea.x, distances.x),
+            y = growth(safeArea.y, distances.y),
+            z = growth(safeArea.z, distances.z),
+            w = growth(safeArea.w, distances.w)
+        ) to Vec4(
+            x = inset(safeArea.x, distances.x),
+            y = inset(safeArea.y, distances.y),
+            z = inset(safeArea.z, distances.z),
+            w = inset(safeArea.w, distances.w)
+        )
+    }
+
+    /**
+     * Layouts the component within the given bounds. This method will call [onLayout] to perform
+     * the actual layout of the component. The bounds are expected to be in the parent's coordinate system.
+     */
     open fun layout(assignedBounds: Vec4) {
         if (isLayoutStatic) {
             if (!layoutInvalid && assignedBounds == lastLayoutBounds) {
@@ -1588,29 +1688,70 @@ abstract class Component {
             return
         }
 
-        val anchorOffset = Vec2(
-            assignedBounds.width * anchor.x,
-            assignedBounds.height * anchor.y
-        )
+        val padding = padding
+        val parent = parent
+        val coversParentPadding = parent != null && padding.coversParentPadding
 
-        val originOffset = Vec2(
-            measuredSize.x * origin.x,
-            measuredSize.y * origin.y
-        )
+        // Covering the parent's padding, the bounds are placed as if the parent had none: over the padding
+        // it measured its content with, then grown by how much the parent itself grew into the safe area.
+        val parentGrowth = if (coversParentPadding) parent!!.safeAreaExtent else Vec4.Zero
+        val placement = if (!coversParentPadding) assignedBounds else {
+            val covered = parent!!.layoutPadding - parentGrowth
+            Vec4(
+                x = assignedBounds.x - covered.x,
+                y = assignedBounds.y - covered.y,
+                z = assignedBounds.z + covered.z,
+                w = assignedBounds.w + covered.w
+            )
+        }
 
-        val positionOffset = Vec2(
-            x.resolve(assignedBounds.width),
-            y.resolve(assignedBounds.height)
-        )
+        fun place(): Vec4 {
+            val anchorOffset = Vec2(placement.width * anchor.x, placement.height * anchor.y)
+            val originOffset = Vec2(measuredSize.x * origin.x, measuredSize.y * origin.y)
+            val positionOffset = Vec2(x.resolve(placement.width), y.resolve(placement.height))
+
+            val left = placement.x + anchorOffset.x + positionOffset.x - originOffset.x
+            val top = placement.y + anchorOffset.y + positionOffset.y - originOffset.y
+
+            return Vec4(
+                x = left - parentGrowth.x,
+                y = top - parentGrowth.y,
+                z = left + measuredSize.x + parentGrowth.z,
+                w = top + measuredSize.y + parentGrowth.w
+            )
+        }
 
         val oldBounds = bounds
+        var newBounds = place()
+        var growth = Vec4.Zero
+        var inset = Vec4.Zero
 
-        bounds = adjustBounds(Vec4(
-            x = assignedBounds.x + anchorOffset.x + positionOffset.x - originOffset.x,
-            y = assignedBounds.y + anchorOffset.y + positionOffset.y - originOffset.y,
-            z = assignedBounds.x + anchorOffset.x + positionOffset.x - originOffset.x + measuredSize.x,
-            w = assignedBounds.y + anchorOffset.y + positionOffset.y - originOffset.y + measuredSize.y
-        ))
+        if (padding.extendsIntoSafeArea) {
+            computeSafeArea(newBounds).let { (g, i) -> growth = g; inset = i }
+
+            // The content was measured with another part of the safe area than what the bounds don't
+            // grow into, e.g. the first time a component at the edges is laid out: measured again.
+            val requested = lastRequestedConstraints
+            if (inset - growth != safeAreaPadding && requested != null) {
+                safeAreaPadding = inset - growth
+                measure(requested)
+                newBounds = place()
+                computeSafeArea(newBounds).let { (g, i) -> growth = g; inset = i }
+            }
+
+            newBounds = Vec4(
+                x = newBounds.x - growth.x,
+                y = newBounds.y - growth.y,
+                z = newBounds.z + growth.z,
+                w = newBounds.w + growth.w
+            )
+        } else if (safeAreaPadding != Vec4.Zero) {
+            safeAreaPadding = Vec4.Zero
+        }
+
+        safeAreaExtent = growth
+        layoutPadding = padding.toVec4() + inset
+        bounds = adjustBounds(newBounds)
 
         onLayout(bounds)
         layoutBackgroundComponent()
@@ -1648,6 +1789,9 @@ abstract class Component {
 
 
     companion object {
+        // How far from the safe area a side still counts as placed against it.
+        private const val SAFE_AREA_TOLERANCE = 1f
+
         private val showComponentBoundaries by VerktexSettings.ShowComponentBoundaries
 
         /**

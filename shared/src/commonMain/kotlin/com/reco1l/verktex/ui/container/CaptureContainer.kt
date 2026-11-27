@@ -7,6 +7,9 @@ import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
+import com.reco1l.verktex.data.coverParentPadding
+import com.reco1l.verktex.data.extendIntoSafeArea
+import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.FramebufferOrigin
@@ -39,14 +42,22 @@ fun Container.captureContainer(block: CaptureContainer.() -> Unit): CaptureConta
  * container, unless it blurs: what is behind it is still drawn then, and the blurred capture is drawn
  * over it within its bounds. It is captured again when its bounds in the window change.
  *
- * Like a [IgnoreParentPaddingContainer] it covers its parent including the padding, e.g. the
- * safe area, so a blurred capture reaches the edges, while its children keep to that padding.
+ * Its padding covers its parent's ([com.reco1l.verktex.data.Padding.coverParentPadding]), e.g. the
+ * safe area, so a blurred capture reaches the edges, while its children keep out of the safe area
+ * ([com.reco1l.verktex.data.Padding.extendIntoSafeArea]). A padding given to it keeps both
+ * (`Padding(…).coverParentPadding().extendIntoSafeArea()`).
  *
  * The capture can be blurred, see [blurRadius]. The blur is applied once when capturing, so showing
  * it costs the same as showing the plain capture. Its own background is drawn before the capture,
  * a tint over the blur must be the background of a child.
  */
-open class CaptureContainer : IgnoreParentPaddingContainer() {
+open class CaptureContainer : Container() {
+
+    init {
+        width = fill()
+        height = fill()
+        padding = coverParentPadding().extendIntoSafeArea()
+    }
 
     /**
      * Whether what is behind is shown from the capture instead of being drawn.

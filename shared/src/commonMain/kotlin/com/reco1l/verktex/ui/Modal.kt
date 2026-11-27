@@ -6,19 +6,24 @@ import com.reco1l.verktex.data.CornerRadius
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.ClipMode
 import com.reco1l.verktex.data.Color4
+import com.reco1l.verktex.data.Padding
+import com.reco1l.verktex.data.Vec4
+import com.reco1l.verktex.data.coverParentPadding
+import com.reco1l.verktex.data.extendIntoSafeArea
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.math.Easing
 import com.reco1l.verktex.ui.container.Container
-import com.reco1l.verktex.ui.container.IgnoreParentPaddingContainer
 
 /**
  * A container shown above everything else, with a [card] holding its content on top of a dimmed
  * backdrop. It is attached as an overlay when shown, unless it was added somewhere else before.
  *
- * The backdrop covers the whole window while the card stays in the safe area, see
- * [IgnoreParentPaddingContainer].
+ * The modal itself is the backdrop, covering the whole window: its padding covers the parent's
+ * ([com.reco1l.verktex.data.Padding.coverParentPadding]), e.g. the scene's safe area. The card is laid
+ * out over it in the [cardArea], which keeps it in the safe area unless [isCardInSafeArea] is disabled,
+ * e.g. for a card placed at a position on the screen.
  */
 @Suppress("LeakingThis")
 open class Modal(
@@ -36,7 +41,7 @@ open class Modal(
         shadow = themed { cardStyle.elevation.shadow }
     }
 
-) : IgnoreParentPaddingContainer() {
+) : Container() {
 
     /**
      * Whether the modal stays open when the user presses outside of the [card].
@@ -55,6 +60,35 @@ open class Modal(
         private set
 
 
+    /**
+     * The container the [card] is laid out in, over the whole modal. It keeps the card out of the safe
+     * area ([com.reco1l.verktex.data.Padding.extendIntoSafeArea]) while [isCardInSafeArea].
+     */
+    protected val cardArea = Container().apply {
+        width = fill()
+        height = fill()
+        padding = extendIntoSafeArea()
+    }
+
+    /**
+     * Whether the [card] is laid out in the safe area, e.g. centered in it. Without it the card is laid
+     * out over the whole window, as the backdrop, so a card placed below another component can be
+     * positioned in the modal's space directly.
+     */
+    var isCardInSafeArea = true
+        set(value) {
+            field = value
+            cardArea.padding = if (value) extendIntoSafeArea() else Padding.Zero
+        }
+
+    /**
+     * The safe area of the scene the modal is in, as left, top, right and bottom, e.g. to keep a card
+     * laid out outside of it ([isCardInSafeArea] disabled) away from the edges.
+     */
+    protected val safeArea: Vec4
+        get() = findScene()?.safeArea ?: Vec4.Zero
+
+
     // The finger that pressed the backdrop, releasing it outside of the card hides the modal.
     private var backdropPointerId = -1
 
@@ -71,13 +105,15 @@ open class Modal(
     init {
         width = fill()
         height = fill()
+        padding = coverParentPadding()
 
         background = Background.Color(BACKDROP_COLOR)
         isVisible = false
         alpha = 0f
 
         card.scale = HIDDEN_CARD_SCALE
-        +card
+        cardArea += card
+        +cardArea
     }
 
 

@@ -542,7 +542,7 @@ open class Text : Canvas() {
             y = textHeight
         )
 
-        return parentConstraints.constrain(measuredSize.expand(padding.toVec4()))
+        return parentConstraints.constrain(measuredSize.expand(measurePadding))
     }
 
     //endregion
@@ -555,10 +555,10 @@ open class Text : Canvas() {
             return
         }
 
-        val contentLeft = paddingLeft.toPixels()
-        val contentTop = paddingTop.toPixels()
-        val contentWidth = bounds.width - contentLeft - paddingRight.toPixels()
-        val contentHeight = bounds.height - contentTop - paddingBottom.toPixels()
+        val contentLeft = layoutPadding.x
+        val contentTop = layoutPadding.y
+        val contentWidth = bounds.width - contentLeft - layoutPadding.z
+        val contentHeight = bounds.height - contentTop - layoutPadding.w
 
         val offset = if (autoScrollAxes != Axis.None) {
             val scrollableSize = when (autoScrollAxes) {

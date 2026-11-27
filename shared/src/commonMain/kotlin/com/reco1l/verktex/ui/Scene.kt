@@ -6,22 +6,24 @@ import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Vec4
 import com.reco1l.verktex.data.fill
-import com.reco1l.verktex.data.Padding
-import com.reco1l.verktex.data.px
+import com.reco1l.verktex.data.extendIntoSafeArea
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.time.FrameClock
 import com.reco1l.verktex.ui.container.Container
 
 /**
  * A screen of the application, the root of the components shown while it's the current one. Its
- * content keeps the safe area through its padding. Something drawn behind the content over the whole
- * scene, padding aside, is its [background], e.g. a [com.reco1l.verktex.data.Background.Component].
+ * content keeps the safe area through its padding, [extendIntoSafeArea] by default: a scene can add
+ * padding of its own (`Padding(…).extendIntoSafeArea()`) or let its content cover the safe area
+ * (`Padding.Zero`). Something drawn behind the content over the whole scene, padding aside, is its
+ * [background], e.g. a [com.reco1l.verktex.data.Background.Component].
  */
 open class Scene : Container() {
 
     init {
         width = fill()
         height = fill()
+        padding = extendIntoSafeArea()
     }
 
 
@@ -41,12 +43,17 @@ open class Scene : Container() {
 
     /**
      * The safe area of the scene, as left, top, right and bottom: the window's for a root scene, or
-     * [embeddedSafeArea] while embedded.
+     * [embeddedSafeArea] while embedded. A root scene's is shifted up while the on-screen keyboard
+     * would cover the focused input, which can make its top negative.
      */
-    val safeArea
+    val safeArea: Vec4
         get() = when {
             isEmbedded -> embeddedSafeArea
-            keepsWindowSafeArea -> Verktex.graphics.window.insets.safeArea
+            keepsWindowSafeArea -> {
+                val safeArea = Verktex.graphics.window.insets.safeArea
+                val imeShift = Verktex.imeShift
+                Vec4(safeArea.x, safeArea.y - imeShift, safeArea.z, safeArea.w + imeShift)
+            }
             else -> Vec4.Zero
         }
 
@@ -57,32 +64,26 @@ open class Scene : Container() {
     protected open val keepsWindowSafeArea: Boolean
         get() = true
 
+    // The safe area of the last frame, measuring again when it changes.
+    private var lastSafeArea: Vec4? = null
+
 
     // Laid out before anything of the scene is drawn: a component background (e.g. a tree drawn behind the content,
     // Background.Component) is drawn before onDraw, and would otherwise show the previous frame's layout, with
     // what moved since at its old place for a frame.
     override fun onPrepareDraw() {
 
-        if (isEmbedded) {
-            padding = Padding(
-                left = embeddedSafeArea.x.px,
-                top = embeddedSafeArea.y.px,
-                right = embeddedSafeArea.z.px,
-                bottom = embeddedSafeArea.w.px
-            )
-            return
+        // The padding keeps the content in the safe area, the background is laid out over the whole
+        // scene. A change of the safe area (or of the keyboard's shift) is a change of the padding.
+        val safeArea = safeArea
+        if (safeArea != lastSafeArea) {
+            lastSafeArea = safeArea
+            invalidateMeasure()
         }
 
-        // The padding keeps the content in the safe area, the background is laid out over the whole
-        // scene. The safe area is shifted up while the on-screen keyboard would cover the focused input.
-        val safeArea = safeArea
-        val imeShift = Verktex.imeShift
-        padding = Padding(
-            left = safeArea.x.px,
-            top = (safeArea.y - imeShift).px,
-            right = safeArea.z.px,
-            bottom = (safeArea.w + imeShift).px
-        )
+        if (isEmbedded) {
+            return
+        }
 
         val layoutStartNanos = monotonicNanos()
         onPerformLayout()

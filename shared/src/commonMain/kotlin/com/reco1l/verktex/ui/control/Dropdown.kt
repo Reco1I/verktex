@@ -8,7 +8,6 @@ import com.reco1l.verktex.data.Dimension
 import com.reco1l.verktex.ui.Component
 import com.reco1l.verktex.ui.TextButton
 import com.reco1l.verktex.ui.container.Container
-import com.reco1l.verktex.ui.container.IgnoreParentPaddingContainer
 import com.reco1l.verktex.ui.container.LinearContainer
 import com.reco1l.verktex.ui.container.ScrollableContainer
 import com.reco1l.verktex.data.Anchor
@@ -26,6 +25,7 @@ import com.reco1l.verktex.ui.Button
 import com.reco1l.verktex.ui.container.LinearContainer.Orientation
 import com.reco1l.verktex.ui.container.linearContainer
 import com.reco1l.verktex.data.dip
+import com.reco1l.verktex.data.coverParentPadding
 import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.data.wrap
@@ -82,10 +82,12 @@ class Dropdown(var trigger: Component) : ScrollableContainer() {
 
     // Covers the host with its padding (e.g. a scene's safe area) and without padding of its own,
     // so the menu is positioned in the host's space.
-    private val wrapper = object : IgnoreParentPaddingContainer() {
+    private val wrapper = object : Container() {
 
         init {
-            keepsParentPadding = false
+            width = fill()
+            height = fill()
+            padding = coverParentPadding()
         }
 
 
