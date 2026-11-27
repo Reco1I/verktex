@@ -68,6 +68,10 @@ abstract class DesktopGameHost(
 
     private var pressedButtons = 0
 
+    // The size the window opens with, in screen coordinates before the monitor's scale.
+    private var openingWidth = initialWidth
+    private var openingHeight = initialHeight
+
     @Volatile
     private var textInput: ITextInput? = null
 
@@ -101,6 +105,20 @@ abstract class DesktopGameHost(
             if (monitor != 0L) glfwGetMonitorContentScale(monitor, scaleX, scaleY)
 
             val mode = if (monitor != 0L) glfwGetVideoMode(monitor) else null
+
+            // The window scales to the monitor, so it's kept smaller than it once scaled: one
+            // covering the whole monitor is made fullscreen by some compositors (xwayland-satellite,
+            // whose X11 clients see a scale of 2 under a fractional one).
+            if (mode != null) {
+                val scale = maxOf(scaleX[0], scaleY[0], 1f)
+                val fit = minOf(
+                    1f,
+                    MAX_OPENING_FRACTION * mode.width() / (initialWidth * scale),
+                    MAX_OPENING_FRACTION * mode.height() / (initialHeight * scale),
+                )
+                openingWidth = (initialWidth * fit).toInt().coerceAtLeast(1)
+                openingHeight = (initialHeight * fit).toInt().coerceAtLeast(1)
+            }
             Platform.attach(
                 density = scaleX[0].takeIf { it > 0f } ?: 1f,
                 width = mode?.width() ?: initialWidth,
@@ -162,7 +180,7 @@ abstract class DesktopGameHost(
 
         if (GPUBackend.fromName(Settings[VerktexSettings.GPUBackend]) == GPUBackend.Vulkan) {
             val vulkan = startVulkanRenderer(createContext = {
-                DesktopVKContext.create(title, initialWidth, initialHeight, enableValidation = platformApplication.isDebug)
+                DesktopVKContext.create(title, openingWidth, openingHeight, enableValidation = platformApplication.isDebug)
             })
             if (vulkan != null) {
                 context = vulkan.context as DesktopVKContext
@@ -170,7 +188,7 @@ abstract class DesktopGameHost(
             }
         }
 
-        val gl = GLContext.create(title, initialWidth, initialHeight)
+        val gl = GLContext.create(title, openingWidth, openingHeight)
         Logger.i("Verktex", "Using the OpenGL backend.")
         context = gl
         return GLRenderer(gl, GLDevice())
@@ -379,5 +397,11 @@ abstract class DesktopGameHost(
 
     override fun detachTextInput() {
         textInput = null
+    }
+
+
+    private companion object {
+        // The most of the monitor the window opens over, on each axis.
+        const val MAX_OPENING_FRACTION = 0.8f
     }
 }

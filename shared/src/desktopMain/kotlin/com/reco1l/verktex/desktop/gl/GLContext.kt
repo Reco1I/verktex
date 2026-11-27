@@ -112,6 +112,8 @@ class GLContext private constructor(override val window: DesktopWindow) : Deskto
             glfwWindowHint(GLFW_STENCIL_BITS, 8)
             glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE)
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+            // Showing the window doesn't take the focus, the window manager decides.
+            glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE)
 
             val handle = glfwCreateWindow(width, height, title, NULL, NULL)
             if (handle == NULL) {
