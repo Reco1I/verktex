@@ -81,8 +81,11 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
   transforms, and with `Choreography` for anything whose state must depend only on the time.
   Children are placed by containers: `LinearContainer` (a row or a column), `GridContainer` (cells
   of `columns`, or of at least `minColumnWidth`), and `RecyclerContainer`, which only keeps
-  components for the visible items of its `data`, in one column or a grid, appends with `addData`
-  and, as any `ScrollableContainer`, calls `onScrolledToEnd` near the end of its content.
+  components for the visible items of its `data`, in one column or a grid, appends with `addData`,
+  drops the first items with `removeFirstData` (keeping what's shown in place) and, as any
+  `ScrollableContainer`, calls `onScrolledToEnd` near the end of its content. A
+  `ScrollableContainer` with `isAnchoredToEnd` starts from the end, as a chat's: short content sits
+  at its end, and the scroll follows the content's growth while at the end.
 - Animations are started when a state changes, never computed in `onUpdate`: transforms
   (`ui/Transforms.kt`; the latest to start on a property replaces the others, and
   `animate`/`animateColor` reach any property through `AnimatableFloat`/`AnimatableColor`), a

@@ -49,6 +49,20 @@ open class ScrollableContainer : Container() {
         private set
 
     /**
+     * Whether the content is anchored to the end of the scrollable axes, as a chat's: content shorter
+     * than the container is placed at its end, and while the scroll is at the end it stays there as the
+     * content's size changes. Scrolled away from the end, the scroll position is kept.
+     */
+    var isAnchoredToEnd = false
+        set(value) {
+            if (field == value) return
+            field = value
+            isAtEndX = true
+            isAtEndY = true
+            invalidateLayout()
+        }
+
+    /**
      * Whether to prevent scrolling on this container and all its children.
      */
     var preventScrolling = false
@@ -259,16 +273,38 @@ open class ScrollableContainer : Container() {
     override fun fillsWrappedHeight(child: Component) = !scrollAxes.isVertical && super.fillsWrappedHeight(child)
 
     override fun onLayout(bounds: Vec4) {
+        var offsetX = 0f
+        var offsetY = 0f
+
+        if (isAnchoredToEnd) {
+            // Kept at the end as the content's size changes, unless the user is moving it.
+            if (!isScrolling) {
+                if (scrollAxes.isHorizontal && isAtEndX) scrollX = maxScrollX
+                if (scrollAxes.isVertical && isAtEndY) scrollY = maxScrollY
+            }
+
+            // Content shorter than the container is placed at its end.
+            val innerWidth = bounds.width - paddingLeft.toPixels() - paddingRight.toPixels()
+            val innerHeight = bounds.height - paddingTop.toPixels() - paddingBottom.toPixels()
+            if (scrollAxes.isHorizontal) offsetX = max(0f, innerWidth - scrollableContentWidth)
+            if (scrollAxes.isVertical) offsetY = max(0f, innerHeight - scrollableContentHeight)
+        }
+
         // Children are offset by the current scroll position.
         val contentBounds = Vec4(
-            x = paddingLeft.toPixels() - scrollX,
-            y = paddingTop.toPixels() - scrollY,
-            z = bounds.width - paddingRight.toPixels() - scrollX,
-            w = bounds.height - paddingBottom.toPixels() - scrollY
+            x = paddingLeft.toPixels() - scrollX + offsetX,
+            y = paddingTop.toPixels() - scrollY + offsetY,
+            z = bounds.width - paddingRight.toPixels() - scrollX + offsetX,
+            w = bounds.height - paddingBottom.toPixels() - scrollY + offsetY
         )
 
         forEach { child -> child.layout(contentBounds) }
     }
+
+    // Whether the scroll was at the end at the last update, before the content's size changes in the
+    // next layout, see isAnchoredToEnd.
+    private var isAtEndX = true
+    private var isAtEndY = true
 
     //endregion
 
@@ -415,6 +451,11 @@ open class ScrollableContainer : Container() {
                 decelerateProgressively(clock.elapsedFrameTime)
             }
             handleOverflow()
+        }
+
+        if (isAnchoredToEnd) {
+            isAtEndX = scrollX >= maxScrollX - END_TOLERANCE
+            isAtEndY = scrollY >= maxScrollY - END_TOLERANCE
         }
 
         updateIndicators(clock.elapsedFrameTime)
@@ -665,6 +706,9 @@ open class ScrollableContainer : Container() {
 
 
     companion object {
+
+        // How close to the end, in pixels, the scroll counts as at the end.
+        private const val END_TOLERANCE = 1f
 
         const val DEFAULT_DECELERATION = 0.15f
         const val DEFAULT_MINIMUM_TRAVEL = 20f

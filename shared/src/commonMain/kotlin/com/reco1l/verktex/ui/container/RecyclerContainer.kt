@@ -149,6 +149,47 @@ open class RecyclerContainer<T : Any, C : RecyclableComponent<T>>(private val in
     }
 
 
+    /**
+     * Removes the first [count] items of [data], keeping the bound components of the others. The scroll
+     * position moves back by the size they took, so what's shown stays where it is.
+     */
+    fun removeFirstData(count: Int) {
+        val removed = min(count, items.size)
+        if (removed <= 0) return
+
+        for (index in 0 until removed) {
+            val item = items[index]
+            boundComponents[item]?.let { unbindComponent(item, it) }
+        }
+
+        // The rows that went entirely, which every following row moves back by.
+        val removedRows = removed / columnCount
+        val isVertical = orientation == LinearContainer.Orientation.Vertical
+        var removedSize = 0f
+        for (row in 0 until min(removedRows, rowSizes.size)) {
+            removedSize += rowSizes[row] + spacing.toPixels()
+        }
+
+        items = items.drop(removed)
+        itemIndices.clear()
+        items.forEachIndexed { index, item -> itemIndices[item] = index }
+
+        // Rows keep their size if whole rows were removed, otherwise items move between them.
+        rowSizes = if (removed % columnCount == 0) {
+            rowSizes.copyOfRange(min(removedRows, rowSizes.size), rowSizes.size)
+        } else {
+            FloatArray(rowCountOf(items.size)) { estimatedRowSize }
+        }
+
+        if (isVertical) {
+            scrollY = max(0f, scrollY - removedSize)
+        } else {
+            scrollX = max(0f, scrollX - removedSize)
+        }
+        componentWrapper.invalidateMeasure()
+    }
+
+
     private fun resetComponents() {
         unbindAll()
         componentPool.clear()
