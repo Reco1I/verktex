@@ -328,31 +328,93 @@ open class Theme(
     /**
      * A class that holds color palette information.
      *
-     * The color palette is used all across the UI components, the algorithm used to generate the
-     * palette is a simple shade of the accent color.
+     * Every color is the accent [scaled][Color4.scale], its red, green and blue multiplied by a
+     * factor, which keeps its hue and saturation. Components use these tokens instead of deriving
+     * colors themselves, at most changing their alpha, so a theme decides them all.
      */
     open class ColorPalette(
         val accent: Color4
     ) {
-        val surface = accent.darken(5f)
+
+        //region Backgrounds, from the darkest
+
+        /**
+         * Background of what is sunk into a surface, darker than it, such as a
+         * [com.reco1l.verktex.ui.control.TabSelector]'s track, and the backdrop of scenes.
+         */
+        val inset = accent.scale(0.09f)
+
+        /**
+         * Background of panels, cards and menus.
+         */
+        val surface = accent.scale(0.17f)
+
+        /**
+         * Background of what is raised over a [surface], such as a card's chips or a list's rows.
+         */
+        val surfaceRaised = accent.scale(0.24f)
+
+        /**
+         * Background of panels standing out of the scene, such as dialogs and floating bars.
+         */
+        val surfaceHigh = accent.scale(0.3f)
+
+        /**
+         * The brightest background, for bars over darker content and placeholders of images.
+         */
+        val surfaceBright = accent.scale(0.48f)
+
+        //endregion
+
+        //region Borders
+
+        val divider = accent.scale(0.2f)
+
+        /**
+         * Borders and dividers over [surfaceRaised] and [surfaceHigh], where [divider] would be darker
+         * than the background.
+         */
+        val border = accent.scale(0.37f)
+
+        //endregion
+
+        //region Controls
 
         val buttonBackgroundSolid = accent
-        val buttonBackgroundSoft = accent.darken(2.5f)
-        val buttonBackgroundSurface = accent.darken(4f)
+        val buttonBackgroundSoft = accent.scale(0.29f)
+        val buttonBackgroundSurface = accent.scale(0.2f)
 
         val badgeBackgroundSolid = accent
-        val badgeBackgroundSoft = accent.darken(2.5f)
-        val badgeBackgroundSurface = accent.darken(4.5f)
+        val badgeBackgroundSoft = accent.scale(0.29f)
+        val badgeBackgroundSurface = accent.scale(0.18f)
 
-        val controlInactiveBackground = accent.darken(3f)
-        val controlActiveBackground = accent.darken(1f)
+        val controlInactiveBackground = accent.scale(0.25f)
+        val controlActiveBackground = accent.scale(0.5f)
 
-        val divider = accent.darken(4f)
+        //endregion
+
+        //region Content: text and icons, from the brightest
+
+        val contentPrimary = accent.scale(0.93f)
+        val contentSecondary = accent.scale(0.87f)
+        val contentTertiary = accent.scale(0.8f)
+
+        /**
+         * Content that is less important, such as labels and placeholders.
+         */
+        val contentMuted = accent.scale(0.72f)
+
+        /**
+         * The dimmest content, such as timestamps and hints.
+         */
+        val contentSubtle = accent.scale(0.65f)
 
         /**
          * Color of text and icons drawn over solid backgrounds, which use the light accent color.
          */
-        val contentOnSolid = accent.darken(5f)
+        val contentOnSolid = accent.scale(0.17f)
+
+        //endregion
     }
 
     /**

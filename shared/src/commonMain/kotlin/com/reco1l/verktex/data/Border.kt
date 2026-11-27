@@ -26,22 +26,22 @@ open class Border(
     /**
      * The color of the top side, or null to fade between the left and right ones.
      */
-    open val top: Color4?,
+    open val top: Color4? = null,
 
     /**
      * The color of the right side, or null to fade between the top and bottom ones.
      */
-    open val right: Color4?,
+    open val right: Color4? = null,
 
     /**
      * The color of the bottom side, or null to fade between the left and right ones.
      */
-    open val bottom: Color4?,
+    open val bottom: Color4? = null,
 
     /**
      * The color of the left side, or null to fade between the top and bottom ones.
      */
-    open val left: Color4?,
+    open val left: Color4? = null,
 
 ) : ThemeDependent<Border> {
 

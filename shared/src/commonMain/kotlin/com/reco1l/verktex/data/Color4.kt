@@ -144,10 +144,12 @@ open class Color4 @JvmOverloads constructor(
     //region Transformations
 
     /**
-     * Lightens the color by the given factor.
+     * This color with its red, green and blue multiplied by [factor], keeping its alpha: below 1 it
+     * darkens, above 1 it lightens. Every channel scales alike, so the hue and saturation are kept
+     * until a channel reaches 1 when lightening.
      */
-    fun lighten(factor: Float): Color4 {
-        val factor = max(1f, 1f + factor)
+    fun scale(factor: Float): Color4 {
+        val factor = max(0f, factor)
         return Color4(
             red = (red * factor).coerceIn(0f, 1f),
             green = (green * factor).coerceIn(0f, 1f),
@@ -157,31 +159,14 @@ open class Color4 @JvmOverloads constructor(
     }
 
     /**
-     * Darkens the color toward black keeping its hue and saturation, where [factor] is the fraction of
-     * its perceived lightness (Oklab L) kept: 1 keeps the color and 0 makes it black, e.g.
-     * `palette.accent.shade(0.2f)` for a dark tint of the accent. Alpha is kept.
+     * Lightens the color by the given factor: [scale] by `1 + factor`, so 1 doubles it.
      */
-    fun shade(factor: Float): Color4 {
-        val f = factor.coerceIn(0f, 1f)
-        // Mixing toward black in Oklab scales L, a and b by f, which are linear in the cube roots
-        // of LMS, itself linear in linear RGB. So it's the same as scaling linear RGB by f³.
-        val k = f * f * f
-        val linear = toLinear()
-        return Color4(linear.red * k, linear.green * k, linear.blue * k, alpha).toSRGB()
-    }
+    fun lighten(factor: Float) = scale(max(1f, 1f + factor))
 
     /**
-     * Darkens the color by the given factor.
+     * Darkens the color by the given factor: [scale] by `1 / (1 + factor)`, so 1 halves it.
      */
-    fun darken(factor: Float): Color4 {
-        val factor = max(1f, 1f + factor)
-        return Color4(
-            red = (red / factor).coerceIn(0f, 1f),
-            green = (green / factor).coerceIn(0f, 1f),
-            blue = (blue / factor).coerceIn(0f, 1f),
-            alpha = alpha
-        )
-    }
+    fun darken(factor: Float) = scale(1f / max(1f, 1f + factor))
 
     /**
      * This color with the given alpha. Goes through [copy], so a themed color stays themed.

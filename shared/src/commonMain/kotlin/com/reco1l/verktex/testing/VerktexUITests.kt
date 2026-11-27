@@ -635,6 +635,66 @@ object VerktexUITests : UITestSuite("Verktex") {
             }
         }
 
+        test("Color scaling") {
+            column {
+                val factors = listOf(1.2f, 1f, 0.93f, 0.87f, 0.8f, 0.72f, 0.65f, 0.5f, 0.37f, 0.3f, 0.24f, 0.17f, 0.09f)
+
+                fun Container.ramp(title: String, accent: Color4) = section(title) {
+                    for (factor in factors) {
+                        linearContainer {
+                            orientation = Orientation.Vertical
+                            spacing = 4f.dip
+                            box {
+                                width = 64f.dip
+                                height = 64f.dip
+                                radius = CornerRadius(8f.dip)
+                                color = accent.scale(factor)
+                            }
+                            text { text = "$factor"; color = Color4(1f, 1f, 1f, 0.6f) }
+                        }
+                    }
+                }
+
+                val palette = com.reco1l.verktex.Verktex.theme.palette
+                section("Theme palette") {
+                    for ((name, color) in listOf(
+                        "inset" to palette.inset,
+                        "surface" to palette.surface,
+                        "surfaceRaised" to palette.surfaceRaised,
+                        "surfaceHigh" to palette.surfaceHigh,
+                        "surfaceBright" to palette.surfaceBright,
+                        "divider" to palette.divider,
+                        "border" to palette.border,
+                        "contentSubtle" to palette.contentSubtle,
+                        "contentMuted" to palette.contentMuted,
+                        "contentTertiary" to palette.contentTertiary,
+                        "contentSecondary" to palette.contentSecondary,
+                        "contentPrimary" to palette.contentPrimary,
+                    )) {
+                        linearContainer {
+                            orientation = Orientation.Vertical
+                            spacing = 4f.dip
+                            box {
+                                width = 64f.dip
+                                height = 64f.dip
+                                radius = CornerRadius(8f.dip)
+                                this.color = color
+                            }
+                            text { text = name; this.color = Color4(1f, 1f, 1f, 0.6f) }
+                        }
+                    }
+                }
+
+                ramp("Theme accent", palette.accent)
+                ramp("Default accent", com.reco1l.verktex.ui.Theme.DEFAULT_ACCENT_COLOR)
+                for (hue in listOf(25f, 90f, 150f, 210f, 300f)) {
+                    ramp("Pastel, hue $hue", com.reco1l.verktex.data.oklch(0.85f, 0.09f, hue))
+                }
+                ramp("Saturated red", Color4.Red500)
+                ramp("Gray", Color4(0.8f, 0.8f, 0.8f))
+            }
+        }
+
         test("Borders and corners") {
             fun Container.panel(radius: CornerRadius, border: Border = Border.None) = container {
                 width = 140f.dip

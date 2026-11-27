@@ -61,7 +61,7 @@ class TabSelector : Container() {
 
     init {
         padding = themed { Padding(gap.xs) }
-        background = Background.Color(themed { (palette.accent.shade(0.1f)).alpha(0.25f) })
+        background = Background.Color(themed { palette.inset.alpha(0.3f) })
         radius = themed { CornerRadius(radius.lg) }
 
         selectionIndicator = box {
