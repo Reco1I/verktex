@@ -33,7 +33,7 @@ From the game, a combo burst slides in, waits a second and slides back out:
 
 ```kotlin
 sprite.choreograph {
-    at(sprite.currentClockTime)
+    at(sprite.timing.time)
     fadeIn(0.5f)
     moveToX(toX, 0.5f, Easing.OutSine)
     then().delay(1f)
@@ -105,7 +105,7 @@ Steps are placed at a cursor, and steps added one after another start at the sam
 ## How it runs
 
 The choreography is applied in `Component.update`, after the transforms, with the time of the
-component's clock (`currentClockTime`). That's its own `clock`, an ancestor's, or else the engine's
+component's clock (`timing.time`). That's its own (`timing.source`), an ancestor's, or else the engine's
 time.
 
 On each update, for each property:

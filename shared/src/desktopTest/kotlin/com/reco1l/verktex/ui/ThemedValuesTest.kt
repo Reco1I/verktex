@@ -64,46 +64,46 @@ class ThemedValuesTest {
 
     @Test
     fun themedValuesFollowTheThemeOfTheirParent() {
-        val parent = Container().apply { theme = blueTheme }
+        val parent = Container().apply { theme.override = blueTheme }
         val box = Box()
         box.radius = themed { CornerRadius(radius.md) }
 
         parent += box
         assertEquals(CornerRadius(8f.px), box.radius)
 
-        parent.theme = redTheme
+        parent.theme.override = redTheme
         assertEquals(CornerRadius(4f.px), box.radius)
     }
 
     @Test
     fun plainValuesReplaceTheBinding() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.color = themed { palette.accent }
         box.color = Color4.White
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
 
         assertEquals(Color4.White, box.color)
     }
 
     @Test
     fun changingTheAlphaKeepsTheColorThemed() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.color = themed { palette.accent }
         box.alpha = 0.5f
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
 
         assertEquals(Color4.Blue500.alpha(0.5f), box.color)
     }
 
     @Test
     fun nestedThemedValuesAreResolved() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.padding = Padding(themed { radius.md })
         box.border = Border(1f.px, themed { palette.accent })
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
 
         assertEquals(Padding(8f.px), box.padding)
         assertEquals(Border(1f.px, Color4.Blue500), box.border)
@@ -112,16 +112,16 @@ class ThemedValuesTest {
 
     @Test
     fun boundValuesAreAppliedAgain() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         var applied: Color4? = null
-        box.bindTheme("key", { palette.accent }) { applied = it }
+        box.theme.bind("key", { palette.accent }) { applied = it }
         assertEquals(Color4.Red500, applied)
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
         assertEquals(Color4.Blue500, applied)
 
-        box.unbindTheme("key")
-        box.theme = redTheme
+        box.theme.unbind("key")
+        box.theme.override = redTheme
         assertEquals(Color4.Blue500, applied)
     }
 
@@ -149,10 +149,10 @@ class ThemedValuesTest {
 
     @Test
     fun cornersCanBeThemedOneByOne() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.radius = CornerRadius(themed { radius.md }, 2f.px, 2f.px, themed { radius.md })
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
 
         assertEquals(CornerRadius(8f.px, 2f.px, 2f.px, 8f.px), box.radius)
         assertFalse(box.radius.isThemed)
@@ -171,23 +171,23 @@ class ThemedValuesTest {
 
     @Test
     fun themedBordersResolveWithTheThemeOfTheirComponent() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.border = themed { Border(1f.px, top = palette.accent, bottom = Color4.Black) }
 
         assertEquals(Border(1f.px, top = Color4.Red500, bottom = Color4.Black), box.border)
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
         assertEquals(Border(1f.px, top = Color4.Blue500, bottom = Color4.Black), box.border)
     }
 
     @Test
     fun changingTheColorOfAThemedBorderKeepsItsWidthThemed() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.border = themed { Border(radius.md, Color4.Black) }.withColor(Color4.White)
 
         assertEquals(Border(4f.px, Color4.White), box.border)
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
         assertEquals(Border(8f.px, Color4.White), box.border)
     }
 
@@ -207,27 +207,27 @@ class ThemedValuesTest {
 
     @Test
     fun backgroundsTakeTheirColorFromTheTheme() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.background = Background.Color(themed { palette.accent })
 
         assertEquals(Background.Color(Color4.Red500), box.background)
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
         assertEquals(Background.Color(Color4.Blue500), box.background)
     }
 
     @Test
     fun themedBackgroundsResolveWithTheThemeOfTheirComponent() {
-        val box = Box().apply { theme = redTheme }
+        val box = Box().apply { theme.override = redTheme }
         box.background = themed { Background.Color(palette.accent.alpha(0.5f)) }
 
         assertEquals(Background.Color(Color4.Red500.alpha(0.5f)), box.background)
 
-        box.theme = blueTheme
+        box.theme.override = blueTheme
         assertEquals(Background.Color(Color4.Blue500.alpha(0.5f)), box.background)
 
         box.background = Background.None
-        box.theme = redTheme
+        box.theme.override = redTheme
         assertEquals(Background.None, box.background)
     }
 }

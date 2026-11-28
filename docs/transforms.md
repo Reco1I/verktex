@@ -109,7 +109,7 @@ advance in `Component.update`, before `onUpdate`:
 By default transforms follow the engine's frame time: each update adds the frame's elapsed time.
 That count restarts at 0 whenever the component has no transforms left.
 
-When the component or one of its ancestors has a `clock` (`Component.clock`, see `activeClock`),
+When the component or one of its ancestors has a clock (`Component.timing.source`, see `timing.active`),
 transforms use that clock's time instead. They then pause when it pauses and follow its rate. They
 don't rewind, though: going back before a transform's start only holds it, and doesn't restore the
 earlier value. For animations that must follow a clock both ways, use a

@@ -167,7 +167,7 @@ class UITestScene(
             height = fill()
 
             scrollableContainer {
-                theme = flatTheme
+                theme.override = flatTheme
                 scrollAxes = Axis.Y
                 width = 220f.dip
                 height = fill()
@@ -209,7 +209,7 @@ class UITestScene(
                 height = fill()
 
                 linearContainer {
-                    theme = flatTheme
+                    theme.override = flatTheme
                     orientation = LinearContainer.Orientation.Horizontal
                     width = fill()
                     padding = Padding(12f.dip, 6f.dip)
@@ -309,7 +309,7 @@ class UITestScene(
                         variant = Button.Variant.Surface
                         onActionUp = { randomizeAccent() }
                         onActionLongPress = {
-                            viewport.theme = null
+                            viewport.theme.override = null
                             log("Accent reset to the global theme")
                         }
                     }
@@ -352,7 +352,7 @@ class UITestScene(
 
                     // Over the stage, text doesn't take input so the test below stays usable.
                     logText = text {
-                        theme = flatTheme
+                        theme.override = flatTheme
                         width = fill()
                         anchor = Anchor.BottomLeft
                         origin = Anchor.BottomLeft
@@ -537,7 +537,7 @@ class UITestScene(
     private fun randomizeAccent() {
         val accent = oklch(0.85f, 0.09f, Random.nextFloat() * 360f)
         val base = Verktex.theme
-        viewport.theme = Theme(
+        viewport.theme.override = Theme(
             palette = Theme.ColorPalette(accent),
             radius = base.radius,
             gap = base.gap,

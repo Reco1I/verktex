@@ -1,6 +1,7 @@
 package com.reco1l.verktex.data
 
 import com.reco1l.verktex.ui.Theme
+import com.reco1l.verktex.ui.PaddingLayout
 import com.reco1l.verktex.ui.ThemeDependent
 
 /**
@@ -8,25 +9,18 @@ import com.reco1l.verktex.ui.ThemeDependent
  * content and its boundaries.
  *
  * All padding values are represented as [Dimension] objects. Besides its sides, a padding can make
- * the component grow past its parent's padding ([coverParentPadding]) or into the safe area of its
- * scene ([extendIntoSafeArea]), its content staying where it would be without growing. Both can be
- * combined, e.g. `padding = coverParentPadding().extendIntoSafeArea()`.
+ * the component grow past its parent's padding ([coverParentPadding], a [CoverParent]) or into the
+ * safe area of its scene ([extendIntoSafeArea], a [SafeArea]), its content staying where it would be
+ * without growing. Both can be combined, e.g. `padding = coverParentPadding().extendIntoSafeArea()`.
+ *
+ * How a padding places its component is its [PaddingLayout], one per component, since a padding is a
+ * value components share.
  */
-data class Padding(
+open class Padding(
     val left: Dimension.Fixed = Dimension.Zero,
     val top: Dimension.Fixed = Dimension.Zero,
     val right: Dimension.Fixed = Dimension.Zero,
     val bottom: Dimension.Fixed = Dimension.Zero,
-
-    /**
-     * Whether the component covers its parent's padding, see [coverParentPadding].
-     */
-    val coversParentPadding: Boolean = false,
-
-    /**
-     * Whether the component grows into the safe area of its scene, see [extendIntoSafeArea].
-     */
-    val extendsIntoSafeArea: Boolean = false
 ) : ThemeDependent<Padding> {
 
     constructor(all: Dimension.Fixed) : this(all, all, all, all)
@@ -38,7 +32,7 @@ data class Padding(
 
     override fun resolve(theme: Theme): Padding {
         if (!isThemed) return this
-        return copy(left = left.resolve(theme), top = top.resolve(theme), right = right.resolve(theme), bottom = bottom.resolve(theme))
+        return Padding(left.resolve(theme), top.resolve(theme), right.resolve(theme), bottom.resolve(theme))
     }
 
 
@@ -48,9 +42,7 @@ data class Padding(
      * the edges of the window, over its safe area; with [extendIntoSafeArea] too its content keeps out
      * of the safe area again, as a modal's.
      */
-    fun coverParentPadding(): Padding {
-        return copy(coversParentPadding = true)
-    }
+    open fun coverParentPadding(): Padding = CoverParent(this)
 
     /**
      * Returns this padding keeping the component's content out of the safe area of its scene: on the
@@ -62,9 +54,7 @@ data class Padding(
      * and a component already at the edges, e.g. a [com.reco1l.verktex.ui.Scene], which has it by
      * default, or one covering the scene's padding ([coverParentPadding]), is padded by the safe area.
      */
-    fun extendIntoSafeArea(): Padding {
-        return copy(extendsIntoSafeArea = true)
-    }
+    open fun extendIntoSafeArea(): Padding = SafeArea(this)
 
 
     /**
@@ -77,6 +67,76 @@ data class Padding(
             z = right.toPixels(),
             w = bottom.toPixels()
         )
+    }
+
+    /**
+     * The kind of [PaddingLayout] this padding places its component with: components keep theirs while the
+     * kind stays the same.
+     */
+    internal open val layoutKind: Int
+        get() = PaddingLayout.PLAIN
+
+    /**
+     * Creates the [PaddingLayout] placing a component with this padding.
+     */
+    internal open fun createLayout(): PaddingLayout = PaddingLayout.Plain
+
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return other is Padding
+            && layoutKind == other.layoutKind
+            && left == other.left
+            && top == other.top
+            && right == other.right
+            && bottom == other.bottom
+    }
+
+    override fun hashCode(): Int {
+        var result = left.hashCode()
+        result = 31 * result + top.hashCode()
+        result = 31 * result + right.hashCode()
+        result = 31 * result + bottom.hashCode()
+        result = 31 * result + layoutKind
+        return result
+    }
+
+    override fun toString() = "Padding($left, $top, $right, $bottom)"
+
+
+    /**
+     * The padding [base] covering the parent's padding, see [coverParentPadding].
+     */
+    class CoverParent internal constructor(val base: Padding) : Padding(base.left, base.top, base.right, base.bottom) {
+
+        override fun resolve(theme: Theme): Padding = if (isThemed) CoverParent(base.resolve(theme)) else this
+
+        override fun coverParentPadding(): Padding = this
+
+        override val layoutKind get() = base.layoutKind or PaddingLayout.COVER_PARENT
+
+        override fun createLayout(): PaddingLayout = PaddingLayout.CoverParent(base.createLayout())
+
+        override fun toString() = "CoverParent($base)"
+    }
+
+    /**
+     * The padding [base] growing into the safe area, see [extendIntoSafeArea]. It's always the outermost
+     * behaviour, so the safe area is found from where the others place the component.
+     */
+    class SafeArea internal constructor(val base: Padding) : Padding(base.left, base.top, base.right, base.bottom) {
+
+        override fun resolve(theme: Theme): Padding = if (isThemed) SafeArea(base.resolve(theme)) else this
+
+        override fun coverParentPadding(): Padding = SafeArea(base.coverParentPadding())
+
+        override fun extendIntoSafeArea(): Padding = this
+
+        override val layoutKind get() = base.layoutKind or PaddingLayout.SAFE_AREA
+
+        override fun createLayout(): PaddingLayout = PaddingLayout.SafeArea(base.createLayout())
+
+        override fun toString() = "SafeArea($base)"
     }
 
 

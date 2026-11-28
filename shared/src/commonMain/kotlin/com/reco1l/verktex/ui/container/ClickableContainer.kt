@@ -1,5 +1,7 @@
 package com.reco1l.verktex.ui.container
 
+import com.reco1l.verktex.ui.Interactive
+import com.reco1l.verktex.ui.InteractionController
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.input.InputEvent
 import com.reco1l.verktex.ui.InteractionState
@@ -9,7 +11,9 @@ import com.reco1l.verktex.time.FrameClock
 
 inline fun Container.clickableContainer(builder: ClickableContainer.() -> Unit) = ClickableContainer().apply(builder).also { +it }
 
-open class ClickableContainer : Container() {
+open class ClickableContainer : Container(), Interactive {
+
+    override val interaction = InteractionController(this)
 
     /**
      * Whether the button is being pressed or not.

@@ -234,7 +234,7 @@ internal class TransformTracker {
     /**
      * The current time for the transforms of [target], in seconds.
      */
-    fun currentTime(target: Component) = target.activeClock?.time ?: accumulatedTime
+    fun currentTime(target: Component) = target.timing.active?.time ?: accumulatedTime
 
     fun add(transform: Transform): Transform {
         var index = transforms.size

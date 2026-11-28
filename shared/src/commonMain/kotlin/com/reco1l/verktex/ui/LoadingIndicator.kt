@@ -57,7 +57,7 @@ open class LoadingIndicator : Canvas() {
             thickness = thickness.toPixels(),
             startAngle = angle,
             endAngle = angle + ARC_LENGTH,
-            color = arcColor ?: resolvedTheme.palette.accent
+            color = arcColor ?: theme.resolved.palette.accent
         )
     }
 

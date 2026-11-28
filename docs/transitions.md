@@ -8,7 +8,8 @@ matching block when the state changes. It's built on [transforms](transforms.md)
 Sources:
 
 - `ui/InteractionState.kt` defines `InteractionState`, `StateTransitions` and the `transitions { }` builder.
-- `ui/Component.kt`, in its Input region, has hover and the interaction state.
+- `ui/Interactive.kt` defines `Interactive`, the components with an interaction state, and their
+  `InteractionController` (`interaction`): hover, transitions and state callbacks.
 - `ui/HoverTracker.kt` and `input/InputEvent.kt` (`HoverEvent`) resolve which components are hovered.
 - `HoverTest` (`shared/src/desktopTest/`) covers the behavior described here. The "Verktex/Hover and
   transitions" UI test shows it on screen.
@@ -27,10 +28,12 @@ textButton {
 }
 ```
 
-Any component can have transitions, not only buttons:
+Any `Interactive` component can have transitions, not only buttons: clickables
+(`ClickableContainer`, and so `Button`), controls (`Control`) and form controls (`FormControl`).
+A container reacting to hover is a `clickableContainer`:
 
 ```kotlin
-container {
+clickableContainer {
     background = Background.Color(Color4.Pink400)
     transitions {
         idle { rotateTo(0f, 0.3f, Easing.OutBack); colorTo(Color4.White, 0.2f) }
@@ -44,14 +47,14 @@ Durations are in seconds, as with any transform.
 
 ## Interaction states
 
-`Component.interactionState` gives the current state. When a component reports several states at
+`Interactive.interactionState` gives the current state. When a component reports several states at
 once, the higher one in this table wins:
 
 | State      | When                                                                                   |
 |------------|----------------------------------------------------------------------------------------|
 | `Disabled` | `Button.isEnabled` or `FormControl.isEnabled` is false.                              |
 | `Pressed`  | A `ClickableContainer` is pressed (`isPressed`), or a `Checkbox` or `Slider` is. |
-| `Hovered`  | `isHovered`: a mouse is over the component, see [Hover](#hover).                      |
+| `Hovered`  | `interaction.isHovered`: a mouse is over the component, see [Hover](#hover).          |
 | `Idle`     | None of the above.                                                                     |
 
 Components that don't take presses are only ever idle or hovered.
@@ -66,7 +69,7 @@ override val interactionState
 
 ## Declaring transitions
 
-`transitions { }` creates a `StateTransitions` and sets it as the component's `transitions`. It
+`transitions { }` creates a `StateTransitions` and sets it as the component's `interaction.transitions`. It
 replaces any transitions set before. Inside it:
 
 - `idle { }`, `hovered { }`, `pressed { }` and `disabled { }` set the block for one state.
@@ -81,17 +84,18 @@ A state without a block runs the block of a related state:
 With only an `idle` and a `hovered` block, the component reacts to hover, and keeps the hovered look
 while pressed.
 
-Setting `transitions = null` removes them. Transforms already running finish.
+Setting `interaction.transitions = null` removes them. Transforms already running finish.
 
 ### `onStateChange`
 
-`onStateChange: ((InteractionState) -> Unit)?` is called on every state change, after the
+`interaction.onStateChange: ((InteractionState) -> Unit)?` is called on every state change, after the
 transitions ran. Use it for reactions that aren't transforms, such as swapping an icon, playing a
 sound or logging. It works with or without `transitions`.
 
 ## How they run
 
-The state is checked in `Component.update`, before the transforms advance. It's polled, so every
+The state is checked in `Component.update` of `Interactive` components (`InteractionController.update`),
+before the transforms advance. It's polled, so every
 source of state works without notifying anything: presses, `isEnabled`, hover, and overrides of
 `interactionState`. The check is skipped on components with neither `transitions` nor
 `onStateChange`.
@@ -156,8 +160,8 @@ Hover comes from a pointer that isn't pressing, i.e. a mouse cursor. Touches nev
 
 ### Which components are hovered
 
-Hover follows the browser's `:hover`. The topmost **hoverable** component under the cursor is
-hovered, and so is every ancestor that contains it. Siblings underneath aren't hovered.
+Hover follows the browser's `:hover`, among `Interactive` components. The topmost **hoverable**
+component under the cursor is hovered, and so is every interactive ancestor that contains it. Siblings underneath aren't hovered.
 
 1. The engine dispatches a `HoverEvent` once per update, at the last cursor position. It goes
    through the same roots as other input, in the same order: the diagnostics, then the overlays,
@@ -170,15 +174,16 @@ hovered, and so is every ancestor that contains it. Siblings underneath aren't h
    - the menu of an expanded `Dropdown`;
    - a `Container` that `isInterceptingInput`, as clickables are by default.
 
-`isHoverable` is true for:
+Only `Interactive` components are hoverable, and `isHoverable` is true for:
 
 - clickables (`ClickableContainer` and so `Button`) and controls (`Control`);
-- any component with `onHoverEnter`, `onHoverExit`, `onStateChange` or `transitions`.
+- other interactive components (`FormControl`) with `onHoverEnter`, `onHoverExit`, `onStateChange` or
+  `transitions` on their `interaction`.
 
 Other components, such as a decorative box drawn over a button, don't take the hover. The button
 under them is still hovered.
 
-Disabled buttons and form controls are still hovered, so `isHovered` is true, but their
+Disabled buttons and form controls are still hovered, so `interaction.isHovered` is true, but their
 `interactionState` is `Disabled`.
 
 Hover is resolved every frame, not only when the cursor moves. Content that scrolls or animates
@@ -187,19 +192,20 @@ next frame. Hit testing uses the layout of the previous frame, so a change shows
 
 ### Hover API
 
-On every `Component`:
+On the `interaction` of every `Interactive` component:
 
 - `isHovered`: whether it's hovered. Set by the engine only.
 - `onHoverEnter` and `onHoverExit`: callbacks, called once per enter and per exit.
-- `onHoverChanged()`: a protected open function for subclasses, called after the callbacks.
-- `isHoverable`: open, to make a custom component hoverable (or not).
+
+And on `Interactive` itself, `isHoverable`, to make a custom component hoverable (or not). A custom
+component becomes interactive by implementing it with `override val interaction = InteractionController(this)`.
 
 On enter, components are hovered from the outermost to the innermost. On exit, from the innermost to
 the outermost.
 
 A component that overrides `onInputEvent` and doesn't call `super` for events it doesn't handle
 should call `claimHover(event)` once its children didn't consume the event. Otherwise it can't be
-hovered. `Container` and the `Component` base already do this.
+hovered. `Container` and the `Component` base already do this, for interactive components.
 
 ### Hosts
 

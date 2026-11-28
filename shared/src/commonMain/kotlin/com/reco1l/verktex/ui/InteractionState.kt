@@ -1,7 +1,7 @@
 package com.reco1l.verktex.ui
 
 /**
- * The state of a component as the user interacts with it, see [Component.interactionState].
+ * The state of a component as the user interacts with it, see [Interactive.interactionState].
  */
 enum class InteractionState {
 
@@ -11,7 +11,7 @@ enum class InteractionState {
     Idle,
 
     /**
-     * A pointer is over it, see [Component.isHovered].
+     * A pointer is over it, see [InteractionController.isHovered].
      */
     Hovered,
 
@@ -27,7 +27,7 @@ enum class InteractionState {
 }
 
 /**
- * The transforms a component runs when its [Component.interactionState] changes, e.g.
+ * The transforms a component runs when its [Interactive.interactionState] changes, e.g.
  *
  * ```
  * transitions {
@@ -70,8 +70,8 @@ class StateTransitions {
 }
 
 /**
- * Sets the [Component.transitions] of this component.
+ * Sets the [InteractionController.transitions] of this component.
  */
-inline fun Component.transitions(block: StateTransitions.() -> Unit) {
-    transitions = StateTransitions().apply(block)
+inline fun Interactive.transitions(block: StateTransitions.() -> Unit) {
+    interaction.transitions = StateTransitions().apply(block)
 }

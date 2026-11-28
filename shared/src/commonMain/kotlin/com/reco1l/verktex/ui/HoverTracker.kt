@@ -4,15 +4,15 @@ import com.reco1l.verktex.input.HoverEvent
 
 /**
  * Keeps which components are hovered, see [HoverEvent]: the topmost hoverable component under the
- * pointer and its ancestors.
+ * pointer and its [Interactive] ancestors.
  */
 internal class HoverTracker {
 
     private val event = HoverEvent()
 
     // Outermost first.
-    private val chain = ArrayList<Component>()
-    private val newChain = ArrayList<Component>()
+    private val chain = ArrayList<Interactive>()
+    private val newChain = ArrayList<Interactive>()
 
 
     /**
@@ -32,7 +32,7 @@ internal class HoverTracker {
         newChain.clear()
         var component = event.target
         while (component != null) {
-            newChain.add(component)
+            if (component is Interactive) newChain.add(component)
             component = component.parent
         }
         newChain.reverse()
@@ -54,14 +54,14 @@ internal class HoverTracker {
         for (i in chain.indices.reversed()) {
             val component = chain[i]
             if (component !in newChain) {
-                component.isHovered = false
+                component.interaction.isHovered = false
             }
         }
 
         // Those that came, outermost first.
         for (component in newChain) {
             if (component !in chain) {
-                component.isHovered = true
+                component.interaction.isHovered = true
             }
         }
 

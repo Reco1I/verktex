@@ -22,7 +22,7 @@ class ChoreographyTest {
         component = TestComponent()
         time = ManualClock()
         frames = FramedClock(time, false)
-        component.clock = time
+        component.timing.source = time
     }
 
     private fun seek(to: Float) {
@@ -82,7 +82,7 @@ class ChoreographyTest {
     @Test
     fun `State doesn't depend on the frames in between`() {
         val other = TestComponent()
-        other.clock = time
+        other.timing.source = time
 
         component.alpha = 0f
         other.alpha = 0f

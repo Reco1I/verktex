@@ -1,5 +1,7 @@
 package com.reco1l.verktex.ui.form
 
+import com.reco1l.verktex.ui.Interactive
+import com.reco1l.verktex.ui.InteractionController
 import com.reco1l.verktex.data.Anchor
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.dip
@@ -27,7 +29,9 @@ import com.reco1l.verktex.ui.themed
  * it to its [defaultValue].
  */
 @Suppress("LeakingThis", "MemberVisibilityCanBePrivate")
-abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearContainer() {
+abstract class FormControl<V : Any, C : Control<V>>(initialValue: V) : LinearContainer(), Interactive {
+
+    override val interaction = InteractionController(this)
 
     /**
      * The control that is used to change the value.

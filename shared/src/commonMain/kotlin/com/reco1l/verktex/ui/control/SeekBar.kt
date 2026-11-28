@@ -130,7 +130,7 @@ open class SeekBar(initialValue: Float = 0f) : Control<Float>(initialValue) {
     val highlight = StateHighlight(this)
 
     override fun drawOverBackground(renderer: Renderer) {
-        highlight.draw(renderer, resolvedTheme.palette.accent)
+        highlight.draw(renderer, theme.resolved.palette.accent)
     }
 
     override val tracksInteractionState

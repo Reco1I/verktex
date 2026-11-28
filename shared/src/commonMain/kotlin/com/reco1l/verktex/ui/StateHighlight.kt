@@ -10,8 +10,8 @@ import com.reco1l.verktex.math.Easing
  * hovered, more when pressed, and out otherwise (also when disabled). Its opacities and speed come
  * from [Theme.highlightStyle].
  *
- * The component tells it its state from [Component.onInteractionStateChanged] (with
- * [Component.tracksInteractionState]) and draws it from [Component.drawOverBackground]. The fades
+ * The component tells it its state from [Interactive.onInteractionStateChanged] (with
+ * [Interactive.tracksInteractionState]) and draws it from [Component.drawOverBackground]. The fades
  * are transforms of the component.
  */
 class StateHighlight(private val component: Component) {
@@ -47,7 +47,7 @@ class StateHighlight(private val component: Component) {
     }
 
     private fun fade() {
-        val style = component.resolvedTheme.highlightStyle
+        val style = component.theme.resolved.highlightStyle
 
         val target = if (!isEnabled) 0f else when (state) {
             InteractionState.Hovered -> style.hoveredAlpha

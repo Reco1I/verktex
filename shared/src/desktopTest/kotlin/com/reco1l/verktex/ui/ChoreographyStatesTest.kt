@@ -31,7 +31,7 @@ class ChoreographyStatesTest {
 
     private val time = ManualClock()
     private val frames = FramedClock(time, false)
-    private val target = Target().also { it.root.clock = time }
+    private val target = Target().also { it.root.timing.source = time }
 
     private val states = choreographyStates<State, Target> {
         this[State.Hit] = { at ->
@@ -85,7 +85,7 @@ class ChoreographyStatesTest {
 
     @Test
     fun `Resetting the animated state clears the animations and their values`() {
-        val component = TestComponent().also { it.clock = time }
+        val component = TestComponent().also { it.timing.source = time }
         component.choreographAt(0f) { it.fadeTo(0.3f).scaleTo(2f).rotateTo(45f).moveTo(10f, 20f).colorTo(Color4(1f, 0f, 0f)) }
         component.update(frames)
 

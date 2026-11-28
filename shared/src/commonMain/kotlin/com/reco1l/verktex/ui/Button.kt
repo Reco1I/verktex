@@ -122,7 +122,7 @@ open class Button : ClickableContainer() {
      * to it instead, tinting their white text or icon, so `color` changes their content's color.
      */
     open val highlightColor: Color4
-        get() = resolvedTheme.palette.let { if (variant == Variant.Solid) it.contentOnSolid else it.accent }
+        get() = theme.resolved.palette.let { if (variant == Variant.Solid) it.contentOnSolid else it.accent }
 
     override fun drawOverBackground(renderer: Renderer) {
         highlight.draw(renderer, highlightColor)

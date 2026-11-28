@@ -70,6 +70,7 @@ import com.reco1l.verktex.ui.colorTo
 import com.reco1l.verktex.ui.fadeTo
 import com.reco1l.verktex.ui.scaleTo
 import com.reco1l.verktex.ui.transitions
+import com.reco1l.verktex.ui.container.clickableContainer
 import com.reco1l.verktex.ui.toast.Toasts
 import kotlin.math.roundToInt
 
@@ -1017,8 +1018,8 @@ object VerktexUITests : UITestSuite("Verktex") {
                     }
                     textButton {
                         text = "Built-in feedback"
-                        onHoverEnter = { log("Hover enter") }
-                        onHoverExit = { log("Hover exit") }
+                        interaction.onHoverEnter = { log("Hover enter") }
+                        interaction.onHoverExit = { log("Hover exit") }
                     }
                     textButton {
                         text = "Disabled"
@@ -1030,9 +1031,9 @@ object VerktexUITests : UITestSuite("Verktex") {
                     }
                 }
 
-                section("Any component") {
+                section("Containers") {
                     for (i in 0 until 3) {
-                        container {
+                        clickableContainer {
                             width = 96f.dip
                             height = 96f.dip
                             radius = CornerRadius(12f.dip)
@@ -1041,7 +1042,7 @@ object VerktexUITests : UITestSuite("Verktex") {
                                 idle { rotateTo(0f, 0.3f, Easing.OutBack); colorTo(Color4.White, 0.2f) }
                                 hovered { rotateTo(8f, 0.3f, Easing.OutBack); colorTo(Color4(0.7f, 0.7f, 1f), 0.2f) }
                             }
-                            onStateChange = { log("Box $i: $it") }
+                            interaction.onStateChange = { log("Box $i: $it") }
                         }
                     }
                 }

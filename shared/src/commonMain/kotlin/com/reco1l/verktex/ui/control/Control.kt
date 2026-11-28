@@ -1,12 +1,16 @@
 package com.reco1l.verktex.ui.control
 
+import com.reco1l.verktex.ui.Interactive
+import com.reco1l.verktex.ui.InteractionController
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.form.FormControl
 
 /**
  * Interface for a control that has a value and can notify when the value changes.
  */
-abstract class Control<T : Any>(initialValue: T) : Container() {
+abstract class Control<T : Any>(initialValue: T) : Container(), Interactive {
+
+    override val interaction = InteractionController(this)
 
     /**
      * The key of the control, used for identification in [FormContainer] during submission.

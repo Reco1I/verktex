@@ -1,14 +1,11 @@
 package com.reco1l.verktex.ui
 
-import com.reco1l.verktex.time.monotonicNanos
-import com.reco1l.verktex.Logger
 import com.reco1l.verktex.PerformanceStats
 import com.reco1l.verktex.localization.Localization
 import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.input.HoverEvent
 import com.reco1l.verktex.input.InputEvent
-import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
 import com.reco1l.verktex.data.Shadow
 import com.reco1l.verktex.data.Background
@@ -25,7 +22,6 @@ import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.math.almostEquals
 import com.reco1l.verktex.settings.VerktexSettings
-import com.reco1l.verktex.time.Clock
 import com.reco1l.verktex.time.FrameClock
 import kotlin.math.max
 import kotlin.math.min
@@ -44,9 +40,11 @@ import kotlin.math.min
  */
 abstract class Component {
 
-    // The theme bindings of this component, see setThemeBinding(). Declared first since themeable
-    // properties register themselves while the component is constructed.
-    private var themeBindings: LinkedHashMap<Any, ThemeBinding>? = null
+    /**
+     * The theme of this component and its children, see [ThemeScope]. Declared first since themeable
+     * properties register themselves while the component is constructed.
+     */
+    val theme = ThemeScope(this)
 
     //region Size
 
@@ -109,20 +107,6 @@ abstract class Component {
             field = value
             invalidateMeasure()
         }
-
-
-    /**
-     * The width of this component with transformations applied.
-     */
-    val transformedWidth
-        get() = bounds.width * scaleX
-
-    /**
-     * The height of this component with transformations applied.
-     */
-    val transformedHeight
-        get() = bounds.height * scaleY
-
 
     /**
      * Called when the size of this component changes.
@@ -286,16 +270,6 @@ abstract class Component {
         }
 
     /**
-     * The rotation of the component in degrees of the Z axis.
-     */
-    var rotationZ = 0f
-        set(value) {
-            if (field.almostEquals(value)) return
-            field = value
-            invalidateTransformations()
-        }
-
-    /**
      * The skew of the component in degrees along the X axis, around [skewOrigin]: points move
      * horizontally by the tangent of the angle times their distance below the origin, as CSS's
      * skewX(). It doesn't affect the layout.
@@ -339,6 +313,15 @@ abstract class Component {
             invalidateTransformations()
         }
 
+    /**
+     * The rotation of the component in degrees of the Z axis.
+     */
+    var rotationZ = 0f
+        set(value) {
+            if (field.almostEquals(value)) return
+            field = value
+            invalidateTransformations()
+        }
 
     /**
      * The transformation matrix from local space to parent space.
@@ -436,7 +419,7 @@ abstract class Component {
         sceneToLocalMatrix.set(localToSceneMatrix)
         sceneToLocalMatrix.invertOrNaN()
 
-        backgroundComponent?.calculateTransformations()
+        attachedBackground.calculateTransformations()
     }
 
     /**
@@ -510,55 +493,25 @@ abstract class Component {
      */
     var background: Background by themeable(Background.None) { attachBackground(it) }
 
-    /**
-     * The [Background.Component] or [Background.Blur] background, attached to this component as
-     * long as it's the background. Null for any other background.
-     */
-    private var attachedBackground: Background? = null
-
-    // The component of a Background.Component background.
-    private val backgroundComponent: Component?
-        get() = (attachedBackground as? Background.Component)?.component
+    // The background as resolved, attached to this component as long as it's the background.
+    private var attachedBackground: Background = Background.None
 
     private fun attachBackground(background: Background) {
-        val attached = background.takeIf { it is Background.Component || it is Background.Blur }
         val old = attachedBackground
-        if (old === attached) return
+        if (old === background) return
 
-        val component = (attached as? Background.Component)?.component
-
-        check(component == null || this is Container) {
-            "Only a container can have a component background, $this can't have $component"
-        }
-        check(component?.parent == null) {
-            "$component is already attached to ${component?.parent}, it can't be the background of $this"
-        }
-        check(attached !is Background.Blur || attached.owner == null) {
-            "$attached is already the background of ${(attached as Background.Blur).owner}, it can't be the background of $this"
-        }
-
-        when (old) {
-            is Background.Component -> {
-                old.component.parent = null
-                old.component.onDetached()
-            }
-            is Background.Blur -> {
-                old.owner = null
-                old.capture.release()
-            }
-            else -> Unit
-        }
-        attachedBackground = attached
-        when (attached) {
-            is Background.Component -> {
-                attached.component.parent = this as Container
-                attached.component.onAttached()
-            }
-            is Background.Blur -> attached.owner = this
-            else -> Unit
-        }
+        // Attached first, it checks it can be the background of this component.
+        background.attach(this)
+        old.detach(this)
+        attachedBackground = background
         invalidateMeasure()
     }
+
+    /**
+     * The transformation matrix from local space to scene space, see [localToSceneMatrix].
+     */
+    internal val localToScene: Mat2
+        get() = localToSceneMatrix
 
     /**
      * The border drawn along the inner edge of this component. Null for none.
@@ -577,74 +530,12 @@ abstract class Component {
 
 
     /**
-     * The theme of this component and its children, or null to use the one of its parent.
-     *
-     * Changing it resolves the [themed] values of the component and its children again, as a change
-     * of [Verktex.theme] does. Values assigned without [themed] stay as they are.
-     */
-    var theme: Theme? = null
-        set(value) {
-            if (field != value) {
-                field = value
-                applyTheme()
-            }
-        }
-
-    /**
-     * The theme the [themed] values of this component resolve with: its own [theme], the one of
-     * the closest parent with one, or [Verktex.theme].
-     */
-    val resolvedTheme: Theme
-        get() = theme ?: parent?.resolvedTheme ?: Verktex.theme
-
-    // The theme the bindings were last applied with, null for the global theme, which values
-    // assigned while constructing resolve with since the component has no parent yet. It's not read
-    // here since components are also constructed while Verktex is.
-    private var boundTheme: Theme? = null
-
-
-    /**
      * Creates a property that can be assigned [themed] values, which are resolved with the theme of
      * this component and again whenever it changes. [onChanged] is called when the resolved value
      * changes, except for the initial one.
      */
     protected fun <T> themeable(initial: T, onChanged: (T) -> Unit = {}): ThemeableProperty<T> {
         return ThemeableProperty(this, initial, onChanged)
-    }
-
-    /**
-     * Calls [apply] with the value [resolve] returns for the theme of this component, now and
-     * whenever the theme changes, for values without a [themed] form. Binding with the same [key]
-     * again replaces the previous binding.
-     */
-    fun <T> bindTheme(key: Any, resolve: Theme.() -> T, apply: (T) -> Unit) {
-        val binding = ThemeBinding { theme -> apply(theme.resolve()) }
-        setThemeBinding(key, binding)
-        binding.apply(resolvedTheme)
-    }
-
-    /**
-     * Removes the binding added with [bindTheme] with the given [key], keeping its last value.
-     */
-    fun unbindTheme(key: Any) {
-        setThemeBinding(key, null)
-    }
-
-    internal fun setThemeBinding(key: Any, binding: ThemeBinding?) {
-        if (binding == null) {
-            themeBindings?.remove(key)
-            return
-        }
-        val bindings = themeBindings ?: LinkedHashMap<Any, ThemeBinding>().also { themeBindings = it }
-        bindings[key] = binding
-    }
-
-    // Applies the bindings of this component again with its current theme.
-    private fun applyThemeBindings() {
-        val theme = resolvedTheme
-        boundTheme = theme
-        // Bindings may assign themeable properties, which register or remove bindings.
-        themeBindings?.values?.toList()?.forEach { it.apply(theme) }
     }
 
     //region Localization
@@ -690,8 +581,8 @@ abstract class Component {
      */
     fun restyle() {
         val apply = { component: Component ->
-            component.applyThemeBindings()
-            component.backgroundComponent?.restyle()
+            component.theme.applyBindings()
+            component.attachedBackground.restyle()
             Unit
         }
         if (this is Container) propagate(apply) else apply(this)
@@ -703,9 +594,9 @@ abstract class Component {
      */
     internal fun applyTheme() {
         val apply = { component: Component ->
-            component.applyThemeBindings()
+            component.theme.applyBindings()
             component.onThemeChanged()
-            component.backgroundComponent?.applyTheme()
+            component.attachedBackground.applyTheme()
             Unit
         }
         if (this is Container) propagate(apply) else apply(this)
@@ -813,13 +704,12 @@ abstract class Component {
             field?.onChildDetached(this)
             field = value
 
-            // A capture of the window takes a few megabytes, it isn't kept out of the tree.
-            if (value == null) (attachedBackground as? Background.Blur)?.capture?.release()
+            if (value == null) attachedBackground.onOwnerRemoved()
             field?.onChildAttached(this)
 
             // Themed values are resolved on construction, before the component has a parent. If
             // it's attached under a different theme they must be resolved again with it.
-            if (value != null && (boundTheme ?: Verktex.theme) !== resolvedTheme) {
+            if (value != null && theme.isStale) {
                 applyTheme()
             }
         }
@@ -896,61 +786,6 @@ abstract class Component {
         return minX <= x + width && maxX >= x && minY <= y + height && maxY >= y
     }
 
-    // The rectangle and texture coordinates of a texture background, see ScaleType.place.
-    private var backgroundPlacement: FloatArray? = null
-
-    private fun drawTextureBackground(renderer: Renderer, background: Background.Texture, radius: CornerRadius) {
-        val region = background.region
-        val p = backgroundPlacement ?: FloatArray(8).also { backgroundPlacement = it }
-
-        if (!background.scaleType.place(region, bounds.width, bounds.height, background.gravity, false, false, p)) {
-            return
-        }
-
-        renderer.drawTexture(
-            region.texture, region, p[0], p[1], p[2], p[3],
-            color = background.tint,
-            uv = Vec4(p[4], p[5], p[6], p[7]),
-            radiusTopLeft = radius.topLeft.toPixels(),
-            radiusTopRight = radius.topRight.toPixels(),
-            radiusBottomRight = radius.bottomRight.toPixels(),
-            radiusBottomLeft = radius.bottomLeft.toPixels(),
-            maskX = 0f,
-            maskY = 0f,
-            maskWidth = bounds.width,
-            maskHeight = bounds.height
-        )
-    }
-
-    private fun drawComponentBackground(renderer: Renderer, component: Component, radius: CornerRadius) {
-        val radii = Vec4(
-            radius.topLeft.toPixels(),
-            radius.topRight.toPixels(),
-            radius.bottomRight.toPixels(),
-            radius.bottomLeft.toPixels()
-        )
-        val isRounded = radii.x > 0f || radii.y > 0f || radii.z > 0f || radii.w > 0f
-
-        // The component's matrices already contain this one's, the renderer's are absolute.
-        if (isRounded) {
-            renderer.pushClip(0f, 0f, bounds.width, bounds.height, radii)
-            component.draw(renderer)
-            renderer.popClip()
-        } else {
-            component.draw(renderer)
-        }
-    }
-
-    // Lays the component of the background out over the whole component, not only inside its padding.
-    private fun layoutBackgroundComponent() {
-        val component = backgroundComponent ?: return
-        val width = bounds.width
-        val height = bounds.height
-
-        component.measure(LayoutConstraints(minWidth = width, maxWidth = width, minHeight = height, maxHeight = height))
-        component.layout(Vec4(x = 0f, y = 0f, z = width, w = height))
-    }
-
     /**
      * Draws the component using the given renderer. This method is responsible for setting up the
      * rendering context, applying transformations, and calling [onDraw] to perform the actual
@@ -1018,23 +853,8 @@ abstract class Component {
         val border = border
 
         // A color is drawn with the border, a texture, a component or a blur under it.
-        val fill = when (background) {
-            is Background.Color -> background.color
-            is Background.Blur -> background.color
-            else -> Color4.Transparent
-        }
-
-        if (background is Background.Blur && background.radius.value > 0f) {
-            background.draw(renderer, this, localToSceneMatrix, radius)
-        }
-
-        if (background is Background.Texture && background.isVisible) {
-            drawTextureBackground(renderer, background, radius)
-        }
-
-        if (background is Background.Component) {
-            drawComponentBackground(renderer, background.component, radius)
-        }
+        val fill = background.fill
+        background.draw(renderer, this, radius)
 
         if (fill.alpha > 0f || border.isVisible) {
             renderer.drawRect(
@@ -1189,62 +1009,28 @@ abstract class Component {
             return
         }
 
-        val threshold = PerformanceStats.slowComponentThreshold
-        if (threshold > 0f) {
-            updateProfiled(clock, threshold)
-            return
+        if (PerformanceStats.slowComponentThreshold > 0f) {
+            PerformanceStats.profileUpdate(this) { updateSelf(clock) }
+        } else {
+            updateSelf(clock)
         }
-
-        updateSelf(clock)
     }
 
     private fun updateSelf(clock: FrameClock) {
-        engineClockTime = clock.time
+        timing.engineTime = clock.time
         applyLocaleBindings()
-        updateInteractionState()
+        (this as? Interactive)?.interaction?.update()
         transforms?.update(this, clock.elapsedFrameTime)
-        choreography?.update(currentClockTime)
-        backgroundComponent?.update(clock)
+        choreography?.update(timing.time)
+        attachedBackground.update(clock)
         onUpdate(clock)
     }
 
-    // Logs the deepest component whose update took longer than the threshold, see PerformanceStats.slowComponentThreshold.
-    private fun updateProfiled(clock: FrameClock, threshold: Float) {
-        val reportedBefore = PerformanceStats.slowComponentReported
-        PerformanceStats.slowComponentReported = false
-
-        val start = monotonicNanos()
-        updateSelf(clock)
-        val ms = (monotonicNanos() - start) / 1_000_000f
-
-        if (ms > threshold && !PerformanceStats.slowComponentReported) {
-            Logger.w("PerformanceStats", "Slow component update: ${ms}ms in ${this::class.simpleName} " +
-                "(${childCountForProfile()} children), in ${parent?.let { it::class.simpleName }}")
-            PerformanceStats.slowComponentReported = true
-        }
-
-        PerformanceStats.slowComponentReported = PerformanceStats.slowComponentReported || reportedBefore
-    }
-
-    private fun childCountForProfile() = (this as? Container)?.childCount ?: 0
 
     /**
-     * The clock pacing the transforms and the choreography of this component and its children. When null it's
-     * inherited from the parent, falling back to the clock of the engine.
+     * The clock pacing the transforms and the choreography of this component and its children, see [Timing].
      */
-    var clock: Clock? = null
-
-    /**
-     * The clock actually pacing this component, null if it's the one of the engine.
-     */
-    val activeClock: Clock?
-        get() = clock ?: parent?.activeClock
-
-    /**
-     * The current time of the clock pacing this component, in seconds.
-     */
-    val currentClockTime: Float
-        get() = activeClock?.time ?: engineClockTime
+    val timing = Timing(this)
 
     /**
      * The timeline of this component, see [Choreography].
@@ -1255,14 +1041,12 @@ abstract class Component {
      * Whether a transform or a step of the choreography is still running.
      */
     val isAnimating: Boolean
-        get() = transforms?.hasTransforms == true || choreography?.let { currentClockTime < it.endTime } == true
+        get() = transforms?.hasTransforms == true || choreography?.let { timing.time < it.endTime } == true
 
     /**
      * Whether this component and its children stop updating, which freezes them in place.
      */
     var ignoreUpdate = false
-
-    private var engineClockTime = 0f
 
     /**
      * Removes all the transforms and the choreography, leaving the properties at their current values.
@@ -1318,125 +1102,15 @@ abstract class Component {
     }
 
     /**
-     * Claims a [HoverEvent] for this component if it's [isHoverable]. Components handling input
-     * themselves call it once their children didn't claim it.
+     * Claims a [HoverEvent] for this component if it's [Interactive] and [Interactive.isHoverable].
+     * Components handling input themselves call it once their children didn't claim it.
      */
     protected fun claimHover(event: InputEvent): Boolean {
-        if (event is HoverEvent && isHoverable) {
+        if (event is HoverEvent && this is Interactive && isHoverable) {
             event.target = this
             return true
         }
         return false
-    }
-
-    /**
-     * Whether a pointer over this component hovers it, see [HoverEvent]: the topmost hoverable
-     * component under the pointer and its ancestors are hovered. By default those reacting to it,
-     * with [onHoverEnter], [onHoverExit], [onStateChange] or [transitions].
-     */
-    open val isHoverable: Boolean
-        get() = onHoverEnter != null || onHoverExit != null || onStateChange != null || transitions != null
-
-    /**
-     * Whether a pointer that isn't pressing (a mouse cursor) is over this component, or over a
-     * hovered descendant. Touches never hover.
-     */
-    var isHovered = false
-        internal set(value) {
-            if (field == value) return
-            field = value
-            if (value) onHoverEnter?.invoke() else onHoverExit?.invoke()
-            onHoverChanged()
-        }
-
-    /**
-     * Called when the pointer starts hovering this component.
-     */
-    var onHoverEnter: (() -> Unit)? = null
-
-    /**
-     * Called when the pointer stops hovering this component.
-     */
-    var onHoverExit: (() -> Unit)? = null
-
-    /**
-     * Called when [isHovered] changes.
-     */
-    protected open fun onHoverChanged() {}
-
-    /**
-     * The state of this component as the user interacts with it, which [transitions] react to.
-     */
-    open val interactionState: InteractionState
-        get() = if (isHovered) InteractionState.Hovered else InteractionState.Idle
-
-    /**
-     * The transforms to run when [interactionState] changes, see [StateTransitions]. They replace
-     * the built-in feedback of the components that have one, their [defaultTransitions] (e.g.
-     * [Button] scaling while pressed).
-     */
-    var transitions: StateTransitions? = null
-        set(value) {
-            field = value
-            lastInteractionState = null
-        }
-
-    /**
-     * The built-in feedback of this component to [interactionState], run when no [transitions] are
-     * set. Unlike those, having them doesn't make the component [isHoverable].
-     */
-    protected open val defaultTransitions: StateTransitions?
-        get() = null
-
-    /**
-     * Whether [onInteractionStateChanged] is called even without [transitions], e.g. for a
-     * [StateHighlight].
-     */
-    protected open val tracksInteractionState: Boolean
-        get() = false
-
-    /**
-     * Called when [interactionState] changes, after the transitions ran and before [onStateChange].
-     */
-    protected open fun onInteractionStateChanged(state: InteractionState) {}
-
-    /**
-     * Called when [interactionState] changes, after [transitions] ran.
-     */
-    var onStateChange: ((InteractionState) -> Unit)? = null
-        set(value) {
-            field = value
-            lastInteractionState = null
-        }
-
-    // Null until the first update with transitions, which runs the ones of the initial state.
-    private var lastInteractionState: InteractionState? = null
-
-    // The transforms the transition of the current state started.
-    private var stateTransition: TransitionSlot? = null
-
-    private fun updateInteractionState() {
-        val transitions = transitions ?: defaultTransitions
-        if (transitions == null && onStateChange == null && !tracksInteractionState) {
-            return
-        }
-
-        val state = interactionState
-        if (state == lastInteractionState) {
-            return
-        }
-        lastInteractionState = state
-
-        val block = transitions?.blockFor(state)
-        if (block != null) {
-            val slot = stateTransition ?: transitionSlot().also { stateTransition = it }
-            slot.run(block)
-        } else {
-            stateTransition?.cancel()
-        }
-
-        onInteractionStateChanged(state)
-        onStateChange?.invoke(state)
     }
 
     /**
@@ -1451,7 +1125,17 @@ abstract class Component {
 
     //region Layout
 
-    private val paddingProperty = themeable(Padding.Zero) { invalidateMeasure() }
+    /**
+     * How the [padding] measures and places this component, see [PaddingLayout]. Kept while the padding
+     * changes its sides alone.
+     */
+    internal var paddingLayout: PaddingLayout = PaddingLayout.Plain
+        private set
+
+    private val paddingProperty = themeable(Padding.Zero) {
+        if (it.layoutKind != paddingLayout.kind) paddingLayout = it.createLayout()
+        invalidateMeasure()
+    }
 
     /**
      * The padding of the component, which can also make it cover its parent's padding
@@ -1464,75 +1148,18 @@ abstract class Component {
 
     /**
      * The padding the content kept in the last measure pass, in pixels as left, top, right and
-     * bottom: the [padding]'s sides, plus the part of the safe area the component is padded by
-     * without growing into it ([Padding.extendIntoSafeArea]), as found by the last layout pass.
+     * bottom: the [padding]'s sides, plus what its behaviour adds, see [PaddingLayout.measurePadding].
      */
     var measurePadding = Vec4.Zero
         private set
 
     /**
      * The padding the content kept in the last layout pass, in pixels as left, top, right and
-     * bottom: the [padding]'s sides, plus the safe area on the sides placed against it
-     * ([Padding.extendIntoSafeArea]).
+     * bottom: the [padding]'s sides, plus what its behaviour adds, e.g. the safe area on the sides
+     * placed against it ([Padding.extendIntoSafeArea]).
      */
     var layoutPadding = Vec4.Zero
         private set
-
-    /**
-     * How much the component grew into the safe area on each side after the last layout pass, as
-     * left, top, right and bottom, see [Padding.extendIntoSafeArea].
-     */
-    var safeAreaExtent = Vec4.Zero
-        private set
-
-    // The part of the safe area padding the component without growing into it, e.g. all of it for a
-    // component already at the edges of the scene. It's measured with it, found when laid out.
-    private var safeAreaPadding = Vec4.Zero
-
-    /**
-     * The padding of the component on the left side.
-     */
-    var paddingLeft
-        get() = padding.left
-        set(value) {
-            if (padding.left != value) {
-                padding = paddingProperty.raw.copy(left = value)
-            }
-        }
-
-    /**
-     * The padding of the component on the top side.
-     */
-    var paddingTop
-        get() = padding.top
-        set(value) {
-            if (padding.top != value) {
-                padding = paddingProperty.raw.copy(top = value)
-            }
-        }
-
-    /**
-     * The padding of the component on the right side.
-     */
-    var paddingRight
-        get() = padding.right
-        set(value) {
-            if (padding.right != value) {
-                padding = paddingProperty.raw.copy(right = value)
-            }
-        }
-
-    /**
-     * The padding of the component on the bottom side.
-     */
-    var paddingBottom
-        get() = padding.bottom
-        set(value) {
-            if (padding.bottom != value) {
-                padding = paddingProperty.raw.copy(bottom = value)
-            }
-        }
-
 
     /**
      * The bounds of the component after the last layout pass. This is the area that the component
@@ -1552,10 +1179,6 @@ abstract class Component {
 
     private var lastMeasureConstraints: LayoutConstraints? = null
 
-    // The constraints the parent last measured this component with, to measure it again when laying it
-    // out finds another safe area padding.
-    private var lastRequestedConstraints: LayoutConstraints? = null
-
     private var lastLayoutBounds: Vec4? = null
 
     /**
@@ -1563,21 +1186,9 @@ abstract class Component {
      * to perform the actual measurement.
      */
     fun measure(requestedConstraints: LayoutConstraints): Vec2 {
-        lastRequestedConstraints = requestedConstraints
-
-        val padding = padding
-        val parent = parent
-        val coveredPadding = if (parent != null && padding.coversParentPadding) parent.measurePadding else Vec4.Zero
-
-        // Covering the parent's padding, the component is measured as if the parent had none.
-        val parentContraints = adjustParentConstraints(if (coveredPadding == Vec4.Zero) requestedConstraints else LayoutConstraints(
-            minWidth = requestedConstraints.minWidth + coveredPadding.x + coveredPadding.z,
-            maxWidth = requestedConstraints.maxWidth + coveredPadding.x + coveredPadding.z,
-            minHeight = requestedConstraints.minHeight + coveredPadding.y + coveredPadding.w,
-            maxHeight = requestedConstraints.maxHeight + coveredPadding.y + coveredPadding.w
-        ))
-
-        val newMeasurePadding = if (padding.extendsIntoSafeArea) padding.toVec4() + safeAreaPadding else padding.toVec4()
+        val layout = paddingLayout
+        val parentContraints = adjustParentConstraints(layout.measureConstraints(this, requestedConstraints))
+        val newMeasurePadding = layout.measurePadding(padding.toVec4())
 
         if (!measureInvalid && parentContraints == lastMeasureConstraints && newMeasurePadding == measurePadding) {
             return measuredSize
@@ -1633,53 +1244,6 @@ abstract class Component {
      */
     protected open fun adjustBounds(bounds: Vec4) = bounds
 
-    // How much the component grows into the safe area of its scene from the given bounds, and how much
-    // its content is inset by it: on each side placed against the safe area (or within it), it grows to
-    // the edge of the scene (the window unless the scene is embedded) and is inset by the safe area.
-    private fun computeSafeArea(bounds: Vec4): Pair<Vec4, Vec4> {
-        // A scene is the reference of its own safe area, at its edges. Outside of a scene there's none.
-        val scene = this as? Scene ?: findScene() ?: return Vec4.Zero to Vec4.Zero
-        val safeArea = scene.safeArea
-        val sceneWidth = if (scene === this) bounds.width else scene.bounds.width
-        val sceneHeight = if (scene === this) bounds.height else scene.bounds.height
-
-        // The layout positions of the ancestors up to the scene, the transformations are only
-        // applied when drawing and aren't up to date yet.
-        var sceneX = if (scene === this) 0f else bounds.x
-        var sceneY = if (scene === this) 0f else bounds.y
-        var ancestor = if (scene === this) null else parent
-        while (ancestor != null && ancestor !== scene) {
-            sceneX += ancestor.bounds.x
-            sceneY += ancestor.bounds.y
-            ancestor = ancestor.parent
-        }
-
-        val distances = Vec4(
-            x = sceneX,
-            y = sceneY,
-            z = sceneWidth - sceneX - bounds.width,
-            w = sceneHeight - sceneY - bounds.height
-        )
-
-        // A side is placed against the safe area when it doesn't reach past it. The inset can be
-        // negative, e.g. the top of a scene shifted up by the on-screen keyboard.
-        fun touches(inset: Float, distance: Float) = inset != 0f && distance <= max(inset, 0f) + SAFE_AREA_TOLERANCE
-        fun growth(inset: Float, distance: Float) = if (touches(inset, distance)) distance else 0f
-        fun inset(inset: Float, distance: Float) = if (touches(inset, distance)) inset else 0f
-
-        return Vec4(
-            x = growth(safeArea.x, distances.x),
-            y = growth(safeArea.y, distances.y),
-            z = growth(safeArea.z, distances.z),
-            w = growth(safeArea.w, distances.w)
-        ) to Vec4(
-            x = inset(safeArea.x, distances.x),
-            y = inset(safeArea.y, distances.y),
-            z = inset(safeArea.z, distances.z),
-            w = inset(safeArea.w, distances.w)
-        )
-    }
-
     /**
      * Layouts the component within the given bounds. This method will call [onLayout] to perform
      * the actual layout of the component. The bounds are expected to be in the parent's coordinate system.
@@ -1697,73 +1261,14 @@ abstract class Component {
             return
         }
 
-        val padding = padding
-        val parent = parent
-        val coversParentPadding = parent != null && padding.coversParentPadding
-
-        // Covering the parent's padding, the bounds are placed as if the parent had none: over the padding
-        // it measured its content with, then grown by how much the parent itself grew into the safe area.
-        val parentGrowth = if (coversParentPadding) parent!!.safeAreaExtent else Vec4.Zero
-        val placement = if (!coversParentPadding) assignedBounds else {
-            val covered = parent!!.layoutPadding - parentGrowth
-            Vec4(
-                x = assignedBounds.x - covered.x,
-                y = assignedBounds.y - covered.y,
-                z = assignedBounds.z + covered.z,
-                w = assignedBounds.w + covered.w
-            )
-        }
-
-        fun place(): Vec4 {
-            val anchorOffset = Vec2(placement.width * anchor.x, placement.height * anchor.y)
-            val originOffset = Vec2(measuredSize.x * origin.x, measuredSize.y * origin.y)
-            val positionOffset = Vec2(x.resolve(placement.width), y.resolve(placement.height))
-
-            val left = placement.x + anchorOffset.x + positionOffset.x - originOffset.x
-            val top = placement.y + anchorOffset.y + positionOffset.y - originOffset.y
-
-            return Vec4(
-                x = left - parentGrowth.x,
-                y = top - parentGrowth.y,
-                z = left + measuredSize.x + parentGrowth.z,
-                w = top + measuredSize.y + parentGrowth.w
-            )
-        }
-
         val oldBounds = bounds
-        var newBounds = place()
-        var growth = Vec4.Zero
-        var inset = Vec4.Zero
+        val placement = paddingLayout.place(this, assignedBounds, placeInArea)
 
-        if (padding.extendsIntoSafeArea) {
-            computeSafeArea(newBounds).let { (g, i) -> growth = g; inset = i }
-
-            // The content was measured with another part of the safe area than what the bounds don't
-            // grow into, e.g. the first time a component at the edges is laid out: measured again.
-            val requested = lastRequestedConstraints
-            if (inset - growth != safeAreaPadding && requested != null) {
-                safeAreaPadding = inset - growth
-                measure(requested)
-                newBounds = place()
-                computeSafeArea(newBounds).let { (g, i) -> growth = g; inset = i }
-            }
-
-            newBounds = Vec4(
-                x = newBounds.x - growth.x,
-                y = newBounds.y - growth.y,
-                z = newBounds.z + growth.z,
-                w = newBounds.w + growth.w
-            )
-        } else if (safeAreaPadding != Vec4.Zero) {
-            safeAreaPadding = Vec4.Zero
-        }
-
-        safeAreaExtent = growth
-        layoutPadding = padding.toVec4() + inset
-        bounds = adjustBounds(newBounds)
+        layoutPadding = padding.toVec4() + placement.inset
+        bounds = adjustBounds(placement.bounds)
 
         onLayout(bounds)
-        layoutBackgroundComponent()
+        attachedBackground.layout(this)
 
         if (oldBounds != bounds) {
             calculateTransformations()
@@ -1772,6 +1277,17 @@ abstract class Component {
                 onPositionChanged()
             }
         }
+    }
+
+    // Kept to not create a reference every layout pass.
+    private val placeInArea: (Vec4) -> Vec4 = ::placeIn
+
+    // Places the measured size of this component in the given area, as its anchor, origin and position say.
+    private fun placeIn(area: Vec4): Vec4 {
+        val left = area.x + area.width * anchor.x + x.resolve(area.width) - measuredSize.x * origin.x
+        val top = area.y + area.height * anchor.y + y.resolve(area.height) - measuredSize.y * origin.y
+
+        return Vec4(x = left, y = top, z = left + measuredSize.x, w = top + measuredSize.y)
     }
 
     /**
@@ -1798,9 +1314,6 @@ abstract class Component {
 
 
     companion object {
-        // How far from the safe area a side still counts as placed against it.
-        private const val SAFE_AREA_TOLERANCE = 1f
-
         private val showComponentBoundaries by VerktexSettings.ShowComponentBoundaries
 
         /**
@@ -1812,26 +1325,3 @@ abstract class Component {
 }
 
 
-//region Border compatibility
-
-/**
- * The color of the [Component.border], transparent without one. Setting it gives the border a
- * single color, creating a border without width if there was none.
- */
-var Component.borderColor: Color4
-    get() = border.color
-    set(value) {
-        border = border.withColor(value)
-    }
-
-/**
- * The width of the [Component.border], zero without one. Setting it creates a transparent border
- * if there was none.
- */
-var Component.borderWidth: Dimension.Fixed
-    get() = border.width
-    set(value) {
-        border = border.withWidth(value)
-    }
-
-//endregion

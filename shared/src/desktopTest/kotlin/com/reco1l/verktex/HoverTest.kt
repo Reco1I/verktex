@@ -25,7 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The hover of a mouse: the topmost hoverable component under it and its ancestors, and the
+ * The hover of a mouse: the topmost hoverable component under it and its interactive ancestors, and the
  * transitions components run when their state changes.
  */
 class HoverTest {
@@ -55,24 +55,23 @@ class HoverTest {
         init {
             width = 100f.px
             height = 100f.px
-            onHoverEnter = { enters++ }
-            onHoverExit = { exits++ }
+            interaction.onHoverEnter = { enters++ }
+            interaction.onHoverExit = { exits++ }
         }
     }
 
     @Test
-    fun topmostHoverableAndItsAncestorsAreHovered() {
+    fun topmostHoverableAndItsInteractiveAncestorsAreHovered() {
         val below = HoverCard()
         val above = HoverCard()
-        val group = Container().apply { this += above }
+        val group = ClickableContainer().apply { this += above }
         val root = Container().apply { this += below; this += group }
         frames(root)
 
         hover(root, 50f, 50f)
-        assertTrue(above.isHovered)
-        assertTrue(group.isHovered)
-        assertTrue(root.isHovered)
-        assertFalse(below.isHovered)
+        assertTrue(above.interaction.isHovered)
+        assertTrue(group.interaction.isHovered)
+        assertFalse(below.interaction.isHovered)
 
         // Moving within it doesn't enter again.
         hover(root, 60f, 60f)
@@ -80,8 +79,8 @@ class HoverTest {
         assertEquals(0, below.enters)
 
         hover(root, 500f, 500f)
-        assertFalse(above.isHovered)
-        assertFalse(group.isHovered)
+        assertFalse(above.interaction.isHovered)
+        assertFalse(group.interaction.isHovered)
         assertEquals(1, above.exits)
     }
 
@@ -94,8 +93,7 @@ class HoverTest {
         frames(root)
 
         hover(root, 50f, 50f)
-        assertTrue(card.isHovered)
-        assertFalse(decoration.isHovered)
+        assertTrue(card.interaction.isHovered)
     }
 
     @Test
@@ -106,7 +104,7 @@ class HoverTest {
 
         hover(root, 50f, 50f)
         tracker.clear()
-        assertFalse(card.isHovered)
+        assertFalse(card.interaction.isHovered)
         assertEquals(1, card.exits)
     }
 
@@ -119,7 +117,7 @@ class HoverTest {
         hover(root, 50f, 50f)
         root -= card
         hover(root, 50f, 50f)
-        assertFalse(card.isHovered)
+        assertFalse(card.interaction.isHovered)
     }
 
     @Test
@@ -130,7 +128,7 @@ class HoverTest {
         frames(root)
 
         hover(root, 50f, 50f)
-        assertFalse(card.isHovered)
+        assertFalse(card.interaction.isHovered)
     }
 
     @Test
@@ -140,7 +138,7 @@ class HoverTest {
         frames(root)
 
         hover(root, 50f, 50f)
-        assertTrue(button.isHovered)
+        assertTrue(button.interaction.isHovered)
         assertEquals(InteractionState.Disabled, button.interactionState)
     }
 
@@ -152,7 +150,7 @@ class HoverTest {
                 idle { scaleTo(1f) }
                 hovered { scaleTo(1.1f) }
             }
-            onStateChange = { states += it }
+            interaction.onStateChange = { states += it }
         }
         val root = Container().apply { this += card }
         frames(root)
@@ -246,7 +244,7 @@ class HoverTest {
         val button = Button().apply { width = 100f.px; height = 100f.px; padding = Padding.Zero }
         val root = Container().apply { this += button }
         frames(root)
-        val style = button.resolvedTheme.highlightStyle
+        val style = button.theme.resolved.highlightStyle
         assertEquals(0f, button.highlight.opacity, 0f)
 
         hover(root, 50f, 50f)

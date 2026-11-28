@@ -247,8 +247,8 @@ data class ScrollEvent(
  * engine once per frame at the last position the host gave, see [Input.dispatchHover].
  *
  * It goes to the components under the position as a press would, topmost first, and the first
- * [com.reco1l.verktex.ui.Component.isHoverable] one claims it by setting [target]. That component
- * and its ancestors are hovered. A component consuming it without setting a target (e.g. a modal
+ * [com.reco1l.verktex.ui.Interactive.isHoverable] one claims it by setting [target]. That component
+ * and its interactive ancestors are hovered. A component consuming it without setting a target (e.g. a modal
  * over the scene) blocks the hover of what is below.
  */
 data class HoverEvent(

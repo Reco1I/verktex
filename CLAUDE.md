@@ -71,11 +71,18 @@ includes this build the same tasks are `:verktex:<project>:<task>`.
 - Engine-wide behavior an application chooses (e.g. a right click as a long press, the distance of a
   wheel notch) is a `VerktexOptions` field: the host gives them (`GameHost.options`) and
   `Verktex.initialize` keeps them in `Verktex.options`. User preferences are `VerktexSettings` instead.
-- Hover (`Component.isHovered`) follows a mouse, never touches: hosts give its position
+- Hover (`interaction.isHovered`) follows a mouse, never touches: hosts give its position
   (`Input.dispatchHover`), and each update a `HoverEvent` hit-tested like a press finds the topmost
-  `isHoverable` component, which is hovered with its ancestors. Components that block presses block it
-  too. Reactions to hover, presses and being disabled go through `interactionState`, with
-  `transitions { hovered { … } }` (`ui/InteractionState.kt`), which replace built-in feedback.
+  `isHoverable` component, which is hovered with its interactive ancestors. Components that block
+  presses block it too. Only `Interactive` components (`ui/Interactive.kt`: clickables, controls and
+  form controls) have an interaction state: reactions to hover, presses and being disabled go through
+  `interactionState`, with `transitions { hovered { … } }` (`ui/InteractionState.kt`), which replace
+  built-in feedback, kept in their `InteractionController` (`interaction`).
+- `Component` delegates what isn't its own: its theme is a `ThemeScope` (`theme.override`,
+  `theme.resolved`, `theme.bind`), its clock a `Timing` (`timing.source`, `timing.time`), a
+  `Background` draws, lays out and attaches itself, and a `Padding` covering its parent's padding or
+  extending into the safe area (`Padding.CoverParent`, `Padding.SafeArea`) places its component through
+  a `PaddingLayout`.
 - Dependency and plugin versions go in `gradle/libs.versions.toml`.
 - UI is a tree of `Component`s measured and laid out through `LayoutConstraints`, animated with
   transforms, and with `Choreography` for anything whose state must depend only on the time.

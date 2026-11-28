@@ -170,9 +170,9 @@ open class Text : Canvas() {
             if (value.isThemed) {
                 // The size is themed on its own, so it can be themed differently after.
                 fontSize = themed { value.resolve(this).size }
-                bindTheme(FontSettingsBinding, { value.resolve(this) }) { applyFontSettings(it) }
+                theme.bind(FontSettingsBinding, { value.resolve(this) }) { applyFontSettings(it) }
             } else {
-                unbindTheme(FontSettingsBinding)
+                theme.unbind(FontSettingsBinding)
                 fontSize = value.size
                 applyFontSettings(value)
             }

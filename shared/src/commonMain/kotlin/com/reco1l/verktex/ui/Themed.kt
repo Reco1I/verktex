@@ -255,7 +255,7 @@ class ThemeableProperty<T> internal constructor(
             // constructed, which can happen while Verktex is.
             if (!isResolved) {
                 isResolved = true
-                field = resolveThemed(raw, owner.resolvedTheme)
+                field = resolveThemed(raw, owner.theme.resolved)
             }
             return field
         }
@@ -266,7 +266,7 @@ class ThemeableProperty<T> internal constructor(
 
     init {
         if (initial.isThemed) {
-            owner.setThemeBinding(this, this)
+            owner.theme.setBinding(this, this)
         }
     }
 
@@ -276,11 +276,11 @@ class ThemeableProperty<T> internal constructor(
     override fun setValue(thisRef: Component, property: KProperty<*>, value: T) {
         raw = value
         if (value.isThemed) {
-            owner.setThemeBinding(this, this)
-            update(resolveThemed(value, owner.resolvedTheme))
+            owner.theme.setBinding(this, this)
+            update(resolveThemed(value, owner.theme.resolved))
         } else {
             // Not reading the theme here, components are also constructed while Verktex is.
-            owner.setThemeBinding(this, null)
+            owner.theme.setBinding(this, null)
             update(value)
         }
     }

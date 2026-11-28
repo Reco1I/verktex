@@ -189,7 +189,7 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
         radius = themed { CornerRadius(radius.md) }
         background = Background.Color(themed { palette.controlInactiveBackground })
         // Its color is animated when the focus changes.
-        border = Border(1.5f.dip, borderTargetColor(resolvedTheme))
+        border = Border(1.5f.dip, borderTargetColor(theme.resolved))
 
         placeholderText.color = themed { palette.accent.alpha(0.5f) }
         caret.color = themed { palette.accent }
@@ -248,7 +248,7 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
     val highlight = StateHighlight(this)
 
     override fun drawOverBackground(renderer: Renderer) {
-        highlight.draw(renderer, resolvedTheme.palette.accent)
+        highlight.draw(renderer, theme.resolved.palette.accent)
     }
 
     override val tracksInteractionState
@@ -267,7 +267,7 @@ open class TextInput(initialValue: String = "") : Control<String>(initialValue),
 
     // Towards the color of the focus, from wherever it is (e.g. the red of an error).
     private fun animateBorder() {
-        val target = borderTargetColor(resolvedTheme)
+        val target = borderTargetColor(theme.resolved)
         borderTransition.run { animateColor(borderColor, target, 0.2f, Easing.OutQuint) }
     }
 

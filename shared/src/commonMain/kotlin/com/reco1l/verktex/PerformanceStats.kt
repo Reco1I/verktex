@@ -1,6 +1,8 @@
 package com.reco1l.verktex
 
 import com.reco1l.verktex.time.monotonicNanos
+import com.reco1l.verktex.ui.Component
+import com.reco1l.verktex.ui.container.Container
 import kotlin.concurrent.Volatile
 
 /**
@@ -146,8 +148,30 @@ object PerformanceStats {
     @Volatile
     var slowComponentThreshold = 0f
 
-    // Whether a component below the one updating was logged as slow, see Component.update.
-    internal var slowComponentReported = false
+    // Whether a component below the one updating was logged as slow, see profileUpdate.
+    private var slowComponentReported = false
+
+    /**
+     * Runs the [update] of [component], logging it if it took longer than [slowComponentThreshold] and none of the
+     * components it updated was logged already, so the deepest slow one is.
+     */
+    internal fun profileUpdate(component: Component, update: () -> Unit) {
+        val reportedBefore = slowComponentReported
+        slowComponentReported = false
+
+        val start = monotonicNanos()
+        update()
+        val ms = (monotonicNanos() - start) / 1_000_000f
+
+        if (ms > slowComponentThreshold && !slowComponentReported) {
+            val children = (component as? Container)?.childCount ?: 0
+            Logger.w("PerformanceStats", "Slow component update: ${ms}ms in ${component::class.simpleName} " +
+                "($children children), in ${component.parent?.let { it::class.simpleName }}")
+            slowComponentReported = true
+        }
+
+        slowComponentReported = slowComponentReported || reportedBefore
+    }
 
     private val frameTimes = FloatArray(HISTORY_SIZE)
     private var nextIndex = 0

@@ -55,7 +55,7 @@ class Checkbox(initialValue: Boolean = false) : Control<Boolean>(initialValue) {
     val highlight = StateHighlight(this)
 
     override fun drawOverBackground(renderer: Renderer) {
-        highlight.draw(renderer, resolvedTheme.palette.accent)
+        highlight.draw(renderer, theme.resolved.palette.accent)
     }
 
     override val tracksInteractionState
@@ -86,7 +86,7 @@ class Checkbox(initialValue: Boolean = false) : Control<Boolean>(initialValue) {
             fadeTo(target, 0.2f, Easing.OutQuint)
         }
 
-        val palette = resolvedTheme.palette
+        val palette = theme.resolved.palette
         val targetBackground = if (value) palette.controlActiveBackground else palette.controlInactiveBackground
 
         backgroundTransition.run {

@@ -13,7 +13,7 @@ import com.reco1l.verktex.math.Easing
  * the state of the component is computed from the time alone, so the result doesn't depend on what was
  * played before, and going back in time just works.
  *
- * Times are in seconds on the clock of the component, see [Component.clock]. Steps must be added in order. Each one
+ * Times are in seconds on the clock of the component, see [Component.timing]. Steps must be added in order. Each one
  * starts from where the previous one on the same property ended, or from the current value if it's the first.
  */
 class Choreography internal constructor(private val target: Component) {
@@ -389,7 +389,7 @@ fun Component.choreographAt(time: Float, block: ChoreographyBlock) {
 /**
  * Adds steps to the choreography of this component starting at the current time.
  */
-fun Component.choreographNow(block: ChoreographyBlock) = choreographAt(currentClockTime, block)
+fun Component.choreographNow(block: ChoreographyBlock) = choreographAt(timing.time, block)
 
 /**
  * Adds steps to the choreography of this component.

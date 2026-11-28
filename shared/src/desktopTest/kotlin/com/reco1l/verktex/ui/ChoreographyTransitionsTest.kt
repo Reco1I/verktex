@@ -17,7 +17,7 @@ class ChoreographyTransitionsTest {
 
     private val time = ManualClock()
     private val frames = FramedClock(time, false)
-    private val component = TestComponent().also { it.clock = time }
+    private val component = TestComponent().also { it.timing.source = time }
 
     private val transitions = choreographyTransitions<Result> {
         this[Result.Miss] = { fadeOut(1f) }
@@ -73,7 +73,7 @@ class ChoreographyTransitionsTest {
 
     @Test
     fun `One instance plays on several components`() {
-        val other = TestComponent().also { it.clock = time }
+        val other = TestComponent().also { it.timing.source = time }
 
         transitions.play(component, Result.Miss, 10f)
         transitions.play(other, Result.Other, 20f)

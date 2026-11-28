@@ -25,7 +25,7 @@ class TransformsTest {
         component = TestComponent()
         time = ManualClock()
         frames = FramedClock(time, false)
-        component.clock = time
+        component.timing.source = time
     }
 
     private fun advanceTo(to: Float) {

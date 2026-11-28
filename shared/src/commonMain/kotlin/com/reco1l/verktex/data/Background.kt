@@ -2,6 +2,8 @@ package com.reco1l.verktex.data
 
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.graphics.Renderer
+import com.reco1l.verktex.time.FrameClock
+import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.graphics.Texture as GPUTexture
 import com.reco1l.verktex.ui.BlurCapture
 import com.reco1l.verktex.ui.Theme
@@ -28,6 +30,45 @@ sealed class Background : ThemeDependent<Background> {
 
     override fun resolve(theme: Theme): Background = this
 
+    /**
+     * The color drawn along with the border of the component, under its content.
+     */
+    internal open val fill: Color4
+        get() = Color4.Transparent
+
+    /**
+     * Called when this becomes the background of [owner].
+     */
+    internal open fun attach(owner: UIComponent) {}
+
+    /**
+     * Called when this stops being the background of [owner].
+     */
+    internal open fun detach(owner: UIComponent) {}
+
+    /**
+     * Called when [owner] is removed from its parent while this is its background.
+     */
+    internal open fun onOwnerRemoved() {}
+
+    /**
+     * Draws the background of [owner] in its local space, under the [fill] and the border, rounded by [radius].
+     */
+    internal open fun draw(renderer: Renderer, owner: UIComponent, radius: CornerRadius) {}
+
+    internal open fun update(clock: FrameClock) {}
+
+    /**
+     * Lays the background out over the whole [owner], not only inside its padding.
+     */
+    internal open fun layout(owner: UIComponent) {}
+
+    internal open fun calculateTransformations() {}
+
+    internal open fun restyle() {}
+
+    internal open fun applyTheme() {}
+
 
     /**
      * No background.
@@ -46,6 +87,8 @@ sealed class Background : ThemeDependent<Background> {
         override val isThemed get() = color.isThemed
 
         override fun resolve(theme: Theme): Background = if (isThemed) Color(color.resolve(theme)) else this
+
+        override val fill get() = color
 
         override fun equals(other: Any?) = this === other || other is Color && color == other.color
 
@@ -72,6 +115,31 @@ sealed class Background : ThemeDependent<Background> {
         override fun resolve(theme: Theme): Background =
             if (isThemed) Texture(region, scaleType, gravity, tint.resolve(theme)) else this
 
+        override fun draw(renderer: Renderer, owner: UIComponent, radius: CornerRadius) {
+            if (!isVisible) return
+
+            val bounds = owner.bounds
+            val p = placement
+
+            if (!scaleType.place(region, bounds.width, bounds.height, gravity, false, false, p)) {
+                return
+            }
+
+            renderer.drawTexture(
+                region.texture, region, p[0], p[1], p[2], p[3],
+                color = tint,
+                uv = Vec4(p[4], p[5], p[6], p[7]),
+                radiusTopLeft = radius.topLeft.toPixels(),
+                radiusTopRight = radius.topRight.toPixels(),
+                radiusBottomRight = radius.bottomRight.toPixels(),
+                radiusBottomLeft = radius.bottomLeft.toPixels(),
+                maskX = 0f,
+                maskY = 0f,
+                maskWidth = bounds.width,
+                maskHeight = bounds.height
+            )
+        }
+
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             return other is Texture
@@ -90,6 +158,12 @@ sealed class Background : ThemeDependent<Background> {
         }
 
         override fun toString() = "Texture($region, $scaleType, $gravity, $tint)"
+
+        private companion object {
+            // The rectangle and texture coordinates of the texture, see ScaleType.place. Backgrounds are only
+            // drawn on the draw worker, one at a time.
+            val placement = FloatArray(8)
+        }
     }
 
     /**
@@ -105,6 +179,58 @@ sealed class Background : ThemeDependent<Background> {
     class Component(val component: UIComponent) : Background() {
 
         override val isVisible get() = component.isVisible
+
+        override fun attach(owner: UIComponent) {
+            check(owner is Container) {
+                "Only a container can have a component background, $owner can't have $component"
+            }
+            check(component.parent == null) {
+                "$component is already attached to ${component.parent}, it can't be the background of $owner"
+            }
+            component.parent = owner
+            component.onAttached()
+        }
+
+        override fun detach(owner: UIComponent) {
+            component.parent = null
+            component.onDetached()
+        }
+
+        override fun draw(renderer: Renderer, owner: UIComponent, radius: CornerRadius) {
+            val radii = Vec4(
+                radius.topLeft.toPixels(),
+                radius.topRight.toPixels(),
+                radius.bottomRight.toPixels(),
+                radius.bottomLeft.toPixels()
+            )
+            val isRounded = radii.x > 0f || radii.y > 0f || radii.z > 0f || radii.w > 0f
+
+            // The component's matrices already contain the owner's, the renderer's are absolute.
+            if (isRounded) {
+                val bounds = owner.bounds
+                renderer.pushClip(0f, 0f, bounds.width, bounds.height, radii)
+                component.draw(renderer)
+                renderer.popClip()
+            } else {
+                component.draw(renderer)
+            }
+        }
+
+        override fun update(clock: FrameClock) = component.update(clock)
+
+        override fun layout(owner: UIComponent) {
+            val width = owner.bounds.width
+            val height = owner.bounds.height
+
+            component.measure(LayoutConstraints(minWidth = width, maxWidth = width, minHeight = height, maxHeight = height))
+            component.layout(Vec4(x = 0f, y = 0f, z = width, w = height))
+        }
+
+        override fun calculateTransformations() = component.calculateTransformations()
+
+        override fun restyle() = component.restyle()
+
+        override fun applyTheme() = component.applyTheme()
 
         override fun equals(other: Any?) = this === other || other is Component && component === other.component
 
@@ -158,8 +284,27 @@ sealed class Background : ThemeDependent<Background> {
          */
         fun invalidate() = capture.invalidate()
 
-        internal fun draw(renderer: Renderer, component: UIComponent, localToScene: Mat2, radii: CornerRadius) {
-            capture.draw(renderer, component, localToScene, radius.toPixels(), static, radii)
+        override val fill get() = color
+
+        override fun attach(owner: UIComponent) {
+            check(this.owner == null) {
+                "$this is already the background of ${this.owner}, it can't be the background of $owner"
+            }
+            this.owner = owner
+        }
+
+        override fun detach(owner: UIComponent) {
+            this.owner = null
+            capture.release()
+        }
+
+        // A capture of the window takes a few megabytes, it isn't kept out of the tree.
+        override fun onOwnerRemoved() = capture.release()
+
+        override fun draw(renderer: Renderer, owner: UIComponent, radius: CornerRadius) {
+            if (this.radius.value > 0f) {
+                capture.draw(renderer, owner, owner.localToScene, this.radius.toPixels(), static, radius)
+            }
         }
 
         override fun equals(other: Any?): Boolean {

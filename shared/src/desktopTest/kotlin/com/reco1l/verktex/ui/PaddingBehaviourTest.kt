@@ -10,6 +10,7 @@ import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.ui.container.Container
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
@@ -74,7 +75,7 @@ class PaddingBehaviourTest {
         layout()
 
         // Against the left, top and right edges, not the bottom one.
-        assertEquals(Vec4(40f, 20f, 30f, 0f), bar.safeAreaExtent)
+        assertEquals(Vec4(40f, 20f, 30f, 0f), bar.paddingLayout.extent)
         assertEquals(Vec4(0f, 0f, 800f, 70f), bar.bounds)
         assertEquals(Vec4(45f, 25f, 35f, 5f), bar.layoutPadding)
         assertEquals(Vec4(45f, 25f, 765f, 65f), content.bounds)
@@ -109,7 +110,7 @@ class PaddingBehaviourTest {
 
         // Already at the edges, it doesn't grow, its content is inset by the safe area.
         assertEquals(Vec4(0f, 0f, 800f, 600f), modal.bounds)
-        assertEquals(Vec4.Zero, modal.safeAreaExtent)
+        assertEquals(Vec4.Zero, modal.paddingLayout.extent)
         assertEquals(Vec4(40f, 20f, 30f, 10f), modal.layoutPadding)
         assertEquals(Vec4(40f, 20f, 770f, 590f), content.bounds)
         assertEquals(Vec2(730f, 570f), content.measuredSize)
@@ -171,9 +172,20 @@ class PaddingBehaviourTest {
         layout()
 
         // 5 from the top edge: it grows by those 5, its content starts below the safe area's 20.
-        assertEquals(5f, bar.safeAreaExtent.y)
+        assertEquals(5f, bar.paddingLayout.extent.y)
         assertEquals(20f, bar.layoutPadding.y)
         assertEquals(0f, bar.bounds.y)
         assertEquals(20f, content.bounds.y)
+    }
+
+    @Test
+    fun `the behaviours combine in any order and once`() {
+        val sides = Padding(5f.px)
+
+        assertEquals(sides.coverParentPadding().extendIntoSafeArea(), sides.extendIntoSafeArea().coverParentPadding())
+        assertEquals(sides.extendIntoSafeArea(), sides.extendIntoSafeArea().extendIntoSafeArea())
+        assertEquals(sides.coverParentPadding(), sides.coverParentPadding().coverParentPadding())
+        assertNotEquals(sides, sides.extendIntoSafeArea())
+        assertNotEquals(sides.coverParentPadding(), sides.extendIntoSafeArea())
     }
 }
