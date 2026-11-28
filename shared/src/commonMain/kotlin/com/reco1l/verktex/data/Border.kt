@@ -9,10 +9,12 @@ import com.reco1l.verktex.ui.themed
 /**
  * A border drawn along the inner edge of a component, following its shape.
  *
- * Each side has its own color. A side whose color is null has none of its own and fades between
+ * Each side has its own color, which defaults to the one given as `color`: `Border(width, color)`
+ * is a border of a single color. A side whose color is null has none of its own and fades between
  * the sides next to it: with no color on the left and the right, the whole border fades from the
- * [top] color to the [bottom] one (e.g. a bezel lighter on top and darker at the bottom), and
- * likewise from [left] to [right]. Sides with colors meet on the diagonals from the corners.
+ * [top] color to the [bottom] one (e.g. a bezel lighter on top and darker at the bottom, as
+ * `Border(width, top = light, bottom = dark)`), and likewise from [left] to [right]. Sides with
+ * colors meet on the diagonals from the corners.
  *
  * The border can be taken from the theme with `themed { cardStyle.elevation.border }`, see [Themed].
  */
@@ -24,42 +26,31 @@ open class Border(
     open val width: Dimension.Fixed,
 
     /**
+     * The color of the sides not given one of their own, null for none.
+     */
+    color: Color4? = null,
+
+    /**
      * The color of the top side, or null to fade between the left and right ones.
      */
-    open val top: Color4? = null,
+    open val top: Color4? = color,
 
     /**
      * The color of the right side, or null to fade between the top and bottom ones.
      */
-    open val right: Color4? = null,
+    open val right: Color4? = color,
 
     /**
      * The color of the bottom side, or null to fade between the left and right ones.
      */
-    open val bottom: Color4? = null,
+    open val bottom: Color4? = color,
 
     /**
      * The color of the left side, or null to fade between the top and bottom ones.
      */
-    open val left: Color4? = null,
+    open val left: Color4? = color,
 
 ) : ThemeDependent<Border> {
-
-    /**
-     * A border of a single [color], or one that fades from [color] at the top to [colorBottom] at
-     * the bottom.
-     */
-    constructor(
-        width: Dimension.Fixed,
-        color: Color4 = Color4.Transparent,
-        colorBottom: Color4 = color,
-    ) : this(
-        width,
-        top = color,
-        right = color.takeIf { it == colorBottom },
-        bottom = colorBottom,
-        left = color.takeIf { it == colorBottom },
-    )
 
 
     /**
@@ -86,12 +77,12 @@ open class Border(
     /**
      * This border with every side of the given [color].
      */
-    open fun withColor(color: Color4): Border = Border(width, color, color, color, color)
+    open fun withColor(color: Color4): Border = Border(width, color)
 
     /**
      * This border with the given [width].
      */
-    open fun withWidth(width: Dimension.Fixed): Border = Border(width, top, right, bottom, left)
+    open fun withWidth(width: Dimension.Fixed): Border = Border(width, top = top, right = right, bottom = bottom, left = left)
 
 
     override val isThemed: Boolean
@@ -101,10 +92,10 @@ open class Border(
         if (!isThemed) return this
         return Border(
             width.resolve(theme),
-            top?.resolve(theme),
-            right?.resolve(theme),
-            bottom?.resolve(theme),
-            left?.resolve(theme),
+            top = top?.resolve(theme),
+            right = right?.resolve(theme),
+            bottom = bottom?.resolve(theme),
+            left = left?.resolve(theme),
         )
     }
 
@@ -135,7 +126,7 @@ open class Border(
      * A border taken from the theme, see [themed]. Themeable properties resolve it with the theme of
      * their component, elsewhere its values are the ones in [Verktex.theme].
      */
-    class Themed(val block: Theme.() -> Border) : Border(Dimension.Zero, null, null, null, null) {
+    class Themed(val block: Theme.() -> Border) : Border(Dimension.Zero) {
 
         override val width get() = Verktex.theme.block().width
         override val top get() = Verktex.theme.block().top

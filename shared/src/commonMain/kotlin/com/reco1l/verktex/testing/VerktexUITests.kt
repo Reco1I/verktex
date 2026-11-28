@@ -718,18 +718,18 @@ object VerktexUITests : UITestSuite("Verktex") {
                 }
 
                 section("Sides") {
-                    panel(CornerRadius(8f.dip), Border(6f.dip, red, green, blue, yellow))
-                    panel(CornerRadius(30f.dip, 0f.dip, 30f.dip, 0f.dip), Border(6f.dip, red, green, blue, yellow))
-                    panel(CornerRadius(8f.dip), Border(6f.dip, Color4.Transparent, Color4.Transparent, Color4.White, Color4.Transparent))
+                    panel(CornerRadius(8f.dip), Border(6f.dip, top = red, right = green, bottom = blue, left = yellow))
+                    panel(CornerRadius(30f.dip, 0f.dip, 30f.dip, 0f.dip), Border(6f.dip, top = red, right = green, bottom = blue, left = yellow))
+                    panel(CornerRadius(8f.dip), Border(6f.dip, top = Color4.Transparent, right = Color4.Transparent, bottom = Color4.White, left = Color4.Transparent))
                 }
 
                 section("Fading sides") {
                     // Left and right fade from the top color to the bottom one, the gradient of a bezel.
-                    panel(CornerRadius(8f.dip), Border(6f.dip, red, blue))
+                    panel(CornerRadius(8f.dip), Border(6f.dip, top = red, bottom = blue))
                     // Top and bottom fade from left to right.
-                    panel(CornerRadius(8f.dip), Border(6f.dip, null, green, null, yellow))
+                    panel(CornerRadius(8f.dip), Border(6f.dip, right = green, left = yellow))
                     // Only the left side fades, between the top and bottom colors.
-                    panel(CornerRadius(8f.dip), Border(6f.dip, red, green, blue, null))
+                    panel(CornerRadius(8f.dip), Border(6f.dip, top = red, right = green, bottom = blue))
                 }
 
                 section("Themed") {

@@ -114,9 +114,9 @@ open class Theme(
         ),
         elevation = Elevation(
             border = Border(
-                width = 1f.px,
-                color = Color4.White.alpha(0.06f),
-                colorBottom = Color4.Black.alpha(0.2f),
+                1f.px,
+                top = Color4.White.alpha(0.06f),
+                bottom = Color4.Black.alpha(0.2f),
             ),
             shadow = Shadow(
                 color = Color4.Black.alpha(0.3f),
@@ -141,9 +141,9 @@ open class Theme(
     val cardStyle: CardStyle = CardStyle(
         elevation = Elevation(
             border = Border(
-                width = 1f.px,
-                color = Color4.White.alpha(0.06f),
-                colorBottom = Color4.Black.alpha(0.2f),
+                1f.px,
+                top = Color4.White.alpha(0.06f),
+                bottom = Color4.Black.alpha(0.2f),
             ),
             shadow = Shadow(
                 color = Color4.Black.alpha(0.35f),

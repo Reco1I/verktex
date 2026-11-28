@@ -172,12 +172,12 @@ class ThemedValuesTest {
     @Test
     fun themedBordersResolveWithTheThemeOfTheirComponent() {
         val box = Box().apply { theme = redTheme }
-        box.border = themed { Border(1f.px, palette.accent, Color4.Black) }
+        box.border = themed { Border(1f.px, top = palette.accent, bottom = Color4.Black) }
 
-        assertEquals(Border(1f.px, Color4.Red500, Color4.Black), box.border)
+        assertEquals(Border(1f.px, top = Color4.Red500, bottom = Color4.Black), box.border)
 
         box.theme = blueTheme
-        assertEquals(Border(1f.px, Color4.Blue500, Color4.Black), box.border)
+        assertEquals(Border(1f.px, top = Color4.Blue500, bottom = Color4.Black), box.border)
     }
 
     @Test
@@ -193,7 +193,7 @@ class ThemedValuesTest {
 
     @Test
     fun aGradientBorderLeavesItsSidesWithoutColor() {
-        val gradient = Border(1f.px, Color4.White, Color4.Black)
+        val gradient = Border(1f.px, top = Color4.White, bottom = Color4.Black)
         assertEquals(Color4.White, gradient.top)
         assertEquals(Color4.Black, gradient.bottom)
         assertEquals(null, gradient.left)
@@ -202,7 +202,7 @@ class ThemedValuesTest {
         val single = Border(1f.px, Color4.White)
         assertEquals(Color4.White, single.left)
         assertEquals(Color4.White, single.right)
-        assertEquals(Border(1f.px, Color4.White, Color4.White, Color4.White, Color4.White), single)
+        assertEquals(Border(1f.px, top = Color4.White, right = Color4.White, bottom = Color4.White, left = Color4.White), single)
     }
 
     @Test
