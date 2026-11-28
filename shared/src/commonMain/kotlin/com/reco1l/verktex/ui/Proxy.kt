@@ -87,9 +87,9 @@ class Proxy(target: Component? = null) : Component() {
 
             alpha *= ancestor.alpha
             if (ancestor.tintChildren) {
-                red *= ancestor.red
-                green *= ancestor.green
-                blue *= ancestor.blue
+                red *= ancestor.color.red
+                green *= ancestor.color.green
+                blue *= ancestor.color.blue
             }
             ancestor = ancestor.parent
         }

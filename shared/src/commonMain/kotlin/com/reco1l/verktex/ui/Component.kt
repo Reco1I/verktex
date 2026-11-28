@@ -500,27 +500,6 @@ abstract class Component {
         set(value) { color = colorProperty.raw.alpha(value) }
 
     /**
-     * The red component of the compoent's color.
-     */
-    var red
-        get() = color.red
-        set(value) { color = colorProperty.raw.copy(red = value) }
-
-    /**
-     * The green component of the compoent's color.
-     */
-    var green
-        get() = color.green
-        set(value) { color = colorProperty.raw.copy(green = value) }
-
-    /**
-     * The blue component of the compoent's color.
-     */
-    var blue
-        get() = color.blue
-        set(value) { color = colorProperty.raw.copy(blue = value) }
-
-    /**
      * Determines how the component should be clipped.
      */
     var clipping: ClipMode = ClipMode.Disabled
