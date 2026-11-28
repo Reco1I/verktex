@@ -18,6 +18,12 @@ class SystemBasedFrameClock : FrameClock(), IFrameProcessableClock, IControllabl
 
     //endregion
 
+    /**
+     * The most a frame advances this clock by, in seconds. A frame that took longer, a stall, advances it by this
+     * instead, so what animates on it slows down for that frame rather than skipping ahead. Unlimited by default.
+     */
+    var maxElapsedFrameTime = Float.POSITIVE_INFINITY
+
     private var lastRealFrameTime = SystemClock.time
 
 
@@ -26,7 +32,7 @@ class SystemBasedFrameClock : FrameClock(), IFrameProcessableClock, IControllabl
 
         val realTime = SystemClock.time
 
-        elapsedFrameTime = realTime - lastRealFrameTime
+        elapsedFrameTime = (realTime - lastRealFrameTime).coerceAtMost(maxElapsedFrameTime)
         lastRealFrameTime = realTime
 
         lastFrameTime = time

@@ -169,11 +169,19 @@ object Verktex {
 
 
     /**
-     * The clock used across the engine.
+     * The clock used across the engine. A frame advances it by at most [MAX_ELAPSED_FRAME_TIME], so that the UI
+     * animating on it slows down through a stall instead of skipping ahead. Whatever has to keep to the audio or the
+     * wall clock (gameplay, its choreographies) has a clock of its own.
      */
     @JvmStatic
     val clock: FrameClock
-        field = SystemBasedFrameClock()
+        field = SystemBasedFrameClock().apply { maxElapsedFrameTime = MAX_ELAPSED_FRAME_TIME }
+
+    /**
+     * The most a frame advances the engine's [clock] by, in seconds: down to 20 frames per second it keeps to real
+     * time, only longer frames (stalls) are cut short.
+     */
+    const val MAX_ELAPSED_FRAME_TIME = 1f / 20f
 
     /**
      * The currently active scene. This is the topmost scene in the scene stack, or the current scene
