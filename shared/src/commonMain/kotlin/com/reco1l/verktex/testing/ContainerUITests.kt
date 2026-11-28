@@ -29,6 +29,7 @@ import com.reco1l.verktex.ui.container.scrollableContainer
 import com.reco1l.verktex.ui.text.Text
 import com.reco1l.verktex.ui.text.text
 import com.reco1l.verktex.ui.textButton
+import kotlin.math.sin
 
 private val FAINT = Color4(1f, 1f, 1f, 0.08f)
 
@@ -484,6 +485,78 @@ fun UITestSuite.addContainerTests() {
                     isNarrow = !isNarrow
                     area.width = if (isNarrow) 0.45f.pct else 0.8f.pct
                 }
+            }
+        }
+    }
+
+    test("Blur background") {
+        // Blocks moving behind the blurred cards, so a static blur (captured once) and a live one differ.
+        val moving = mutableListOf<Container>()
+
+        val blocks = object : Container() {
+            private var time = 0f
+
+            override fun onUpdate(clock: FrameClock) {
+                super.onUpdate(clock)
+                time += clock.elapsedFrameTime
+                moving.forEachIndexed { index, block -> block.translationX = (sin(time + index * 0.7f) * 160f).px }
+            }
+        }.also { +it }
+
+        blocks.apply {
+            width = fill()
+            height = fill()
+
+            for (index in 0 until 8) {
+                moving += block("Block $index", colorAt(index)) {
+                    anchor = Anchor.TopCenter
+                    origin = Anchor.TopCenter
+                    y = (40f + index * 56f).dip
+                    width = 140f.dip
+                    height = 44f.dip
+                }
+            }
+        }
+
+        var isStatic = false
+        fun blur() = Background.Blur(12f.dip, isStatic, Color4(1f, 1f, 1f, 0.1f))
+
+        val cards = List(2) { index ->
+            container {
+                anchor = Anchor.Center
+                origin = Anchor.Center
+                x = (if (index == 0) -170f else 170f).dip
+                width = 300f.dip
+                height = 220f.dip
+                radius = CornerRadius(if (index == 0) 24f.dip else 0f.dip)
+                background = blur()
+
+                text {
+                    anchor = Anchor.Center
+                    origin = Anchor.Center
+                    text = if (index == 0) "Rounded" else "Square"
+                }
+            }
+        }
+
+        linearContainer {
+            anchor = Anchor.BottomCenter
+            origin = Anchor.BottomCenter
+            y = (-16f).dip
+            spacing = 8f.dip
+
+            textButton {
+                text = "Static: off"
+                onActionUp = {
+                    isStatic = !isStatic
+                    text = "Static: ${if (isStatic) "on" else "off"}"
+                    cards.forEach { it.background = blur() }
+                }
+            }
+
+            textButton {
+                text = "Capture again"
+                onActionUp = { cards.forEach { (it.background as? Background.Blur)?.invalidate() } }
             }
         }
     }

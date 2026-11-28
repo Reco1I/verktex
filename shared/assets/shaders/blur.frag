@@ -12,6 +12,7 @@ uniform vec2 uDirection;
 out vec4 fragColor;
 
 #import "lib/color.glsl"
+#import "lib/clip.glsl"
 
 // A 9-tap Gaussian (sigma of 2 steps) in 5 fetches, linear filtering blends each pair of taps.
 const float OFFSET_1 = 1.3846153846;
@@ -27,5 +28,5 @@ void main() {
     color += texture(uTexture, vUV + uDirection * OFFSET_2).rgb * WEIGHT_2;
     color += texture(uTexture, vUV - uDirection * OFFSET_2).rgb * WEIGHT_2;
 
-    fragColor = vec4(color, 1.0) * premultiply(vColor);
+    fragColor = vec4(color, 1.0) * premultiply(vColor) * clipCoverage();
 }

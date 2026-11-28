@@ -37,7 +37,7 @@ premultiplied alpha below fixed.
 1. **Checking the rest on Android.** The border is gone on the Adreno 610 phone. What the desktop UI
    tests didn't cover still needs a look there, on each backend (OpenGL ES 3, OpenGL ES 2, Vulkan):
    - hit lighting (custom blend), the snow effect and the health bar (`Additive`),
-   - blurred backdrops (`CaptureContainer`, `blur.frag`),
+   - blurred backdrops (`Background.Blur`, `blur.frag`),
    - videos (`video.frag`) and particles,
    - anything drawn with `Multiply` (nothing uses it at the moment).
 

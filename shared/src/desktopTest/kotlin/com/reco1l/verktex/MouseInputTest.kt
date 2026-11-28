@@ -85,6 +85,47 @@ class MouseInputTest {
     }
 
     @Test
+    fun wheelOverAClickableScrollsTheListItIsIn() {
+        val button = ClickableContainer().apply {
+            width = 200f.px
+            height = 50f.px
+            onActionUp = {}
+        }
+        val list = ScrollableContainer().apply {
+            width = 200f.px
+            height = 100f.px
+            scrollAxes = Axis.Y
+            this += Container().apply {
+                width = 200f.px
+                height = 1000f.px
+                this += button
+            }
+        }
+        val root = Container().apply { this += list }
+        frames(root, 1)
+
+        assertTrue(wheel(root, 50f, 25f, deltaY = -1f))
+        frames(root)
+        assertEquals(step, list.scrollY, 1f)
+    }
+
+    @Test
+    fun interceptingContainerStopsTheWheelBelow() {
+        val list = list(0f)
+        val cover = Container().apply {
+            width = 800f.px
+            height = 600f.px
+            isInterceptingInput = true
+        }
+        val root = Container().apply { this += list; this += cover }
+        frames(root, 1)
+
+        assertTrue(wheel(root, 50f, 50f, deltaY = -1f))
+        frames(root)
+        assertEquals(0f, list.scrollY, 0f)
+    }
+
+    @Test
     fun wheelStopsAtTheEdges() {
         val list = list(0f, contentHeight = 150f)
         val root = Container().apply { this += list }

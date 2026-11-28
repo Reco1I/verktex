@@ -59,15 +59,17 @@ open class ClickableContainer : Container() {
     private var isRightClickPress = false
 
 
+    override var isInterceptingInput = true
+
     override fun onInputEvent(event: InputEvent): Boolean {
 
-        if (super.onInputEvent(event)) {
+        if (dispatchToChildren(event)) {
             return true
         }
 
         // Other events (e.g. keys) are not handled by clickable containers.
         if (event !is PointerEvent) {
-            return false
+            return interceptInput(event)
         }
 
         if (event.action != PointerEvent.Action.Down && (!isPressed || event.pointerId != pressPointerId)) {

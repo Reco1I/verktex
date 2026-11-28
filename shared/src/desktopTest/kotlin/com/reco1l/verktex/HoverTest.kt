@@ -3,6 +3,7 @@ package com.reco1l.verktex
 import com.reco1l.verktex.data.LayoutConstraints
 import com.reco1l.verktex.data.Padding
 import com.reco1l.verktex.data.Vec4
+import com.reco1l.verktex.data.fill
 import com.reco1l.verktex.data.px
 import com.reco1l.verktex.input.PointerEvent
 import com.reco1l.verktex.input.PointerEvent.Action
@@ -12,7 +13,6 @@ import com.reco1l.verktex.ui.HoverTracker
 import com.reco1l.verktex.ui.InteractionState
 import com.reco1l.verktex.ui.Button
 import com.reco1l.verktex.ui.Component
-import com.reco1l.verktex.ui.container.CaptureContainer
 import com.reco1l.verktex.ui.container.ClickableContainer
 import com.reco1l.verktex.ui.container.Container
 import com.reco1l.verktex.ui.fadeTo
@@ -123,10 +123,10 @@ class HoverTest {
     }
 
     @Test
-    fun blockingCaptureContainerStopsTheHoverBelow() {
+    fun interceptingContainerStopsTheHoverBelow() {
         val card = HoverCard()
-        val capture = CaptureContainer().apply { isBlockingInput = true }
-        val root = Container().apply { this += card; this += capture }
+        val cover = Container().apply { width = fill(); height = fill(); isInterceptingInput = true }
+        val root = Container().apply { this += card; this += cover }
         frames(root)
 
         hover(root, 50f, 50f)

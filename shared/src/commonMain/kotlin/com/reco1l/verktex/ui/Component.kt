@@ -436,7 +436,7 @@ abstract class Component {
         sceneToLocalMatrix.set(localToSceneMatrix)
         sceneToLocalMatrix.invertOrNaN()
 
-        attachedBackground?.calculateTransformations()
+        backgroundComponent?.calculateTransformations()
     }
 
     /**
@@ -526,22 +526,27 @@ abstract class Component {
     var clipping: ClipMode = ClipMode.Disabled
 
     /**
-     * What this component is filled with behind its content, a color, a texture or a component
-     * (only for containers), following its shape and under its border.
+     * What this component is filled with behind its content, a color, a texture, a component
+     * (only for containers) or a blur of what is behind, following its shape and under its border.
      */
-    var background: Background by themeable(Background.None) { attachBackgroundComponent(it) }
+    var background: Background by themeable(Background.None) { attachBackground(it) }
 
     /**
-     * The component of a [Background.Component] background, attached to this component as long
-     * as it's the background. Null for any other background.
+     * The [Background.Component] or [Background.Blur] background, attached to this component as
+     * long as it's the background. Null for any other background.
      */
-    private var attachedBackground: Component? = null
-        private set
+    private var attachedBackground: Background? = null
 
-    private fun attachBackgroundComponent(background: Background) {
-        val component = (background as? Background.Component)?.component
+    // The component of a Background.Component background.
+    private val backgroundComponent: Component?
+        get() = (attachedBackground as? Background.Component)?.component
+
+    private fun attachBackground(background: Background) {
+        val attached = background.takeIf { it is Background.Component || it is Background.Blur }
         val old = attachedBackground
-        if (old === component) return
+        if (old === attached) return
+
+        val component = (attached as? Background.Component)?.component
 
         check(component == null || this is Container) {
             "Only a container can have a component background, $this can't have $component"
@@ -549,15 +554,29 @@ abstract class Component {
         check(component?.parent == null) {
             "$component is already attached to ${component?.parent}, it can't be the background of $this"
         }
-
-        if (old != null) {
-            old.parent = null
-            old.onDetached()
+        check(attached !is Background.Blur || attached.owner == null) {
+            "$attached is already the background of ${(attached as Background.Blur).owner}, it can't be the background of $this"
         }
-        attachedBackground = component
-        if (component != null) {
-            component.parent = this as Container
-            component.onAttached()
+
+        when (old) {
+            is Background.Component -> {
+                old.component.parent = null
+                old.component.onDetached()
+            }
+            is Background.Blur -> {
+                old.owner = null
+                old.capture.release()
+            }
+            else -> Unit
+        }
+        attachedBackground = attached
+        when (attached) {
+            is Background.Component -> {
+                attached.component.parent = this as Container
+                attached.component.onAttached()
+            }
+            is Background.Blur -> attached.owner = this
+            else -> Unit
         }
         invalidateMeasure()
     }
@@ -693,7 +712,7 @@ abstract class Component {
     fun restyle() {
         val apply = { component: Component ->
             component.applyThemeBindings()
-            component.attachedBackground?.restyle()
+            component.backgroundComponent?.restyle()
             Unit
         }
         if (this is Container) propagate(apply) else apply(this)
@@ -707,7 +726,7 @@ abstract class Component {
         val apply = { component: Component ->
             component.applyThemeBindings()
             component.onThemeChanged()
-            component.attachedBackground?.applyTheme()
+            component.backgroundComponent?.applyTheme()
             Unit
         }
         if (this is Container) propagate(apply) else apply(this)
@@ -814,6 +833,9 @@ abstract class Component {
             if (field == value) return
             field?.onChildDetached(this)
             field = value
+
+            // A capture of the window takes a few megabytes, it isn't kept out of the tree.
+            if (value == null) (attachedBackground as? Background.Blur)?.capture?.release()
             field?.onChildAttached(this)
 
             // Themed values are resolved on construction, before the component has a parent. If
@@ -942,7 +964,7 @@ abstract class Component {
 
     // Lays the component of the background out over the whole component, not only inside its padding.
     private fun layoutBackgroundComponent() {
-        val component = attachedBackground ?: return
+        val component = backgroundComponent ?: return
         val width = bounds.width
         val height = bounds.height
 
@@ -1016,8 +1038,16 @@ abstract class Component {
         val background = background
         val border = border
 
-        // A color is drawn with the border, a texture under it.
-        val fill = if (background is Background.Color) background.color else Color4.Transparent
+        // A color is drawn with the border, a texture, a component or a blur under it.
+        val fill = when (background) {
+            is Background.Color -> background.color
+            is Background.Blur -> background.color
+            else -> Color4.Transparent
+        }
+
+        if (background is Background.Blur && background.radius.value > 0f) {
+            background.draw(renderer, this, localToSceneMatrix, radius)
+        }
 
         if (background is Background.Texture && background.isVisible) {
             drawTextureBackground(renderer, background, radius)
@@ -1195,7 +1225,7 @@ abstract class Component {
         updateInteractionState()
         transforms?.update(this, clock.elapsedFrameTime)
         choreography?.update(currentClockTime)
-        attachedBackground?.update(clock)
+        backgroundComponent?.update(clock)
         onUpdate(clock)
     }
 

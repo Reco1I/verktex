@@ -1,66 +1,35 @@
-package com.reco1l.verktex.ui.container
+package com.reco1l.verktex.ui
 
 import kotlin.concurrent.Volatile
 import com.reco1l.verktex.BuiltIn
 import com.reco1l.verktex.Verktex
 import com.reco1l.verktex.data.Color4
-import com.reco1l.verktex.data.Dimension
+import com.reco1l.verktex.data.CornerRadius
+import com.reco1l.verktex.data.Mat2
 import com.reco1l.verktex.data.Vec2
 import com.reco1l.verktex.data.Vec4
-import com.reco1l.verktex.data.coverParentPadding
-import com.reco1l.verktex.data.extendIntoSafeArea
-import com.reco1l.verktex.data.fill
-import com.reco1l.verktex.data.px
 import com.reco1l.verktex.graphics.BlendMode
 import com.reco1l.verktex.graphics.FramebufferOrigin
-import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.graphics.GPUResource
+import com.reco1l.verktex.graphics.Renderer
 import com.reco1l.verktex.graphics.Shader
 import com.reco1l.verktex.graphics.Texture
-import com.reco1l.verktex.input.InputEvent
-import com.reco1l.verktex.input.HoverEvent
-import com.reco1l.verktex.input.PointerEvent
-import com.reco1l.verktex.input.ScrollEvent
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-
-fun Container.captureContainer(block: CaptureContainer.() -> Unit): CaptureContainer {
-    return CaptureContainer().apply(block).also(::plusAssign)
-}
-
 /**
- * An overlay that captures what is drawn behind it, the scene and the overlays below it, and
- * shows that capture instead of drawing them again, until [invalidateCapture] is called. Meant for
- * overlays covering most of the screen, such as menus, which make what is behind them not worth
- * drawing every frame.
+ * The capture of what is behind a component with a [com.reco1l.verktex.data.Background.Blur], blurred,
+ * which the background draws. It belongs to the blur, and so to a single component at a time.
  *
- * What is behind keeps being updated, only its drawing is skipped. Changes to it are seen once the
- * capture is invalidated, or once this container is removed.
- *
- * It only skips drawing as a direct overlay, see [Verktex.addOverlay]. Anywhere else it is a plain
- * container, unless it blurs: what is behind it is still drawn then, and the blurred capture is drawn
- * over it within its bounds. It is captured again when its bounds in the window change.
- *
- * Its padding covers its parent's ([com.reco1l.verktex.data.Padding.coverParentPadding]), e.g. the
- * safe area, so a blurred capture reaches the edges, while its children keep out of the safe area
- * ([com.reco1l.verktex.data.Padding.extendIntoSafeArea]). A padding given to it keeps both
- * (`Padding(…).coverParentPadding().extendIntoSafeArea()`).
- *
- * The capture can be blurred, see [blurRadius]. The blur is applied once when capturing, so showing
- * it costs the same as showing the plain capture. Its own background is drawn before the capture,
- * a tint over the blur must be the background of a child.
+ * Everything behind the component was drawn when its background is, so it is captured then, from the
+ * framebuffer, and blurred by drawing it over the window with the blur shader and capturing it again.
+ * Over a component that isn't the whole window the passes are clipped to its shape, so what is around
+ * it stays as it was.
  */
-open class CaptureContainer : Container() {
-
-    init {
-        width = fill()
-        height = fill()
-        padding = coverParentPadding().extendIntoSafeArea()
-    }
+internal class BlurCapture {
 
     /**
-     * Whether what is behind is shown from the capture instead of being drawn.
+     * Whether the capture is current, it isn't taken again until [invalidate] is called.
      */
     val isShowingCapture: Boolean
         get() {
@@ -72,23 +41,11 @@ open class CaptureContainer : Container() {
                 && texture.height.toInt() == Verktex.graphics.window.windowHeight
         }
 
-
     /**
-     * How much what is behind is blurred, roughly the standard deviation of a Gaussian blur. Zero to
-     * not blur it.
+     * Whether the capture was taken for the whole window, as an overlay covering it.
      */
-    var blurRadius: Dimension.Fixed = 0f.px
-        set(value) {
-            if (field == value) return
-            field = value
-            invalidateCapture()
-        }
-
-    /**
-     * Whether presses and scrolls that no child handled are consumed, so they don't reach what is
-     * behind, which is covered.
-     */
-    var isBlockingInput = true
+    val coversWindow: Boolean
+        get() = coversWindow(capturedSceneRect)
 
 
     @Volatile
@@ -97,66 +54,61 @@ open class CaptureContainer : Container() {
     private var texture: Texture? = null
     private var region: Texture.Region? = null
 
-
-    /**
-     * Draws what is behind again in the next frame and captures it, e.g. after it changed.
-     */
-    fun invalidateCapture() {
-        isCaptured = false
-    }
-
-
-    override fun onDraw(renderer: Renderer) {
-        val isOverlayRoot = Verktex.isOverlayRoot(this)
-        val isBlurring = blurRadius.value > 0f
-
-        if (isOverlayRoot || isBlurring) {
-            updateSceneRect()
-
-            // Everything behind was drawn this frame, it is captured before drawing the content.
-            if (!isShowingCapture) {
-                val texture = ensureTexture()
-                renderer.captureFramebuffer(texture)
-
-                if (isBlurring) {
-                    // Elsewhere what is outside this container stays as it is, the blur is kept within it.
-                    if (!isOverlayRoot) renderer.pushScissor(0f, 0f, bounds.width, bounds.height)
-                    blur(renderer, texture)
-                    if (!isOverlayRoot) renderer.popScissor()
-                }
-                isCaptured = true
-            }
-
-            if (!isOverlayRoot && isShowingCapture) {
-                drawBackdrop(renderer)
-            }
-        }
-
-        super.onDraw(renderer)
-    }
-
     // The bounds in the window the capture was taken for, as left, top, right and bottom.
     private val capturedSceneRect = FloatArray(4)
     private val sceneRect = FloatArray(4)
 
-    private fun updateSceneRect() {
-        localToSceneMatrix.transform(0f, 0f, sceneRect, 0)
-        localToSceneMatrix.transform(bounds.width, bounds.height, sceneRect, 2)
 
-        if (!sceneRect.contentEquals(capturedSceneRect)) {
-            sceneRect.copyInto(capturedSceneRect)
-            isCaptured = false
-        }
+    fun invalidate() {
+        isCaptured = false
     }
 
     /**
-     * Draws the part of the capture behind this container over it.
+     * Captures what was drawn behind [component], placed in the window by [localToScene], unless the
+     * capture is current, blurs it by [radius] pixels and draws the part of it behind the component,
+     * rounded by [radii].
+     *
+     * As an overlay covering the whole window nothing is drawn: the blurred capture is left over the
+     * window, and it stands for what is behind in the next frames, see [drawCapture].
      */
-    private fun drawBackdrop(renderer: Renderer) {
+    fun draw(renderer: Renderer, component: Component, localToScene: Mat2, radius: Float, isStatic: Boolean, radii: CornerRadius) {
+        val bounds = component.bounds
+
+        localToScene.transform(0f, 0f, sceneRect, 0)
+        localToScene.transform(bounds.width, bounds.height, sceneRect, 2)
+
+        if (!isStatic || !sceneRect.contentEquals(capturedSceneRect)) {
+            sceneRect.copyInto(capturedSceneRect)
+            isCaptured = false
+        }
+
+        val isWindow = Verktex.isOverlayRoot(component) && coversWindow(sceneRect)
+
+        val topLeft = radii.topLeft.toPixels()
+        val topRight = radii.topRight.toPixels()
+        val bottomRight = radii.bottomRight.toPixels()
+        val bottomLeft = radii.bottomLeft.toPixels()
+
+        if (!isShowingCapture) {
+            val texture = ensureTexture()
+            renderer.captureFramebuffer(texture)
+
+            if (radius > 0f) {
+                // What is outside the component stays as it is, the blur is kept within its shape.
+                if (!isWindow) renderer.pushClip(0f, 0f, bounds.width, bounds.height, Vec4(topLeft, topRight, bottomRight, bottomLeft))
+                blur(renderer, texture, radius, if (isWindow) BlendMode.Opaque else BlendMode.Alpha)
+                if (!isWindow) renderer.popClip()
+            }
+            isCaptured = true
+        }
+
+        if (isWindow) {
+            return
+        }
+
         val texture = texture ?: return
         val region = region ?: return
 
-        renderer.pushBlendMode(BlendMode.Opaque)
         renderer.drawTexture(
             texture = texture,
             region = region,
@@ -169,15 +121,22 @@ open class CaptureContainer : Container() {
                 renderer.captureV(sceneRect[1] / texture.height),
                 sceneRect[2] / texture.width,
                 renderer.captureV(sceneRect[3] / texture.height)
-            )
+            ),
+            radiusTopLeft = topLeft,
+            radiusTopRight = topRight,
+            radiusBottomRight = bottomRight,
+            radiusBottomLeft = bottomLeft,
+            maskX = 0f,
+            maskY = 0f,
+            maskWidth = bounds.width,
+            maskHeight = bounds.height
         )
-        renderer.popBlendMode()
     }
 
     /**
      * Draws the capture over the whole window, in place of what is behind.
      */
-    internal fun drawCapture(renderer: Renderer) {
+    fun drawCapture(renderer: Renderer) {
         val texture = texture ?: return
         val region = region ?: return
 
@@ -196,12 +155,33 @@ open class CaptureContainer : Container() {
     }
 
     /**
+     * Frees the capture, it isn't kept while its component is out of the tree: a capture of the
+     * window takes a few megabytes.
+     */
+    fun release() {
+        isCaptured = false
+
+        val texture = texture ?: return
+        this.texture = null
+        region = null
+
+        Verktex.scheduleOnDraw {
+            texture.dispose()
+            Verktex.graphics.unregisterResource(texture)
+        }
+    }
+
+    private fun coversWindow(rect: FloatArray): Boolean {
+        val window = Verktex.graphics.window
+        return rect[0] <= 0f && rect[1] <= 0f && rect[2] >= window.windowWidth && rect[3] >= window.windowHeight
+    }
+
+    /**
      * Blurs the captured [texture] by drawing it over the window with the blur shader and capturing
      * it again, one axis at a time. Each pass doubles the spacing of the taps of the last one, so a
      * large radius takes a few passes instead of many taps.
      */
-    private fun blur(renderer: Renderer, texture: Texture) {
-        val radius = blurRadius.toPixels()
+    private fun blur(renderer: Renderer, texture: Texture, radius: Float, blendMode: BlendMode) {
 
         // A pass has a deviation of two steps, the variances of all passes add up to the radius.
         // Steps longer than 1.5 pixels skip over details in the first pass, more passes are used then.
@@ -212,7 +192,7 @@ open class CaptureContainer : Container() {
 
         var step = firstStep(passes)
 
-        renderer.pushBlendMode(BlendMode.Opaque)
+        renderer.pushBlendMode(blendMode)
         repeat(passes) {
             drawBlurPass(renderer, texture, Vec2(step / texture.width, 0f))
             renderer.captureFramebuffer(texture)
@@ -236,7 +216,7 @@ open class CaptureContainer : Container() {
         val top = captureV(0f)
         val bottom = captureV(1f)
 
-        // The window.
+        // The window, whatever the transformation of the component.
         drawGeometry { _, _ ->
             addVertex(0f, 0f, 0f, top, Color4.White)
             addVertex(width, 0f, 1f, top, Color4.White)
@@ -251,15 +231,6 @@ open class CaptureContainer : Container() {
     // The v of the capture for a v going down the window, the capture is upside down when the
     // framebuffer starts at the bottom.
     private fun Renderer.captureV(v: Float) = if (framebufferOrigin == FramebufferOrigin.BottomLeft) 1f - v else v
-
-    override fun onInputEvent(event: InputEvent): Boolean {
-        if (super.onInputEvent(event)) {
-            return true
-        }
-
-        // Only presses, a pointer pressed before this was shown must still be released behind.
-        return isBlockingInput && (event is PointerEvent && event.action == PointerEvent.Action.Down || event is ScrollEvent || event is HoverEvent)
-    }
 
     private fun ensureTexture(): Texture {
         val width = Verktex.graphics.window.windowWidth.toFloat()
@@ -281,21 +252,6 @@ open class CaptureContainer : Container() {
         this.texture = texture
         region = Texture.Region(texture, CaptureSource(width, height), 0f, 0f, width, height)
         return texture
-    }
-
-    override fun onDetached() {
-        super.onDetached()
-        isCaptured = false
-
-        val texture = texture ?: return
-        this.texture = null
-        region = null
-
-        // It isn't kept while hidden, a capture of the window takes a few megabytes.
-        Verktex.scheduleOnDraw {
-            texture.dispose()
-            Verktex.graphics.unregisterResource(texture)
-        }
     }
 
 

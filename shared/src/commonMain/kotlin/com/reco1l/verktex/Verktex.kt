@@ -4,7 +4,6 @@ import kotlin.jvm.JvmStatic
 import kotlin.time.Duration.Companion.seconds
 import com.reco1l.verktex.time.monotonicNanos
 import com.reco1l.verktex.ui.Component
-import com.reco1l.verktex.ui.container.CaptureContainer
 import kotlinx.atomicfu.locks.withLock
 import com.reco1l.verktex.audio.AudioDriver
 import com.reco1l.verktex.data.Background
@@ -161,7 +160,7 @@ object Verktex {
     private val overlayContainer = object : Scene() {
 
         // The overlays behind the topmost one showing a capture are part of the capture.
-        override fun firstDrawnChildIndex() = topmostCapture()?.let { children.indexOf(it) } ?: 0
+        override fun firstDrawnChildIndex() = topmostCapture()?.owner?.let { children.indexOf(it) } ?: 0
     }
 
     // Above the overlays, so the performance overlay stays visible over modals and dialogs.
@@ -253,7 +252,7 @@ object Verktex {
             // overlays below it, those aren't drawn.
             val capture = topmostCapture()
             if (capture != null) {
-                capture.drawCapture(graphics)
+                capture.capture.drawCapture(graphics)
             } else {
                 backgroundContainer.draw(graphics)
                 rootScene.draw(graphics)
@@ -566,11 +565,15 @@ object Verktex {
         get() = backgroundContainer.background
         set(value) = treeLock.withLock { backgroundContainer.background = value }
 
-    private fun topmostCapture(): CaptureContainer? {
+    // The static blur of the topmost overlay covering the window with its capture shown, see Background.Blur.
+    private fun topmostCapture(): Background.Blur? {
         for (index in overlayContainer.childCount - 1 downTo 0) {
             val overlay = overlayContainer[index]
-            if (overlay is CaptureContainer && overlay.isVisible && overlay.isShowingCapture) {
-                return overlay
+            val blur = overlay.background as? Background.Blur ?: continue
+
+            if (overlay.isVisible && blur.static && blur.radius.value > 0f
+                && blur.capture.isShowingCapture && blur.capture.coversWindow) {
+                return blur
             }
         }
         return null

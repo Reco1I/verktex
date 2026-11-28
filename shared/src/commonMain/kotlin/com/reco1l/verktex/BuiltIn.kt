@@ -41,7 +41,7 @@ object BuiltIn {
         lateinit var Video: Shader
 
         /**
-         * A shader blurring a texture along one axis, see [com.reco1l.verktex.ui.container.CaptureContainer.blurRadius].
+         * A shader blurring a texture along one axis, see [com.reco1l.verktex.data.Background.Blur].
          */
         lateinit var Blur: Shader
 

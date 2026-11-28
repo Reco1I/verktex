@@ -170,7 +170,26 @@ open class Container : Component(), MutableIterable<Component> {
 
     //region Input
 
+    /**
+     * Whether the input that reaches this container and that no child took is consumed, so that it
+     * doesn't reach what is behind: presses, hovers (which hover nothing then, unless this is
+     * hoverable) and wheel scrolls. A scroll is only consumed without a [ScrollableContainer] among
+     * the ancestors, which still scroll under it, e.g. a list of buttons. Other pointer events are
+     * left alone, a pointer pressed elsewhere must still be released there.
+     *
+     * Off by default, on for [ClickableContainer]s. An overlay covering what is behind turns it on.
+     */
+    open var isInterceptingInput = false
+
     override fun onInputEvent(event: InputEvent): Boolean {
+        return dispatchToChildren(event) || interceptInput(event)
+    }
+
+    /**
+     * Gives the event to the children, topmost first, then claims it as a hover when this is
+     * hoverable. What [onInputEvent] does before [interceptInput].
+     */
+    protected fun dispatchToChildren(event: InputEvent): Boolean {
         // Topmost children (drawn last) get the event first.
         for (child in children.asReversed()) {
 
@@ -201,6 +220,31 @@ open class Container : Component(), MutableIterable<Component> {
             }
         }
         return claimHover(event)
+    }
+
+    /**
+     * Consumes the event if this [isInterceptingInput] and it's one that is intercepted.
+     */
+    protected fun interceptInput(event: InputEvent): Boolean {
+        if (!isInterceptingInput) {
+            return false
+        }
+
+        return when (event) {
+            is PointerEvent -> event.action == PointerEvent.Action.Down
+            is HoverEvent -> true
+            is ScrollEvent -> !hasScrollableAncestor()
+            else -> false
+        }
+    }
+
+    private fun hasScrollableAncestor(): Boolean {
+        var current = parent
+        while (current != null) {
+            if (current is ScrollableContainer) return true
+            current = current.parent
+        }
+        return false
     }
 
     //endregion

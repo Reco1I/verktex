@@ -168,7 +168,7 @@ hovered, and so is every ancestor that contains it. Siblings underneath aren't h
    components:
    - a shown `Modal`, within its bounds;
    - the menu of an expanded `Dropdown`;
-   - a `CaptureContainer` that `isBlockingInput`.
+   - a `Container` that `isInterceptingInput`, as clickables are by default.
 
 `isHoverable` is true for:
 
